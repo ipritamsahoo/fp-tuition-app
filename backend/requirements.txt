@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+firebase-admin
+python-multipart
+httpx
+python-dotenv
+aiofiles
+fpdf2
+cloudinary

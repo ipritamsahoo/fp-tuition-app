@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+.firebase
+.firebaserc
+.firebase.json
+.env.production
+.firebase/hosting.ZGlzdA.cache
