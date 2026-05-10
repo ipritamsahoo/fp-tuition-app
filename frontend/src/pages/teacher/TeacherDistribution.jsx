@@ -3,7 +3,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import TeacherLayout from "@/components/TeacherLayout";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
@@ -62,11 +62,7 @@ function InitialAvatar({ name, size = 36, className = "" }) {
 
 function TeacherDistributionContent() {
     const { user } = useAuth();
-    const now = new Date();
-    
-    // Attempt cache restoration based on default filters
-    const defaultMonth = now.getMonth() + 1;
-    const defaultYear = now.getFullYear();
+    const { month: defaultMonth, year: defaultYear } = getPreviousMonth();
     const [month, setMonth] = useState(defaultMonth);
     const [year, setYear] = useState(defaultYear);
     

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
@@ -13,12 +13,11 @@ const MONTHS = [
 ];
 
 function FeeOverrideContent() {
-    const now = new Date();
-    
-    // We already have "admin_approval_batches" or "admin_batches", 
-    // but just in case, we will use a separate key or share one. Let's use "admin_fee_override_batches" and "admin_fee_override_students".
+    const { month: prevMonth, year: prevYear } = getPreviousMonth();
+    const yearOptions = getYearOptions();
+
     const [filterBatch, setFilterBatch] = useState("");
-    
+
     const cacheKeyStudents = `admin_fee_override_students_${filterBatch}`;
     const cacheKeyBatches = "admin_fee_override_batches";
     const cachedStudents = getCache(cacheKeyStudents);
@@ -35,10 +34,9 @@ function FeeOverrideContent() {
     const [studentId, setStudentId] = useState("");
     const [mode, setMode] = useState("all-time");
     const [amount, setAmount] = useState("");
-    const [month, setMonth] = useState(now.getMonth() + 1);
-    const [year, setYear] = useState(now.getFullYear());
+    const [month, setMonth] = useState(prevMonth);
+    const [year, setYear] = useState(prevYear);
 
-    const yearOptions = getYearOptions();
 
     const fetchStudents = useCallback(async () => {
         const cKeyStudents = `admin_fee_override_students_${filterBatch}`;
@@ -116,8 +114,8 @@ function FeeOverrideContent() {
         setStudentId("");
         setMode("all-time");
         setAmount("");
-        setMonth(now.getMonth() + 1);
-        setYear(now.getFullYear());
+        setMonth(prevMonth);
+        setYear(prevYear);
         setError("");
         setSuccess("");
     };

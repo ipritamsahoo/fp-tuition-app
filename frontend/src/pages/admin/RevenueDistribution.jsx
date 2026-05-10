@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
@@ -13,9 +13,7 @@ const MONTHS = [
 ];
 
 function DistributionContent() {
-    const now = new Date();
-    const defaultMonth = now.getMonth() + 1;
-    const defaultYear = now.getFullYear();
+    const { month: defaultMonth, year: defaultYear } = getPreviousMonth();
 
     const [month, setMonth] = useState(defaultMonth);
     const [year, setYear] = useState(defaultYear);

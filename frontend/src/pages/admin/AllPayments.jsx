@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
@@ -23,15 +23,15 @@ const MONTHS = [
 ];
 
 function PaymentsContent() {
-    const now = new Date();
-
     const cacheKeyBatches = "admin_all_batches";
     const cachedBatches = getCache(cacheKeyBatches);
 
+    const { month: prevMonth, year: prevYear } = getPreviousMonth();
+
     const [batches, setBatches] = useState(cachedBatches || []);
     const [filterBatch, setFilterBatch] = useState("");
-    const [filterYear,  setFilterYear]  = useState(now.getFullYear());
-    const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
+    const [filterYear,  setFilterYear]  = useState(prevYear);
+    const [filterMonth, setFilterMonth] = useState(prevMonth);
 
     const [payments,   setPayments]  = useState([]);
     const [loading,    setLoading]   = useState(false);

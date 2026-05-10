@@ -8,7 +8,7 @@ import CachedAvatar from "@/components/CachedAvatar";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ModernSelect from "@/components/ModernSelect";
 import { TeacherDashboardSkeleton } from "@/components/Skeletons";
@@ -81,8 +81,9 @@ let GLOBAL_FETCHING_BATCHES = false;
 function TeacherDashboardContent() {
     const { user } = useAuth();
     
-    const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
-    const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+    const { month: prevMonth, year: prevYear } = getPreviousMonth();
+    const [filterMonth, setFilterMonth] = useState(prevMonth);
+    const [filterYear, setFilterYear] = useState(prevYear);
 
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");

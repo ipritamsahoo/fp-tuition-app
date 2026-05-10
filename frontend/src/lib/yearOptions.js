@@ -13,3 +13,17 @@ export function getYearOptions() {
     }
     return years;
 }
+
+/**
+ * Returns { month, year } for the previous month.
+ * Handles the January → December (prev year) edge case.
+ * month is 1-indexed (1 = January, 12 = December).
+ */
+export function getPreviousMonth() {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1–12
+    if (currentMonth === 1) {
+        return { month: 12, year: now.getFullYear() - 1 };
+    }
+    return { month: currentMonth - 1, year: now.getFullYear() };
+}

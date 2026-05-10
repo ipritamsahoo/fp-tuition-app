@@ -3,7 +3,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import UserDevicesModal from "@/components/UserDevicesModal";
 import { api, isSystemicError } from "@/lib/api";
-import { getYearOptions } from "@/lib/yearOptions";
+import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
@@ -47,8 +47,9 @@ function StudentsContent() {
     const [overrideStudent, setOverrideStudent] = useState(null);
     const [overrideType, setOverrideType] = useState("permanent");
     const [overrideAmount, setOverrideAmount] = useState("");
-    const [overrideMonth, setOverrideMonth] = useState(new Date().getMonth() + 1);
-    const [overrideYear, setOverrideYear] = useState(new Date().getFullYear());
+    const { month: prevMonth, year: prevYear } = getPreviousMonth();
+    const [overrideMonth, setOverrideMonth] = useState(prevMonth);
+    const [overrideYear, setOverrideYear] = useState(prevYear);
     const [overrideLoading, setOverrideLoading] = useState(false);
 
     // ── Status-toggle modal ──────────────────────────────────────────────
