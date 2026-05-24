@@ -7,3 +7,6 @@ python-dotenv
 aiofiles
 fpdf2
 cloudinary
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib

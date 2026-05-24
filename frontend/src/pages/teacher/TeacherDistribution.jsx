@@ -354,7 +354,7 @@ function TeacherDistributionContent() {
                                 </div>
                             ) : (
                                 <GlassCard className="p-12 text-center flex flex-col items-center">
-                                    <span className="material-symbols-outlined text-[64px] text-[#464752] mb-4">payments</span>
+                                    <span className="material-symbols-outlined text-[64px] text-[#464752] mb-4">account_tree</span>
                                     <p className="text-[#f0f0fd] font-bold text-xl mb-1">No earnings in {MONTHS[month - 1]} {year}</p>
                                     <p className="text-[#aaaab7] text-sm">Earnings will appear once payments are approved.</p>
                                 </GlassCard>

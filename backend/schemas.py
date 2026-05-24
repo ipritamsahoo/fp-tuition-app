@@ -126,3 +126,17 @@ class SessionRegisterRequest(BaseModel):
 
 class EmergencyReset(BaseModel):
     master_key: str
+
+
+class NoteResponse(BaseModel):
+    id: str
+    title: str
+    batch_id: str
+    batch_name: str
+    file_name: str
+    file_url: str
+    file_id: str
+    uploaded_by: str
+    uploaded_by_name: str
+    created_at: str
+

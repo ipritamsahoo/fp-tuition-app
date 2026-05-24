@@ -18,6 +18,7 @@ from schemas import (
 from dependencies import get_current_user, require_role
 from utils import ts_now
 from firebase_admin import auth as firebase_auth
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -200,7 +201,7 @@ def register_fcm_token(body: FCMTokenBody, user=Depends(get_current_user)):
     
     # 1. Remove this token from ANY other user to prevent cross-account notifications
     # on shared devices.
-    other_users = db.collection("users").where("fcm_tokens", "array_contains", body.token).stream()
+    other_users = db.collection("users").where(filter=FieldFilter("fcm_tokens", "array_contains", body.token)).stream()
     for u in other_users:
         if u.id != uid:
             existing = u.to_dict().get("fcm_tokens") or []

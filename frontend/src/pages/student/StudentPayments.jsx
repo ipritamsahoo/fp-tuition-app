@@ -9,9 +9,52 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { generateReceiptPDF } from "@/lib/pdfUtils";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function StudentPaymentsSkeleton() {
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+    const bgStyle = { backgroundColor: isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.05)" };
+    const pulseBg = { backgroundColor: isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.08)" };
+
+    const cardStyles = [
+        { title: "w-20", amount: "w-16" },
+        { title: "w-24", amount: "w-14" },
+        { title: "w-22", amount: "w-16" },
+    ];
+
+    return (
+        <div className="space-y-6 animate-pulse">
+            {/* Header */}
+            <div className="mb-8">
+                <div className="h-9 w-32 rounded-lg" style={pulseBg} />
+            </div>
+
+            {/* List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cardStyles.map((style, i) => (
+                    <div key={i} className="glass-card-student p-4 rounded-2xl flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                            {/* Left side: Billing cycle info */}
+                            <div className="space-y-1">
+                                <div className="h-3 w-16 rounded" style={bgStyle} />
+                                <div className={`h-6 rounded-md ${style.title}`} style={pulseBg} />
+                            </div>
+                            {/* Right side: Amount and Status */}
+                            <div className="flex flex-col items-end gap-1.5">
+                                <div className={`h-7 rounded-md ${style.amount}`} style={pulseBg} />
+                                <div className="h-5 w-12 rounded-full" style={bgStyle} />
+                            </div>
+                        </div>
+                        {/* Button placeholder */}
+                        <div className="h-8 w-full rounded-xl" style={bgStyle} />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function isMobile() {
     if (typeof navigator === "undefined") return false;
@@ -280,6 +323,22 @@ function StudentPaymentsContent() {
     const [success, setSuccess] = useState("");
     const [previewImg, setPreviewImg] = useState(null);
 
+    // Pagination State — History shows only Paid bills
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 4;
+    const paidPayments = payments.filter(p => p.status === "Paid");
+    const totalPages = Math.max(1, Math.ceil(paidPayments.length / itemsPerPage));
+    const activePage = Math.min(currentPage, totalPages);
+    const currentPayments = paidPayments.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [paidPayments.length]);
+
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, [activePage]);
+
     // Pay Now modal
     const [payModalPayment, setPayModalPayment] = useState(null);
     const [payModalUpi, setPayModalUpi] = useState(null);
@@ -359,11 +418,7 @@ function StudentPaymentsContent() {
     };
 
     if (loading) {
-        return (
-            <div className="px-4">
-                <GenericListSkeleton />
-            </div>
-        );
+        return <StudentPaymentsSkeleton />;
     }
 
     return (
@@ -398,26 +453,26 @@ function StudentPaymentsContent() {
             )}
 
                 {/* Payment List */}
-            <div className="space-y-4" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
-                {payments.filter(p => p.status === "Paid").map((p, idx) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                {currentPayments.map((p, idx) => (
                     <div key={p.id} className="relative group" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
                         {/* Subtle glow behind card */}
                         <div
-                            className="absolute inset-0 blur-sm rounded-3xl -z-10 transition-all"
+                            className="absolute inset-0 blur-sm rounded-2xl -z-10 transition-all"
                             style={{ backgroundColor: isLight ? 'rgba(0,0,0,0.01)' : 'rgba(255,255,255,0.03)' }}
                         />
 
-                        <div className="glass-card-student p-6 rounded-3xl flex flex-col gap-4" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+                        <div className="glass-card-student p-4 rounded-2xl flex flex-col gap-3" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
                             {/* Top row: Billing info + Amount + Status */}
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
-                                    <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--st-text-secondary)' }}>Billing Cycle</span>
-                                    <h3 className="text-xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                                    <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--st-text-secondary)' }}>Billing Cycle</span>
+                                    <h3 className="text-lg font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                                         {MONTHS[p.month - 1]} {p.year}
                                     </h3>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <span className="text-2xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                                <div className="flex flex-col items-end gap-1.5">
+                                    <span className="text-xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                                         ₹{p.amount}
                                     </span>
                                     <StatusBadge status={p.status} />
@@ -428,7 +483,7 @@ function StudentPaymentsContent() {
                             {p.status === "Paid" && (
                                 <button
                                     onClick={() => generateReceiptPDF(p, user)}
-                                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-full backdrop-blur-xl transition-colors active:scale-[0.98] cursor-pointer"
+                                    className="flex items-center justify-center gap-1.5 w-full py-2 px-4 rounded-xl backdrop-blur-xl transition-colors active:scale-[0.98] cursor-pointer"
                                     style={{
                                         backgroundColor: 'var(--st-icon-bg)',
                                         border: `1px solid var(--st-input-border)`,
@@ -436,39 +491,39 @@ function StudentPaymentsContent() {
                                         transform: "translateZ(0)", isolation: "isolate"
                                     }}
                                 >
-                                    <span className="material-symbols-outlined text-[20px]">description</span>
-                                    <span className="text-sm font-semibold">Download Receipt</span>
+                                    <span className="material-symbols-outlined text-[18px]">description</span>
+                                    <span className="text-xs font-semibold">Download Receipt</span>
                                 </button>
                             )}
 
                             {p.status === "Unpaid" && (
                                 <button
                                     onClick={() => openPayModal(p)}
-                                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-full bg-[#3b82f6] text-white font-bold text-sm shadow-[0_4px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-transform cursor-pointer"
+                                    className="flex items-center justify-center gap-1.5 w-full py-2 px-4 rounded-xl bg-[#3b82f6] text-white font-bold text-xs shadow-[0_4px_12px_rgba(59,130,246,0.3)] active:scale-95 transition-transform cursor-pointer"
                                 >
-                                    <span className="material-symbols-outlined text-[20px]">credit_card</span>
+                                    <span className="material-symbols-outlined text-[18px]">credit_card</span>
                                     Pay Now — ₹{p.amount}
                                 </button>
                             )}
 
                             {p.status === "Pending_Verification" && (
                                 <div
-                                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-full backdrop-blur-md"
+                                    className="flex items-center justify-center gap-1.5 w-full py-2 px-4 rounded-xl backdrop-blur-md"
                                     style={{
                                         backgroundColor: 'var(--st-blue-bg)',
                                         border: `1px solid ${isLight ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.2)'}`,
                                         transform: "translateZ(0)", isolation: "isolate"
                                     }}
                                 >
-                                    <span className="material-symbols-outlined text-[20px] text-[#3b82f6]" style={{ fontVariationSettings: "'FILL' 1" }}>hourglass_top</span>
-                                    <span className="text-sm font-semibold text-[#3b82f6]">Verification Pending</span>
+                                    <span className="material-symbols-outlined text-[18px] text-[#3b82f6]" style={{ fontVariationSettings: "'FILL' 1" }}>hourglass_top</span>
+                                    <span className="text-xs font-semibold text-[#3b82f6]">Verification Pending</span>
                                     {p.screenshot_url && (
                                         <button
                                             onClick={() => setPreviewImg(p.screenshot_url)}
-                                            className="ml-auto transition-colors cursor-pointer"
+                                            className="ml-auto transition-colors cursor-pointer flex items-center justify-center"
                                             style={{ color: 'var(--st-text-secondary)' }}
                                         >
-                                            <span className="material-symbols-outlined text-lg">visibility</span>
+                                            <span className="material-symbols-outlined text-base">visibility</span>
                                         </button>
                                     )}
                                 </div>
@@ -477,17 +532,100 @@ function StudentPaymentsContent() {
                     </div>
                 ))}
 
-                {payments.length === 0 && (
-                    <div className="glass-card-student rounded-[32px] p-8 text-center">
-                        <span className="material-symbols-outlined text-5xl mb-3 block" style={{ color: 'var(--st-text-muted)' }}>receipt_long</span>
-                        <p className="text-lg font-medium" style={{ color: 'var(--st-text-secondary)' }}>No payment records yet</p>
-                        <p className="text-sm mt-1" style={{ color: 'var(--st-text-muted)' }}>Your payment history will appear here</p>
+                {paidPayments.length === 0 && (
+                    <div className="p-16 flex flex-col items-center justify-center text-center gap-4 md:col-span-2">
+                        <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--st-text-muted)' }}>receipt_long</span>
+                        <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                            No payment history yet
+                        </h3>
+                        <p className="text-sm max-w-xs" style={{ color: 'var(--st-text-muted)' }}>
+                            Completed payments will appear here once verified
+                        </p>
                     </div>
                 )}
             </div>
 
-            {/* Decorative dots at bottom */}
-            {payments.length > 0 && (
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8 pb-4" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={activePage === 1}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-[#3b82f6]/10"
+                        style={{
+                            backgroundColor: 'var(--st-icon-bg)',
+                            borderColor: 'var(--st-input-border)',
+                            color: 'var(--st-text-primary)'
+                        }}
+                    >
+                        <span className="material-symbols-outlined text-lg">chevron_left</span>
+                    </button>
+
+                    {(() => {
+                        const pages = [];
+                        const delta = 1;
+                        const left = activePage - delta;
+                        const right = activePage + delta;
+                        let lastPushed = 0;
+
+                        for (let p = 1; p <= totalPages; p++) {
+                            if (p === 1 || p === totalPages || (p >= left && p <= right)) {
+                                if (lastPushed && p - lastPushed > 1) {
+                                    pages.push('...' + p);
+                                }
+                                pages.push(p);
+                                lastPushed = p;
+                            }
+                        }
+
+                        return pages.map((item) => {
+                            if (typeof item === 'string') {
+                                return (
+                                    <span
+                                        key={item}
+                                        className="w-10 h-10 flex items-center justify-center text-sm font-bold"
+                                        style={{ color: 'var(--st-text-secondary)' }}
+                                    >
+                                        ···
+                                    </span>
+                                );
+                            }
+                            const isActive = activePage === item;
+                            return (
+                                <button
+                                    key={item}
+                                    onClick={() => setCurrentPage(item)}
+                                    className="w-10 h-10 rounded-xl font-bold text-sm transition-all cursor-pointer active:scale-95"
+                                    style={{
+                                        backgroundColor: isActive ? (isLight ? '#0d9488' : '#3b82f6') : 'var(--st-icon-bg)',
+                                        color: isActive ? '#ffffff' : 'var(--st-text-primary)',
+                                        border: isActive ? `1px solid ${isLight ? '#0d9488' : '#3b82f6'}` : '1px solid var(--st-input-border)',
+                                        boxShadow: isActive ? (isLight ? '0 4px 12px rgba(13,148,136,0.3)' : '0 4px 12px rgba(59,130,246,0.3)') : 'none'
+                                    }}
+                                >
+                                    {item}
+                                </button>
+                            );
+                        });
+                    })()}
+
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={activePage === totalPages}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-[#3b82f6]/10"
+                        style={{
+                            backgroundColor: 'var(--st-icon-bg)',
+                            borderColor: 'var(--st-input-border)',
+                            color: 'var(--st-text-primary)'
+                        }}
+                    >
+                        <span className="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                </div>
+            )}
+
+            {/* Decorative dots when there's only 1 page */}
+            {paidPayments.length > 0 && totalPages === 1 && (
                 <div className="py-6 flex justify-center opacity-30">
                     <div className="w-1 h-1 rounded-full mx-1" style={{ backgroundColor: 'var(--st-text-muted)' }} />
                     <div className="w-1 h-1 rounded-full mx-1" style={{ backgroundColor: 'var(--st-text-muted)' }} />

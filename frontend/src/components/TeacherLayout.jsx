@@ -23,8 +23,9 @@ const heavyInertia = (progress) => {
 };
 const teacherNav = [
     { label: "Dashboard", href: "/teacher", icon: "dashboard" },
-    { label: "Payments", href: "/teacher/payments", icon: "receipt_long" },
-    { label: "Distribution", href: "/teacher/distribution", icon: "payments" },
+    { label: "Payments", href: "/teacher/payments", icon: "payments" },
+    { label: "Distribution", href: "/teacher/distribution", icon: "account_tree" },
+    { label: "Notes", href: "/teacher/notes", icon: "edit_document" },
     { label: "Settings", href: "/teacher/settings", icon: "settings" },
 ];
 
@@ -83,6 +84,7 @@ export default function TeacherLayout({ children }) {
     const isSubPageMobile = pathname !== "/teacher" && 
                             pathname !== "/teacher/payments" &&
                             pathname !== "/teacher/distribution" && 
+                            pathname !== "/teacher/notes" &&
                             pathname !== "/teacher/settings";
 
     const getSubPageTitle = () => {

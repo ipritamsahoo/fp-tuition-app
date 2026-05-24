@@ -14,6 +14,7 @@ from schemas import OfflineRequest
 from dependencies import require_role
 from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_admins
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 router = APIRouter(prefix="/api/teacher", tags=["Teacher"])
 
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/api/teacher", tags=["Teacher"])
 def teacher_get_batches(user=Depends(require_role("teacher"))):
     """Get batches assigned to this teacher, with student counts."""
     batches = db.collection("batches") \
-        .where("teacher_ids", "array_contains", user["uid"]) \
+        .where(filter=FieldFilter("teacher_ids", "array_contains", user["uid"])) \
         .stream()
 
     result = []
@@ -137,11 +138,11 @@ def teacher_all_payments(
         raise HTTPException(status_code=403, detail="Not assigned to this batch")
 
     # Build query
-    query = db.collection("payments").where("batch_id", "==", batch_id)
+    query = db.collection("payments").where(filter=FieldFilter("batch_id", "==", batch_id))
     if month:
-        query = query.where("month", "==", month)
+        query = query.where(filter=FieldFilter("month", "==", month))
     if year:
-        query = query.where("year", "==", year)
+        query = query.where(filter=FieldFilter("year", "==", year))
 
     payments = query.stream()
     results = [serialize_doc(p) for p in payments]
@@ -292,7 +293,7 @@ def teacher_distribution(
 
     # 1. Find batches assigned to this teacher
     teacher_batches = db.collection("batches") \
-        .where("teacher_ids", "array_contains", uid) \
+        .where(filter=FieldFilter("teacher_ids", "array_contains", uid)) \
         .stream()
 
     batch_map = {}  # batch_id -> batch data
@@ -331,10 +332,10 @@ def teacher_distribution(
     for i in range(0, len(batch_ids), 10):
         chunk = batch_ids[i:i+10]
         payments = db.collection("payments") \
-            .where("status", "==", "Paid") \
-            .where("month", "==", month) \
-            .where("year", "==", year) \
-            .where("batch_id", "in", chunk) \
+            .where(filter=FieldFilter("status", "==", "Paid")) \
+            .where(filter=FieldFilter("month", "==", month)) \
+            .where(filter=FieldFilter("year", "==", year)) \
+            .where(filter=FieldFilter("batch_id", "in", chunk)) \
             .stream()
             
         for p in payments:
@@ -344,10 +345,10 @@ def teacher_distribution(
 
     # 3. Fetch settlement snapshots
     snapshot_query = db.collection("distribution_snapshots") \
-        .where("month", "==", month) \
-        .where("year", "==", year)
+        .where(filter=FieldFilter("month", "==", month)) \
+        .where(filter=FieldFilter("year", "==", year))
     if batch_id:
-        snapshot_query = snapshot_query.where("batch_id", "==", batch_id)
+        snapshot_query = snapshot_query.where(filter=FieldFilter("batch_id", "==", batch_id))
     else:
         # If no batch_id filter, we need to filter snapshots manually for the teacher's batches
         # Or we can just let it fetch all for the month and filter in Python

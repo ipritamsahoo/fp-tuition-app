@@ -27,6 +27,7 @@ from schemas import (
 from dependencies import require_role
 from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_users, notify_admins
+from gdrive import delete_folder_from_gdrive
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -39,11 +40,11 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 def admin_stats(user=Depends(require_role("admin"))):
     """Dashboard stats: total students, pending, monthly revenue."""
     # Count students
-    student_query = db.collection("users").where("role", "==", "student").count()
+    student_query = db.collection("users").where(filter=FieldFilter("role", "==", "student")).count()
     total_students = student_query.get()[0][0].value
 
     # Count teachers
-    teacher_query = db.collection("users").where("role", "==", "teacher").count()
+    teacher_query = db.collection("users").where(filter=FieldFilter("role", "==", "teacher")).count()
     total_teachers = teacher_query.get()[0][0].value
 
     # Count batches
@@ -51,7 +52,7 @@ def admin_stats(user=Depends(require_role("admin"))):
     total_batches = batch_query.get()[0][0].value
 
     # Count pending payments
-    pending_query = db.collection("payments").where("status", "==", "Pending_Verification").count()
+    pending_query = db.collection("payments").where(filter=FieldFilter("status", "==", "Pending_Verification")).count()
     total_pending = pending_query.get()[0][0].value
 
     return {
@@ -70,7 +71,7 @@ def admin_stats(user=Depends(require_role("admin"))):
 def admin_get_pending(user=Depends(require_role("admin"))):
     """Get all payments with Pending_Verification status."""
     payments = db.collection("payments") \
-        .where("status", "==", "Pending_Verification") \
+        .where(filter=FieldFilter("status", "==", "Pending_Verification")) \
         .stream()
 
     results = []
@@ -316,7 +317,7 @@ def admin_list_batches(user=Depends(require_role("admin"))):
     student_count is read directly from the denormalized field on the batch
     document — no extra query per batch."""
     # Pre-fetch all teacher names into a dictionary to avoid N+1 reads
-    teachers = db.collection("users").where("role", "==", "teacher").stream()
+    teachers = db.collection("users").where(filter=FieldFilter("role", "==", "teacher")).stream()
     teacher_map = {t.id: t.to_dict().get("name", t.id) for t in teachers}
 
     batches = db.collection("batches").stream()
@@ -343,7 +344,7 @@ def admin_create_batch(req: BatchCreate, user=Depends(require_role("admin"))):
     batch_name_clean = req.batch_name.strip()
     
     # Check for duplicate
-    existing = db.collection("batches").where("batch_name", "==", batch_name_clean).limit(1).stream()
+    existing = db.collection("batches").where(filter=FieldFilter("batch_name", "==", batch_name_clean)).limit(1).stream()
     if any(existing):
         raise HTTPException(status_code=400, detail=f"A batch named '{batch_name_clean}' already exists.")
 
@@ -368,7 +369,7 @@ def admin_update_batch(batch_id: str, req: BatchCreate, user=Depends(require_rol
     batch_name_clean = req.batch_name.strip()
 
     # Check for duplicate
-    existing = db.collection("batches").where("batch_name", "==", batch_name_clean).limit(2).stream()
+    existing = db.collection("batches").where(filter=FieldFilter("batch_name", "==", batch_name_clean)).limit(2).stream()
     for b in existing:
         if b.id != batch_id:
             raise HTTPException(status_code=400, detail=f"A batch named '{batch_name_clean}' already exists.")
@@ -387,17 +388,20 @@ def admin_update_batch(batch_id: str, req: BatchCreate, user=Depends(require_rol
 
 @router.delete("/batches/{batch_id}")
 def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
-    """Delete a batch and all associated students, payments, and images."""
+    """Delete a batch and all associated students, payments, images, notes, and Drive folder."""
     batch_ref = db.collection("batches").document(batch_id)
     batch_doc = batch_ref.get()
     if not batch_doc.exists:
         raise HTTPException(status_code=404, detail="Batch not found")
 
+    batch_data = batch_doc.to_dict()
+    batch_name = batch_data.get("batch_name", "")
+
     # 1. CLEANUP STUDENTS
     # Find all students in this batch
     students = db.collection("users") \
-        .where("batch_id", "==", batch_id) \
-        .where("role", "==", "student") \
+        .where(filter=FieldFilter("batch_id", "==", batch_id)) \
+        .where(filter=FieldFilter("role", "==", "student")) \
         .stream()
     
     for s in students:
@@ -419,7 +423,7 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
 
     # 2. CLEANUP PAYMENTS
     # Find all payments in this batch
-    payments = db.collection("payments").where("batch_id", "==", batch_id).stream()
+    payments = db.collection("payments").where(filter=FieldFilter("batch_id", "==", batch_id)).stream()
     for p in payments:
         pd = p.to_dict()
         # Delete screenshot from Cloudinary if exists
@@ -434,11 +438,24 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
         db.collection("payments").document(p.id).delete()
 
     # 3. CLEANUP DISTRIBUTION SNAPSHOTS
-    snapshots = db.collection("distribution_snapshots").where("batch_id", "==", batch_id).stream()
+    snapshots = db.collection("distribution_snapshots").where(filter=FieldFilter("batch_id", "==", batch_id)).stream()
     for snap in snapshots:
         db.collection("distribution_snapshots").document(snap.id).delete()
 
-    # 4. FINALIZE: Delete the batch itself
+    # 4. CLEANUP NOTES
+    # Delete all Firestore note documents for this batch
+    notes = db.collection("notes").where(filter=FieldFilter("batch_id", "==", batch_id)).stream()
+    for note in notes:
+        db.collection("notes").document(note.id).delete()
+
+    # Delete the entire batch folder from Google Drive (contains all uploaded files)
+    if batch_name:
+        try:
+            delete_folder_from_gdrive(batch_name)
+        except Exception as e:
+            print(f"[GDrive] Batch folder delete failed for '{batch_name}': {e}")
+
+    # 5. FINALIZE: Delete the batch itself
     batch_ref.delete()
 
     return {"message": "Batch and all associated data deleted successfully"}
@@ -492,9 +509,9 @@ def _auto_generate_for_student(student_id: str, student_name: str, batch_id: str
         # Skip if this student already has a record for this month
         existing = list(
             db.collection("payments")
-            .where("student_id", "==", student_id)
-            .where("month", "==", month)
-            .where("year", "==", year)
+            .where(filter=FieldFilter("student_id", "==", student_id))
+            .where(filter=FieldFilter("month", "==", month))
+            .where(filter=FieldFilter("year", "==", year))
             .limit(1)
             .stream()
         )
@@ -533,9 +550,9 @@ def admin_list_students(
         batch_map[batch.id] = batch.to_dict().get("batch_name", "")
 
     # 2. Query students
-    query = db.collection("users").where("role", "==", "student")
+    query = db.collection("users").where(filter=FieldFilter("role", "==", "student"))
     if batch_id:
-        query = query.where("batch_id", "==", batch_id)
+        query = query.where(filter=FieldFilter("batch_id", "==", batch_id))
 
     students = query.stream()
     results = []
@@ -640,8 +657,8 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
     # Sync all Unpaid payment records to the new fee
     if fee_changed and new_effective_fee is not None:
         unpaid_payments = db.collection("payments") \
-            .where("student_id", "==", uid) \
-            .where("status", "==", "Unpaid") \
+            .where(filter=FieldFilter("student_id", "==", uid)) \
+            .where(filter=FieldFilter("status", "==", "Unpaid")) \
             .stream()
         for p in unpaid_payments:
             db.collection("payments").document(p.id).update({
@@ -732,7 +749,7 @@ def admin_list_teachers(user=Depends(require_role("admin"))):
         b_data["id"] = b.id
         all_batches.append(b_data)
 
-    teachers = db.collection("users").where("role", "==", "teacher").stream()
+    teachers = db.collection("users").where(filter=FieldFilter("role", "==", "teacher")).stream()
     results = []
     for t in teachers:
         data = serialize_doc(t)

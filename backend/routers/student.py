@@ -14,6 +14,7 @@ from database import db
 from dependencies import require_role
 from utils import ts_now, serialize_doc, IST
 from notifications import notify_user, notify_admins
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 router = APIRouter(prefix="/api/student", tags=["Student"])
 # ──────────────────────────────────────────────
@@ -141,7 +142,7 @@ def student_get_payments(user=Depends(require_role("student"))):
     """Get all payments for the logged-in student."""
     try:
         payments = db.collection("payments") \
-            .where("student_id", "==", user["uid"]) \
+            .where(filter=FieldFilter("student_id", "==", user["uid"])) \
             .stream()
 
         result = [serialize_doc(p) for p in payments]
@@ -269,10 +270,10 @@ def student_get_leaderboard(
 
         # ── Fetch ONLY 'Paid' payments for this billing cycle and batch ──
         paid_payments_stream = db.collection("payments") \
-            .where("month", "==", month) \
-            .where("year", "==", year) \
-            .where("batch_id", "==", student_batch_id) \
-            .where("status", "==", "Paid") \
+            .where(filter=FieldFilter("month", "==", month)) \
+            .where(filter=FieldFilter("year", "==", year)) \
+            .where(filter=FieldFilter("batch_id", "==", student_batch_id)) \
+            .where(filter=FieldFilter("status", "==", "Paid")) \
             .stream()
 
         paid_payments = []
@@ -287,8 +288,8 @@ def student_get_leaderboard(
 
         # ── Total students in this specific batch (Current Headcount) ──
         batch_students_query = db.collection("users") \
-            .where("batch_id", "==", student_batch_id) \
-            .where("role", "==", "student") \
+            .where(filter=FieldFilter("batch_id", "==", student_batch_id)) \
+            .where(filter=FieldFilter("role", "==", "student")) \
             .count()
         total_students = batch_students_query.get()[0][0].value
         
@@ -326,9 +327,9 @@ def student_get_leaderboard(
 
         # Check if current student has a payment for this month at all
         has_bill_query = db.collection("payments") \
-            .where("student_id", "==", user["uid"]) \
-            .where("month", "==", month) \
-            .where("year", "==", year) \
+            .where(filter=FieldFilter("student_id", "==", user["uid"])) \
+            .where(filter=FieldFilter("month", "==", month)) \
+            .where(filter=FieldFilter("year", "==", year)) \
             .limit(1) \
             .get()
         has_bill = len(has_bill_query) > 0

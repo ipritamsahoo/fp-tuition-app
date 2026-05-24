@@ -27,6 +27,7 @@ const studentNav = [
     { label: "Dashboard", href: "/student", icon: "dashboard" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
+    { label: "Notes", href: "/student/notes", icon: "edit_document" },
     { label: "Settings", href: "/student/settings", icon: "settings" },
 ];
 
@@ -96,6 +97,7 @@ function StudentLayoutInner({ children }) {
     const isSubPageMobile = pathname !== "/student" && 
                             pathname !== "/student/payments" && 
                             pathname !== "/student/leaderboard" && 
+                            pathname !== "/student/notes" &&
                             pathname !== "/student/settings";
 
     const getSubPageTitle = () => {

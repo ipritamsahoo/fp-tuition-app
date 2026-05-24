@@ -92,6 +92,64 @@ export const api = {
         apiFetch(url, { method: "PATCH", ...(data ? { body: JSON.stringify(data) } : {}) }),
     delete: (url, data) =>
         apiFetch(url, { method: "DELETE", ...(data ? { body: JSON.stringify(data) } : {}) }),
-    upload: (url, formData) =>
-        apiFetch(url, { method: "POST", body: formData }),
+    upload: (url, formData, onProgress) => {
+        const tokenPromise = auth.currentUser 
+            ? auth.currentUser.getIdToken() 
+            : Promise.resolve(localStorage.getItem("idToken"));
+
+        return tokenPromise.then(token => {
+            if (token) {
+                localStorage.setItem("idToken", token);
+            }
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", `${API_BASE}${url}`);
+
+                if (token) {
+                    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                }
+
+                if (onProgress && xhr.upload) {
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                            const percentComplete = Math.round((event.loaded / event.total) * 100);
+                            onProgress(percentComplete);
+                        }
+                    };
+                }
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            resolve(response);
+                        } catch (e) {
+                            resolve(xhr.responseText);
+                        }
+                    } else {
+                        let errorMessage = `HTTP ${xhr.status}`;
+                        try {
+                            const errData = JSON.parse(xhr.responseText);
+                            errorMessage = errData.detail || errorMessage;
+                        } catch (e) {}
+                        
+                        const isValidationError = xhr.status === 400 || xhr.status === 422;
+                        if (globalErrorHandler && !isValidationError) {
+                            const errType = (xhr.status === 401 || xhr.status === 403) ? "AUTH_ERROR" : "SERVER_ERROR";
+                            globalErrorHandler(errType, { message: errorMessage });
+                        }
+                        
+                        reject(new Error(errorMessage));
+                    }
+                };
+
+                xhr.onerror = () => {
+                    if (globalErrorHandler) globalErrorHandler("NETWORK_ERROR");
+                    reject(new Error("NETWORK_ERROR"));
+                };
+
+                xhr.send(formData);
+            });
+        });
+    }
 };
