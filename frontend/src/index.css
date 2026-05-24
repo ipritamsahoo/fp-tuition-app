@@ -733,3 +733,53 @@ select option {
     0%, 100% { transform: translateY(0) scale(1) translateZ(0); opacity: 0.6; }
     50% { transform: translateY(-20px) scale(1.5) translateZ(0); opacity: 1; }
 }
+
+/* 🌊 Liquid Wave Download Button Animation */
+.wave-container {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.wave-layer {
+    position: absolute;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    bottom: -160%;
+    animation: wave-rise 2.8s forwards cubic-bezier(0.4, 0, 0.2, 1), wave-rotate 6s infinite linear;
+}
+
+.wave-layer.one {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 38% 42% 40% 45%;
+    animation-duration: 2.8s, 6s;
+}
+
+.wave-layer.two {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 42% 38% 45% 40%;
+    animation-duration: 2.8s, 4.5s;
+    animation-delay: 0s, 0.3s;
+}
+
+@keyframes wave-rise {
+    0% {
+        bottom: -170%;
+    }
+    100% {
+        bottom: -15%;
+    }
+}
+
+@keyframes wave-rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

@@ -29,6 +29,19 @@ export default defineConfig({
                 orientation: "portrait",
                 scope: "/",
                 start_url: "/",
+                share_target: {
+                    action: "/share-receiver",
+                    method: "POST",
+                    enctype: "multipart/form-data",
+                    params: {
+                        files: [
+                            {
+                                name: "screenshot",
+                                accept: ["image/*"],
+                            },
+                        ],
+                    },
+                },
                 icons: [
                     {
                         src: "/favicon.png",

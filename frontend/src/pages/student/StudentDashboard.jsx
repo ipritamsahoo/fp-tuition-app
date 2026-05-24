@@ -14,6 +14,8 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { generateReceiptPDF } from "@/lib/pdfUtils";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { StudentDashboardSkeleton } from "@/components/Skeletons";
+import { get, del } from "idb-keyval";
+import ModernSelect from "@/components/ModernSelect";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -24,9 +26,9 @@ function isMobile() {
 }
 
 // ── Pay Now Modal (Nebula Theme) ──
-function PayNowModal({ payment, upiData, onClose, onProceed }) {
-    const [file, setFile] = useState(null);
-    const [preview, setPreview] = useState(null);
+function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed, initialFile, onPaymentChange }) {
+    const [file, setFile] = useState(initialFile || null);
+    const [preview, setPreview] = useState(initialFile ? URL.createObjectURL(initialFile) : null);
     const [submitting, setSubmitting] = useState(false);
     const [upiNotice, setUpiNotice] = useState(payment?.status === "Rejected");
     const [upiAppUnavailable, setUpiAppUnavailable] = useState(false);
@@ -122,6 +124,42 @@ function PayNowModal({ payment, upiData, onClose, onProceed }) {
 
                 {/* ── Scrollable Content ── */}
                 <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-4">
+
+                {unpaidPayments.length > 1 && (
+                    <div 
+                        className="mb-5 p-4 rounded-2xl border flex flex-col gap-2" 
+                        style={{ 
+                            borderColor: 'var(--st-divider)', 
+                            backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)' 
+                        }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm" style={{ color: 'var(--st-accent)' }}>event_repeat</span>
+                            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
+                                Paying for Month
+                            </label>
+                        </div>
+                        <ModernSelect
+                            icon="calendar_month"
+                            value={payment.id}
+                            onChange={(e) => {
+                                const selected = unpaidPayments.find(p => p.id === e.target.value);
+                                if (selected && onPaymentChange) {
+                                    onPaymentChange(selected);
+                                }
+                            }}
+                            options={unpaidPayments.map(p => ({
+                                value: p.id,
+                                label: `${MONTHS[p.month - 1]} ${p.year} — ₹${p.amount}`
+                            }))}
+                            theme={theme}
+                            className="w-full"
+                        />
+                        <p className="text-[10px]" style={{ color: 'var(--st-text-muted)' }}>
+                            If you want to clear a different month's fee, select it from above.
+                        </p>
+                    </div>
+                )}
 
                 {/* Divider */}
                 <div className="mb-4" style={{ borderTop: `1px solid var(--st-divider)` }} />
@@ -353,6 +391,7 @@ function StudentDashboardContent() {
     const [loading, setLoading] = useState(!cachedPayments);
     const [success, setSuccess] = useState("");
     const [previewImg, setPreviewImg] = useState(null);
+    const [sharedFile, setSharedFile] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(() => 
         !!(user?.badgeAnimationPending && user?.currentBadge)
     );
@@ -545,6 +584,39 @@ function StudentDashboardContent() {
             setShowBadgeCelebration(true);
         }
     }, [user?.badgeAnimationPending, user?.currentBadge]);
+
+    // Check for shared payment screenshot from PWA Share Target
+    useEffect(() => {
+        if (loading || payments.length === 0) return;
+
+        const handleSharedFile = async () => {
+            try {
+                const file = await get("shared_payment_screenshot");
+                if (file) {
+                    const unpaid = payments.filter((p) => p.status === "Unpaid");
+                    if (unpaid.length > 0) {
+                        // Sort unpaid payments chronologically to find the oldest
+                        const sortedUnpaid = [...unpaid].sort((a, b) => {
+                            if (a.year !== b.year) return a.year - b.year;
+                            return a.month - b.month;
+                        });
+                        const targetPayment = sortedUnpaid[0];
+                        
+                        setSharedFile(file);
+                        openPayModal(targetPayment);
+                    } else {
+                        alert("You don't have any unpaid fees to verify!");
+                    }
+                    // Delete immediately to prevent re-opening on manual page refresh
+                    await del("shared_payment_screenshot");
+                }
+            } catch (err) {
+                console.error("Failed to check shared screenshot:", err);
+            }
+        };
+
+        handleSharedFile();
+    }, [loading, payments]);
 
     if (loading) {
         return (
@@ -812,8 +884,14 @@ function StudentDashboardContent() {
             {payModalPayment && (
                 <PayNowModal
                     payment={payModalPayment}
+                    unpaidPayments={payments.filter((p) => p.status === "Unpaid")}
                     upiData={payModalUpi}
-                    onClose={closePayModal}
+                    initialFile={sharedFile}
+                    onPaymentChange={openPayModal}
+                    onClose={() => {
+                        closePayModal();
+                        setSharedFile(null);
+                    }}
                     onProceed={handleProceed}
                 />
             )}

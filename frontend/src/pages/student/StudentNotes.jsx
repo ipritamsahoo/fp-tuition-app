@@ -4,6 +4,7 @@ import StudentLayout from "@/components/StudentLayout";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
+import { auth } from "@/lib/firebase";
 
 function GlassCard({ children, className = "", style = {} }) {
     return (
@@ -100,8 +101,45 @@ function StudentNotesContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageLoading, setPageLoading] = useState(false);
+    const [downloadingNotes, setDownloadingNotes] = useState({});
 
     const isLight = theme === "light";
+
+    const handleDownload = async (noteId, fileName, e) => {
+        e.preventDefault();
+        setDownloadingNotes(prev => ({ ...prev, [noteId]: true }));
+        try {
+            const token = localStorage.getItem("idToken") || (auth.currentUser ? await auth.currentUser.getIdToken() : null);
+            const headers = {};
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(
+                `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/notes/${noteId}/download`,
+                { headers }
+            );
+
+            if (!response.ok) {
+                throw new Error("Download request failed");
+            }
+
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = fileName || "note";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error("Download error:", err);
+            alert("Failed to download note. Please try again.");
+        } finally {
+            setDownloadingNotes(prev => ({ ...prev, [noteId]: false }));
+        }
+    };
 
     const fetchNotes = useCallback(async (page = 1) => {
         const batchId = user?.batchId;
@@ -245,22 +283,57 @@ function StudentNotesContent() {
                                         <p className="text-[9px] text-[var(--st-text-secondary)]/80 mt-0.5">{formatDate(note.created_at)}</p>
                                     </div>
 
-                                    <a
-                                        href={note.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0"
+                                    <button
+                                        onClick={(e) => handleDownload(note.id, note.file_name, e)}
+                                        disabled={downloadingNotes[note.id]}
+                                        className="relative overflow-hidden px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
                                         style={{
                                             backgroundColor: isLight ? "#0d9488" : "#3b82f6",
                                             color: "#ffffff",
+                                            border: "none",
                                             boxShadow: isLight
                                                 ? "0 2px 8px rgba(13,148,136,0.15)"
                                                 : "0 2px 8px rgba(59,130,246,0.2)",
                                         }}
                                     >
-                                        <span className="material-symbols-outlined text-sm">download</span>
-                                        Get Note
-                                    </a>
+                                        {downloadingNotes[note.id] && (
+                                            <div className="wave-container">
+                                                <div className="wave-layer one" />
+                                                <div className="wave-layer two" />
+                                            </div>
+                                        )}
+                                        <span className="relative z-10 flex items-center gap-1.5">
+                                            {downloadingNotes[note.id] ? (
+                                                <>
+                                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                                                        <g className="animate-spin" style={{ transformOrigin: '12px 12px', animationDuration: '2s' }}>
+                                                            <circle 
+                                                                cx="12" 
+                                                                cy="12" 
+                                                                r="9" 
+                                                                stroke="currentColor" 
+                                                                strokeWidth="2" 
+                                                                strokeDasharray="3 3" 
+                                                            />
+                                                        </g>
+                                                        <path 
+                                                            d="M12 6V16M12 16L8 12M12 16L16 12" 
+                                                            stroke="currentColor" 
+                                                            strokeWidth="2" 
+                                                            strokeLinecap="round" 
+                                                            strokeLinejoin="round" 
+                                                        />
+                                                    </svg>
+                                                    Downloading...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="material-symbols-outlined text-sm">download</span>
+                                                    Get Note
+                                                </>
+                                            )}
+                                        </span>
+                                    </button>
                                 </div>
                             </GlassCard>
                         ))}

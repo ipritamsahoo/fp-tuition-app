@@ -148,3 +148,25 @@ self.addEventListener("message", (event) => {
         self.skipWaiting();
     }
 });
+
+// Handle PWA Web Share Target POST requests
+self.addEventListener("fetch", (event) => {
+    const url = new URL(event.request.url);
+    if (event.request.method === "POST" && url.pathname === "/share-receiver") {
+        event.respondWith(
+            (async () => {
+                try {
+                    const formData = await event.request.formData();
+                    const imageFile = formData.get("screenshot");
+                    if (imageFile) {
+                        await set("shared_payment_screenshot", imageFile);
+                    }
+                    return Response.redirect("/student?shared=true", 303);
+                } catch (err) {
+                    console.error("Web Share Target error:", err);
+                    return Response.redirect("/student?shared_error=true", 303);
+                }
+            })()
+        );
+    }
+});

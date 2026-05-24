@@ -1,5 +1,7 @@
 from typing import Optional
+import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from database import db
 from dependencies import require_role
 from utils import ts_now, serialize_doc
@@ -175,3 +177,67 @@ def delete_note(
     note_ref.delete()
     
     return {"message": "Note deleted successfully"}
+
+
+# ──────────────────────────────────────────────
+# GET /api/notes/{note_id}/download
+# ──────────────────────────────────────────────
+@router.get("/{note_id}/download")
+def download_note_file(
+    note_id: str,
+    user=Depends(require_role("student", "teacher", "admin")),
+):
+    """Downloads a note's file directly from Google Drive and streams it to the user."""
+    # 1. Fetch note metadata from Firestore
+    note_ref = db.collection("notes").document(note_id)
+    note_doc = note_ref.get()
+    
+    if not note_doc.exists:
+        raise HTTPException(status_code=404, detail="Note not found")
+        
+    note_data = note_doc.to_dict()
+    
+    # 2. Permissions check
+    # Student check: must belong to the note's batch
+    if user.get("role") == "student" and user.get("batch_id") != note_data.get("batch_id"):
+        raise HTTPException(status_code=403, detail="Access denied to this note")
+        
+    # Teacher check: must be assigned to the batch
+    if user.get("role") == "teacher":
+        batch_doc = db.collection("batches").document(note_data.get("batch_id", "")).get()
+        if batch_doc.exists:
+            batch_data = batch_doc.to_dict()
+            if user["uid"] not in batch_data.get("teacher_ids", []):
+                raise HTTPException(status_code=403, detail="Not assigned to this batch")
+        else:
+            raise HTTPException(status_code=404, detail="Batch associated with note not found")
+            
+    # 3. Get Google Drive file ID
+    file_id = note_data.get("file_id")
+    if not file_id:
+        raise HTTPException(status_code=404, detail="Google Drive file ID not found for this note")
+        
+    try:
+        from gdrive import get_drive_service
+        service = get_drive_service()
+        # Fetch file metadata from Google Drive to get the original MIME type
+        drive_file = service.files().get(fileId=file_id, fields="mimeType").execute()
+        mime_type = drive_file.get("mimeType", "application/octet-stream")
+        
+        # Download the file content from Google Drive
+        file_bytes = service.files().get_media(fileId=file_id).execute()
+        
+        # Stream the response with Content-Disposition attachment to trigger download
+        filename = note_data.get("file_name", "downloaded_note")
+        
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=mime_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+    except Exception as e:
+        print(f"Error downloading from GDrive: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download file from Google Drive: {str(e)}")
