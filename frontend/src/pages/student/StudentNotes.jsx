@@ -91,6 +91,153 @@ function StudentNotesSkeleton() {
         </div>
     );
 }
+function StudentNoteCard({ note, downloadingNotes, handleDownload, getFileIcon, formatDate, isLight }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const noteFiles = note.files || [
+        {
+            title: note.title,
+            file_name: note.file_name,
+            file_url: note.file_url,
+            file_id: note.file_id
+        }
+    ];
+
+    const currentFile = noteFiles[activeIndex] || noteFiles[0];
+    const trackingKey = currentFile.file_id || note.id;
+    const isDownloading = downloadingNotes[trackingKey];
+
+    const handlePrev = (e) => {
+        e.stopPropagation();
+        setActiveIndex((prev) => (prev === 0 ? noteFiles.length - 1 : prev - 1));
+    };
+
+    const handleNext = (e) => {
+        e.stopPropagation();
+        setActiveIndex((prev) => (prev === noteFiles.length - 1 ? 0 : prev + 1));
+    };
+
+    return (
+        <GlassCard
+            className="p-4 flex flex-col justify-between gap-3 hover:border-[#3b82f6]/20 transition-all group"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* File Type Icon */}
+                    <div className="w-10 h-10 rounded-xl bg-[var(--st-icon-bg)] flex items-center justify-center text-[var(--st-text-secondary)] shrink-0">
+                        <span className="material-symbols-outlined text-xl">
+                            {getFileIcon(currentFile.file_name)}
+                        </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        {/* Note Group Title */}
+                        <h3
+                            className="font-bold truncate text-sm leading-snug"
+                            style={{ color: "var(--st-text-primary)" }}
+                            title={note.title}
+                        >
+                            {note.title}
+                        </h3>
+
+                        {/* File Caption (if custom) */}
+                        {(() => {
+                            const fileNameWithoutExt = currentFile.file_name ? currentFile.file_name.substring(0, currentFile.file_name.lastIndexOf('.')) || currentFile.file_name : "";
+                            const hasCustomCaption = currentFile.title && 
+                                currentFile.title !== note.title && 
+                                currentFile.title !== currentFile.file_name && 
+                                currentFile.title !== fileNameWithoutExt;
+                            
+                            return hasCustomCaption ? (
+                                <p className="text-[11px] font-semibold mt-0.5 truncate" style={{ color: "var(--st-text-primary)" }}>
+                                    {currentFile.title}
+                                </p>
+                            ) : null;
+                        })()}
+
+                        {/* File Name */}
+                        <p className="text-[10px] text-[var(--st-text-secondary)]/70 mt-0.5 truncate" title={currentFile.file_name}>
+                            {currentFile.file_name}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Carousel controls in top right */}
+                {noteFiles.length > 1 && (
+                    <div className="flex items-center gap-1.5 shrink-0 select-none">
+                        <span className="text-[10px] text-[var(--st-text-secondary)]/70 font-semibold mr-1">
+                            {activeIndex + 1} of {noteFiles.length}
+                        </span>
+                        <button
+                            onClick={handlePrev}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0"
+                            style={{
+                                backgroundColor: 'var(--st-icon-bg)',
+                                border: '1px solid var(--st-input-border)',
+                                color: 'var(--st-text-primary)'
+                            }}
+                            title="Previous File"
+                        >
+                            <span className="material-symbols-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0"
+                            style={{
+                                backgroundColor: 'var(--st-icon-bg)',
+                                border: '1px solid var(--st-input-border)',
+                                color: 'var(--st-text-primary)'
+                            }}
+                            title="Next File"
+                        >
+                            <span className="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer info & Action button */}
+            <div className="flex items-center justify-between border-t border-[var(--st-divider)] pt-3">
+                <div className="text-[10px] text-[var(--st-text-secondary)] leading-tight min-w-0 flex-1 pr-2">
+                    <p className="font-semibold text-[var(--st-text-primary)] truncate">{note.uploaded_by_name}</p>
+                    <p className="text-[9px] text-[var(--st-text-secondary)]/80 mt-0.5">{formatDate(note.created_at)}</p>
+                </div>
+
+                <button
+                    onClick={(e) => handleDownload(note.id, currentFile.file_id, currentFile.file_name, e)}
+                    disabled={isDownloading}
+                    className="relative overflow-hidden w-[140px] justify-center h-[34px] rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
+                    style={{
+                        backgroundColor: isLight ? "#0d9488" : "#3b82f6",
+                        color: "#ffffff",
+                        border: "none",
+                        boxShadow: isLight
+                            ? "0 2px 8px rgba(13,148,136,0.15)"
+                            : "0 2px 8px rgba(59,130,246,0.2)",
+                    }}
+                >
+                    {isDownloading && (
+                        <div className="wave-container">
+                            <div className="wave-layer one" />
+                            <div className="wave-layer two" />
+                        </div>
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                        {isDownloading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                                Downloading...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-sm">download</span>
+                                Get Note
+                            </>
+                        )}
+                    </span>
+                </button>
+            </div>
+        </GlassCard>
+    );
+}
 
 function StudentNotesContent() {
     const { user } = useAuth();
@@ -105,35 +252,37 @@ function StudentNotesContent() {
 
     const isLight = theme === "light";
 
-    const handleDownload = (noteId, fileName, e) => {
+    const handleDownload = (noteId, fileId, fileName, e) => {
         e.preventDefault();
-        setDownloadingNotes(prev => ({ ...prev, [noteId]: true }));
+        const trackingKey = fileId || noteId;
+        setDownloadingNotes(prev => ({ ...prev, [trackingKey]: true }));
 
         const token = localStorage.getItem("idToken");
         const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
-        const downloadUrl = `${baseUrl}/api/notes/${noteId}/download`;
-
-        // Create a hidden anchor tag and click it.
-        // The browser will natively follow the 302 redirect to Google Drive
-        // without any CORS issues, triggering an instant file download.
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-
-        // Pass the auth token as a query param since we can't set headers on anchor clicks.
-        // The backend must be updated to accept token from query param as fallback.
-        // Simpler: open in same window so cookies/session work, or use query param.
+        let downloadUrl = `${baseUrl}/api/notes/${noteId}/download`;
+        
+        const params = [];
+        if (fileId) {
+            params.push(`file_id=${encodeURIComponent(fileId)}`);
+        }
         if (token) {
-            link.href = `${downloadUrl}?token=${encodeURIComponent(token)}`;
+            params.push(`token=${encodeURIComponent(token)}`);
+        }
+        
+        if (params.length > 0) {
+            downloadUrl += `?${params.join("&")}`;
         }
 
+        const link = document.createElement("a");
+        link.href = downloadUrl;
         link.setAttribute("download", fileName || "note");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        // Reset the loading state after a short delay (download starts immediately)
+        // Reset the loading state after a short delay
         setTimeout(() => {
-            setDownloadingNotes(prev => ({ ...prev, [noteId]: false }));
+            setDownloadingNotes(prev => ({ ...prev, [trackingKey]: false }));
         }, 1500);
     };
 
@@ -250,90 +399,15 @@ function StudentNotesContent() {
                 <div className="space-y-4">
                     <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 transition-opacity duration-200 ${pageLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         {notes.map((note) => (
-                            <GlassCard
+                            <StudentNoteCard
                                 key={note.id}
-                                className="p-4 flex flex-col justify-between gap-3 hover:border-[#3b82f6]/20 transition-all group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    {/* File Type Icon */}
-                                    <div className="w-10 h-10 rounded-xl bg-[var(--st-icon-bg)] flex items-center justify-center text-[var(--st-text-secondary)] shrink-0">
-                                        <span className="material-symbols-outlined text-xl">
-                                            {getFileIcon(note.file_name)}
-                                        </span>
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <h3
-                                            className="font-bold truncate text-sm leading-snug"
-                                            style={{ color: "var(--st-text-primary)" }}
-                                        >
-                                            {note.title}
-                                        </h3>
-                                        <p className="text-[10px] text-[var(--st-text-secondary)]/70 mt-0.5 truncate">
-                                            {note.file_name}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Footer info & Action button */}
-                                <div className="flex items-center justify-between border-t border-[var(--st-divider)] pt-3">
-                                    <div className="text-[10px] text-[var(--st-text-secondary)] leading-tight min-w-0 flex-1 pr-2">
-                                        <p className="font-semibold text-[var(--st-text-primary)] truncate">{note.uploaded_by_name}</p>
-                                        <p className="text-[9px] text-[var(--st-text-secondary)]/80 mt-0.5">{formatDate(note.created_at)}</p>
-                                    </div>
-
-                                    <button
-                                        onClick={(e) => handleDownload(note.id, note.file_name, e)}
-                                        disabled={downloadingNotes[note.id]}
-                                        className="relative overflow-hidden w-[140px] justify-center h-[34px] rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
-                                        style={{
-                                            backgroundColor: isLight ? "#0d9488" : "#3b82f6",
-                                            color: "#ffffff",
-                                            border: "none",
-                                            boxShadow: isLight
-                                                ? "0 2px 8px rgba(13,148,136,0.15)"
-                                                : "0 2px 8px rgba(59,130,246,0.2)",
-                                        }}
-                                    >
-                                        {downloadingNotes[note.id] && (
-                                            <div className="wave-container">
-                                                <div className="wave-layer one" />
-                                                <div className="wave-layer two" />
-                                            </div>
-                                        )}
-                                        <span className="relative z-10 flex items-center gap-1.5">
-                                            {downloadingNotes[note.id] ? (
-                                                <>
-                                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                                                        <g className="animate-spin" style={{ transformOrigin: '12px 12px', animationDuration: '2s' }}>
-                                                            <circle 
-                                                                cx="12" 
-                                                                cy="12" 
-                                                                r="9" 
-                                                                stroke="currentColor" 
-                                                                strokeWidth="2" 
-                                                                strokeDasharray="3 3" 
-                                                            />
-                                                        </g>
-                                                        <path 
-                                                            d="M12 6V16M12 16L8 12M12 16L16 12" 
-                                                            stroke="currentColor" 
-                                                            strokeWidth="2" 
-                                                            strokeLinecap="round" 
-                                                            strokeLinejoin="round" 
-                                                        />
-                                                    </svg>
-                                                    Downloading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="material-symbols-outlined text-sm">download</span>
-                                                    Get Note
-                                                </>
-                                            )}
-                                        </span>
-                                    </button>
-                                </div>
-                            </GlassCard>
+                                note={note}
+                                downloadingNotes={downloadingNotes}
+                                handleDownload={handleDownload}
+                                getFileIcon={getFileIcon}
+                                formatDate={formatDate}
+                                isLight={isLight}
+                            />
                         ))}
                     </div>
 

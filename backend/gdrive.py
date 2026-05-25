@@ -166,3 +166,29 @@ def delete_folder_from_gdrive(folder_name: str) -> bool:
     except Exception as e:
         print(f"[GDrive] Error deleting folder '{folder_name}': {e}")
         return False
+
+
+def _download_sync(file_id: str) -> tuple:
+    """Synchronous file download from Google Drive."""
+    from googleapiclient.http import MediaIoBaseDownload
+    service = get_drive_service()
+    
+    # Get metadata
+    metadata = service.files().get(fileId=file_id, fields="name, mimeType").execute()
+    filename = metadata.get("name", "note")
+    mime_type = metadata.get("mimeType", "application/octet-stream")
+    
+    # Download content
+    request = service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+        
+    return fh.getvalue(), filename, mime_type
+
+
+async def download_from_gdrive(file_id: str) -> tuple:
+    """Asynchronous wrapper for downloading file content from Google Drive."""
+    return await asyncio.to_thread(_download_sync, file_id)

@@ -115,6 +115,129 @@ function TeacherNotesPageSkeleton() {
     );
 }
 
+function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const noteFiles = note.files || [
+        {
+            title: note.title,
+            file_name: note.file_name,
+            file_url: note.file_url,
+            file_id: note.file_id
+        }
+    ];
+
+    const currentFile = noteFiles[activeIndex] || noteFiles[0];
+
+    const handlePrev = (e) => {
+        e.stopPropagation();
+        setActiveIndex((prev) => (prev === 0 ? noteFiles.length - 1 : prev - 1));
+    };
+
+    const handleNext = (e) => {
+        e.stopPropagation();
+        setActiveIndex((prev) => (prev === noteFiles.length - 1 ? 0 : prev + 1));
+    };
+
+    return (
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between gap-3 group">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* File Type Icon */}
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/50 shrink-0">
+                        <span className="material-symbols-outlined text-xl">
+                            {getFileIcon(currentFile.file_name)}
+                        </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        {/* Note Group Title */}
+                        <h3 className="text-sm font-bold text-[#f0f0fd] truncate" title={note.title}>
+                            {note.title}
+                        </h3>
+                        
+                        {/* File Caption (if custom) */}
+                        {(() => {
+                            const fileNameWithoutExt = currentFile.file_name ? currentFile.file_name.substring(0, currentFile.file_name.lastIndexOf('.')) || currentFile.file_name : "";
+                            const hasCustomCaption = currentFile.title && 
+                                currentFile.title !== note.title && 
+                                currentFile.title !== currentFile.file_name && 
+                                currentFile.title !== fileNameWithoutExt;
+                            
+                            return hasCustomCaption ? (
+                                <p className="text-[11px] font-semibold text-[#4af8e3] mt-0.5 truncate">
+                                    {currentFile.title}
+                                </p>
+                            ) : null;
+                        })()}
+
+                        {/* File Name */}
+                        <p className="text-[10px] text-[#aaaab7]/80 mt-0.5 truncate" title={currentFile.file_name}>
+                            {currentFile.file_name}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Carousel controls in top right */}
+                {noteFiles.length > 1 && (
+                    <div className="flex items-center gap-1.5 shrink-0 select-none">
+                        <span className="text-[10px] text-[#aaaab7]/70 font-semibold mr-1">
+                            {activeIndex + 1} of {noteFiles.length}
+                        </span>
+                        <button
+                            onClick={handlePrev}
+                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95"
+                            title="Previous File"
+                        >
+                            <span className="material-symbols-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95"
+                            title="Next File"
+                        >
+                            <span className="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer info & Action button */}
+            <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                <div className="text-[10px] text-[#aaaab7] leading-tight min-w-0 flex-1 pr-2">
+                    <p className="text-[10px] text-[#aaaab7]/80">{formatDateTime(note.created_at)}</p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                    {/* Open Link */}
+                    <a
+                        href={currentFile.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-9 h-9 rounded-xl bg-white/5 text-[#aaaab7] hover:text-white hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer border border-white/5"
+                        title="View File"
+                    >
+                        <span className="material-symbols-outlined text-lg">open_in_new</span>
+                    </a>
+
+                    {/* Delete Note */}
+                    {note.uploaded_by === user.uid && (
+                        <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            disabled={deletingId === note.id}
+                            className="w-9 h-9 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] hover:bg-[#ff6e84]/20 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 border border-white/5"
+                            title="Delete Note Group"
+                        >
+                            {deletingId === note.id ? (
+                                <div className="w-4 h-4 border-2 border-[#ff6e84]/30 border-t-[#ff6e84] rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                            )}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function TeacherNotesContent() {
     const { user } = useAuth();
@@ -130,10 +253,9 @@ function TeacherNotesContent() {
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-
     // Form inputs
     const [noteTitle, setNoteTitle] = useState("");
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]); // [{ id, file, title }]
 
     // Alerts
     const [uploadError, setUploadError] = useState("");
@@ -182,21 +304,35 @@ function TeacherNotesContent() {
     }, [selectedBatch, fetchNotes]);
 
     const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
             setUploadError("");
-            setSelectedFile(file);
+            setUploadSuccess("");
+            const newFiles = files.map((file) => {
+                return {
+                    id: Math.random().toString(36).substring(2, 9),
+                    file: file,
+                    title: ""
+                };
+            });
+            setSelectedFiles((prev) => [...prev, ...newFiles]);
         }
     };
 
-    const handleDiscardFile = () => {
-        setSelectedFile(null);
+    const handleDiscardFile = (id) => {
+        setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+    };
+
+    const handleFileTitleChange = (id, newTitle) => {
+        setSelectedFiles((prev) =>
+            prev.map((f) => (f.id === id ? { ...f, title: newTitle } : f))
+        );
     };
 
     const handleUploadSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedBatch || !noteTitle.trim() || !selectedFile) {
-            setUploadError("Please fill in all fields (make sure to select a batch).");
+        if (!selectedBatch || !noteTitle.trim() || selectedFiles.length === 0) {
+            setUploadError("Please fill in all fields (make sure to select a batch and add at least one file).");
             return;
         }
 
@@ -208,7 +344,11 @@ function TeacherNotesContent() {
         const formData = new FormData();
         formData.append("title", noteTitle);
         formData.append("batch_id", selectedBatch);
-        formData.append("file", selectedFile);
+        
+        selectedFiles.forEach((fileItem) => {
+            formData.append("files", fileItem.file);
+            formData.append("file_titles", fileItem.title);
+        });
 
         let currentProgress = 0;
         let targetProgress = 0;
@@ -217,7 +357,6 @@ function TeacherNotesContent() {
         const progressInterval = setInterval(() => {
             if (currentProgress < targetProgress) {
                 const diff = targetProgress - currentProgress;
-                // Increment smoothly by small steps
                 const increment = Math.max(1, Math.min(3, Math.ceil(diff * 0.08)));
                 currentProgress += increment;
                 setUploadProgress(currentProgress);
@@ -229,7 +368,6 @@ function TeacherNotesContent() {
                 targetProgress = Math.round(progress * 0.95);
             });
             
-            // Let the smooth animation catch up before showing 100%
             while (currentProgress < 92) {
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
@@ -238,25 +376,24 @@ function TeacherNotesContent() {
             setUploadProgress(100);
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            setUploadSuccess("Note uploaded successfully!");
+            setUploadSuccess("Notes uploaded successfully!");
             setNoteTitle("");
             const fileInput = document.getElementById("note-file-input");
             if (fileInput) {
                 fileInput.value = "";
             }
-            setSelectedFile(null);
+            setSelectedFiles([]);
             fetchNotes(selectedBatch, 1);
         } catch (err) {
             clearInterval(progressInterval);
             if (!isSystemicError(err.message)) {
-                setUploadError(err.message || "Failed to upload note");
+                setUploadError(err.message || "Failed to upload notes");
             }
         } finally {
             clearInterval(progressInterval);
             setUploading(false);
         }
     };
-
     const handleDeleteNote = async (noteId) => {
         if (!window.confirm("Are you sure you want to delete this note?")) return;
 
@@ -355,7 +492,7 @@ function TeacherNotesContent() {
                             {/* Note Title */}
                             <div>
                                 <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
-                                    Note Title
+                                    Note Title / Topic
                                 </label>
                                 <input
                                     type="text"
@@ -371,9 +508,9 @@ function TeacherNotesContent() {
                             {/* File Upload Field */}
                             <div>
                                 <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
-                                    Choose File
+                                    Choose Files
                                 </label>
-                                {!selectedFile ? (
+                                {selectedFiles.length === 0 ? (
                                     <div className="relative group rounded-2xl border border-dashed border-white/15 hover:border-[#3b82f6]/40 p-4 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex flex-col items-center justify-center cursor-pointer min-h-[120px]">
                                         <input
                                             id="note-file-input"
@@ -381,41 +518,73 @@ function TeacherNotesContent() {
                                             accept="*"
                                             onChange={handleFileChange}
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                            required
+                                            multiple
                                         />
                                         <span className="material-symbols-outlined text-3xl text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mb-2">
                                             cloud_upload
                                         </span>
                                         <span className="text-xs font-semibold text-[#f0f0fd] text-center">
-                                            Select or drag file here
+                                            Select or drag files here
                                         </span>
                                         <span className="text-[10px] text-[#aaaab7] mt-1">PDF, Word, Excel, Image &amp; more</span>
                                     </div>
                                 ) : (
-                                    <div className="relative rounded-2xl border border-white/10 p-4 bg-white/[0.02] flex items-center justify-between gap-3 min-h-[80px]">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/50 shrink-0">
-                                                <span className="material-symbols-outlined text-xl">
-                                                    {getFileIcon(selectedFile.name)}
-                                                </span>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-semibold text-[#f0f0fd] truncate pr-2 max-w-[200px]">
-                                                    {selectedFile.name}
-                                                </p>
-                                                <p className="text-[10px] text-[#aaaab7] mt-0.5">
-                                                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                                                </p>
-                                            </div>
+                                    <div className="rounded-2xl border border-dashed border-white/20 p-4 bg-white/[0.01] space-y-4">
+                                        <div className="max-h-[260px] overflow-y-auto pr-1 custom-scrollbar space-y-3">
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Queue ({selectedFiles.length} files)</p>
+                                            {selectedFiles.map((fileItem) => (
+                                                <div key={fileItem.id} className="rounded-xl border border-white/10 p-3 bg-white/[0.02] flex flex-col gap-2">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <span className="material-symbols-outlined text-lg text-white/50 shrink-0">
+                                                                {getFileIcon(fileItem.file.name)}
+                                                            </span>
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-semibold text-[#f0f0fd] truncate pr-2 max-w-[180px]" title={fileItem.file.name}>
+                                                                    {fileItem.file.name}
+                                                                </p>
+                                                                <p className="text-[9px] text-[#aaaab7]">
+                                                                    {(fileItem.file.size / (1024 * 1024)).toFixed(2)} MB
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDiscardFile(fileItem.id)}
+                                                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-[#aaaab7] hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 border border-white/5"
+                                                            title="Remove"
+                                                        >
+                                                            <span className="material-symbols-outlined text-sm">close</span>
+                                                        </button>
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={fileItem.title}
+                                                        onChange={(e) => handleFileTitleChange(fileItem.id, e.target.value)}
+                                                        className="w-full px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 focus:border-[#3b82f6]/30 focus:ring-1 focus:ring-[#3b82f6]/30 text-[#f0f0fd] text-xs focus:outline-none transition-all placeholder:text-[#464752]"
+                                                        placeholder="File caption (optional)"
+                                                    />
+                                                </div>
+                                            ))}
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleDiscardFile}
-                                            className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#aaaab7] hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 border border-white/5"
-                                            title="Discard File"
-                                        >
-                                            <span className="material-symbols-outlined text-base">close</span>
-                                        </button>
+
+                                        {/* Add more files button inside the dashed container */}
+                                        <div className="relative group rounded-xl border border-dashed border-white/10 hover:border-[#3b82f6]/30 py-2.5 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex items-center justify-center cursor-pointer">
+                                            <input
+                                                id="note-file-input-more"
+                                                type="file"
+                                                accept="*"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                multiple
+                                            />
+                                            <span className="material-symbols-outlined text-sm text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mr-1.5">
+                                                add
+                                            </span>
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#aaaab7] group-hover:text-white transition-colors">
+                                                Add more files
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -436,9 +605,9 @@ function TeacherNotesContent() {
                             {/* Submit Button */}
                             <button
                                 type="submit"
-                                disabled={uploading || !selectedFile || !noteTitle.trim()}
+                                disabled={uploading || selectedFiles.length === 0 || !noteTitle.trim()}
                                 className={`relative overflow-hidden w-full py-4 rounded-2xl border text-sm font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2
-                                    ${(!selectedFile || !noteTitle.trim()) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
+                                    ${(selectedFiles.length === 0 || !noteTitle.trim()) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
                                     ${uploading ? 'border-[#4af8e3] text-white animate-pulse' : 'border-[#4af8e3]/30 text-[#4af8e3] hover:border-[#4af8e3]/50 active:scale-[0.98]'}
                                 `}
                                 style={{
@@ -513,55 +682,15 @@ function TeacherNotesContent() {
                         ) : (
                             <div className="flex-grow space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
                                 {notes.map((note) => (
-                                    <div
+                                    <TeacherNoteCard
                                         key={note.id}
-                                        className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex items-center justify-between gap-4 group"
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/50 shrink-0">
-                                                <span className="material-symbols-outlined text-xl">
-                                                    {getFileIcon(note.file_name)}
-                                                </span>
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="text-sm font-bold text-[#f0f0fd] truncate">{note.title}</h3>
-                                                <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[10px] text-[#aaaab7]">
-                                                    <span className="truncate max-w-[200px]">{note.file_name}</span>
-                                                    <span className="text-white/20">•</span>
-                                                    <span className="shrink-0">{formatDateTime(note.created_at)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            {/* Open Link */}
-                                            <a
-                                                href={note.file_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="w-9 h-9 rounded-xl bg-white/5 text-[#aaaab7] hover:text-white hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer"
-                                                title="View File"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">open_in_new</span>
-                                            </a>
-
-                                            {/* Delete Note */}
-                                            {note.uploaded_by === user.uid && (
-                                                <button
-                                                    onClick={() => handleDeleteNote(note.id)}
-                                                    disabled={deletingId === note.id}
-                                                    className="w-9 h-9 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] hover:bg-[#ff6e84]/20 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40"
-                                                    title="Delete Note"
-                                                >
-                                                    {deletingId === note.id ? (
-                                                        <div className="w-4 h-4 border-2 border-[#ff6e84]/30 border-t-[#ff6e84] rounded-full animate-spin" />
-                                                    ) : (
-                                                        <span className="material-symbols-outlined text-lg">delete</span>
-                                                    )}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
+                                        note={note}
+                                        deletingId={deletingId}
+                                        user={user}
+                                        handleDeleteNote={handleDeleteNote}
+                                        getFileIcon={getFileIcon}
+                                        formatDateTime={formatDateTime}
+                                    />
                                 ))}
                             </div>
                         )}

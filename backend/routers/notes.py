@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 from database import db
@@ -16,10 +16,11 @@ router = APIRouter(prefix="/api/notes", tags=["Notes"])
 async def upload_note(
     title: str = Form(...),
     batch_id: str = Form(...),
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
+    file_titles: List[str] = Form(...),
     user=Depends(require_role("teacher", "admin")),
 ):
-    """Uploads notes (any file type) to Google Drive and saves metadata in Firestore."""
+    """Uploads multiple files to Google Drive and saves metadata as a single document in Firestore."""
     # Verify the batch exists
     batch_doc = db.collection("batches").document(batch_id).get()
     if not batch_doc.exists:
@@ -31,30 +32,43 @@ async def upload_note(
     if user.get("role") == "teacher" and user["uid"] not in batch_data.get("teacher_ids", []):
         raise HTTPException(status_code=403, detail="Not assigned to this batch")
         
-    # Read file content
-    contents = await file.read()
-        
-    # Upload to Google Drive (inside a subfolder named after the batch)
+    if len(files) != len(file_titles):
+        raise HTTPException(status_code=400, detail="Number of files and file titles must match")
+
     batch_name = batch_data.get("batch_name", "General Notes")
-    try:
-        drive_result = await upload_to_gdrive(
-            file_content=contents,
-            filename=file.filename,
-            content_type=file.content_type,
-            subfolder_name=batch_name
-        )
-    except Exception as e:
-        print(f"Google Drive Upload Error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to upload to Google Drive: {str(e)}")
+    files_metadata = []
+    
+    for f, f_title in zip(files, file_titles):
+        contents = await f.read()
+        try:
+            drive_result = await upload_to_gdrive(
+                file_content=contents,
+                filename=f.filename,
+                content_type=f.content_type,
+                subfolder_name=batch_name
+            )
+            files_metadata.append({
+                "title": f_title.strip() or f.filename,
+                "file_name": f.filename,
+                "file_url": drive_result["file_url"],
+                "file_id": drive_result["file_id"]
+            })
+        except Exception as e:
+            print(f"Google Drive Upload Error for {f.filename}: {e}")
+            # Clean up previously uploaded files in this request
+            for uploaded_file in files_metadata:
+                try:
+                    delete_from_gdrive(uploaded_file["file_id"])
+                except Exception as cleanup_err:
+                    print(f"Cleanup error for {uploaded_file['file_name']}: {cleanup_err}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload {f.filename} to Google Drive: {str(e)}")
         
     # Store metadata in Firestore "notes" collection
     note_data = {
         "title": title,
         "batch_id": batch_id,
         "batch_name": batch_data.get("batch_name", "Unknown"),
-        "file_name": file.filename,
-        "file_url": drive_result["file_url"],
-        "file_id": drive_result["file_id"],
+        "files": files_metadata,
         "uploaded_by": user["uid"],
         "uploaded_by_name": user.get("name", "Teacher"),
         "created_at": ts_now(),
@@ -63,7 +77,7 @@ async def upload_note(
     _, doc_ref = db.collection("notes").add(note_data)
     
     note_data["id"] = doc_ref.id
-    return {"message": "Note uploaded successfully", "note": note_data}
+    return {"message": "Notes uploaded successfully", "note": note_data}
 
 
 # ──────────────────────────────────────────────
@@ -145,7 +159,6 @@ def get_batch_notes(
         # Sort in Python to avoid composite index requirement for unpaginated queries
         notes_list.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return notes_list
-
 # ──────────────────────────────────────────────
 # DELETE /api/notes/{note_id}
 # ──────────────────────────────────────────────
@@ -167,10 +180,24 @@ def delete_note(
     if user.get("role") == "teacher" and note_data.get("uploaded_by") != user["uid"]:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this note")
         
-    # Delete from Google Drive
-    file_id = note_data.get("file_id")
-    if file_id:
-        delete_from_gdrive(file_id)
+    # Delete all files from Google Drive
+    files_list = note_data.get("files", [])
+    if files_list:
+        for f in files_list:
+            file_id = f.get("file_id")
+            if file_id:
+                try:
+                    delete_from_gdrive(file_id)
+                except Exception as e:
+                    print(f"Error deleting file {file_id} from GDrive: {e}")
+    else:
+        # Fallback for old single note format
+        file_id = note_data.get("file_id")
+        if file_id:
+            try:
+                delete_from_gdrive(file_id)
+            except Exception as e:
+                print(f"Error deleting file {file_id} from GDrive: {e}")
         
     # Delete from Firestore
     note_ref.delete()
@@ -184,9 +211,10 @@ def delete_note(
 @router.get("/{note_id}/download")
 def download_note_file(
     note_id: str,
+    file_id: Optional[str] = None,
     user=Depends(require_role_flexible("student", "teacher", "admin")),
 ):
-    """Downloads a note's file directly from Google Drive and streams it to the user."""
+    """Downloads a note's file by redirecting the browser directly to the Google Drive download url."""
     # 1. Fetch note metadata from Firestore
     note_ref = db.collection("notes").document(note_id)
     note_doc = note_ref.get()
@@ -197,11 +225,9 @@ def download_note_file(
     note_data = note_doc.to_dict()
     
     # 2. Permissions check
-    # Student check: must belong to the note's batch
     if user.get("role") == "student" and user.get("batch_id") != note_data.get("batch_id"):
         raise HTTPException(status_code=403, detail="Access denied to this note")
         
-    # Teacher check: must be assigned to the batch
     if user.get("role") == "teacher":
         batch_doc = db.collection("batches").document(note_data.get("batch_id", "")).get()
         if batch_doc.exists:
@@ -212,13 +238,25 @@ def download_note_file(
             raise HTTPException(status_code=404, detail="Batch associated with note not found")
             
     # 3. Get Google Drive file ID
-    file_id = note_data.get("file_id")
+    if file_id:
+        files_list = note_data.get("files", [])
+        matching_file = next((f for f in files_list if f.get("file_id") == file_id), None)
+        if not matching_file:
+            old_file_id = note_data.get("file_id")
+            if old_file_id != file_id:
+                raise HTTPException(status_code=404, detail="File not found in this note group")
+    else:
+        file_id = note_data.get("file_id")
+        if not file_id:
+            files_list = note_data.get("files", [])
+            if files_list:
+                file_id = files_list[0].get("file_id")
+            
     if not file_id:
         raise HTTPException(status_code=404, detail="Google Drive file ID not found for this note")
 
-    # Redirect directly to Google Drive's public download URL.
-    # Since the file is already publicly readable (set during upload),
-    # this URL forces a direct file download without opening the Drive UI or
-    # requiring any Google account login — even on mobile.
-    direct_download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    # Redirect to docs.google.com direct download link instead of drive.google.com
+    # to prevent mobile Google Drive app from intercepting the request
+    direct_download_url = f"https://docs.google.com/uc?export=download&id={file_id}"
     return RedirectResponse(url=direct_download_url, status_code=302)
+
