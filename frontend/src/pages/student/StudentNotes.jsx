@@ -105,40 +105,36 @@ function StudentNotesContent() {
 
     const isLight = theme === "light";
 
-    const handleDownload = async (noteId, fileName, e) => {
+    const handleDownload = (noteId, fileName, e) => {
         e.preventDefault();
         setDownloadingNotes(prev => ({ ...prev, [noteId]: true }));
-        try {
-            const token = localStorage.getItem("idToken") || (auth.currentUser ? await auth.currentUser.getIdToken() : null);
-            const headers = {};
-            if (token) {
-                headers["Authorization"] = `Bearer ${token}`;
-            }
 
-            const response = await fetch(
-                `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/notes/${noteId}/download`,
-                { headers }
-            );
+        const token = localStorage.getItem("idToken");
+        const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const downloadUrl = `${baseUrl}/api/notes/${noteId}/download`;
 
-            if (!response.ok) {
-                throw new Error("Download request failed");
-            }
+        // Create a hidden anchor tag and click it.
+        // The browser will natively follow the 302 redirect to Google Drive
+        // without any CORS issues, triggering an instant file download.
+        const link = document.createElement("a");
+        link.href = downloadUrl;
 
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = blobUrl;
-            link.download = fileName || "note";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        } catch (err) {
-            console.error("Download error:", err);
-            alert("Failed to download note. Please try again.");
-        } finally {
-            setDownloadingNotes(prev => ({ ...prev, [noteId]: false }));
+        // Pass the auth token as a query param since we can't set headers on anchor clicks.
+        // The backend must be updated to accept token from query param as fallback.
+        // Simpler: open in same window so cookies/session work, or use query param.
+        if (token) {
+            link.href = `${downloadUrl}?token=${encodeURIComponent(token)}`;
         }
+
+        link.setAttribute("download", fileName || "note");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Reset the loading state after a short delay (download starts immediately)
+        setTimeout(() => {
+            setDownloadingNotes(prev => ({ ...prev, [noteId]: false }));
+        }, 1500);
     };
 
     const fetchNotes = useCallback(async (page = 1) => {
@@ -184,6 +180,8 @@ function StudentNotesContent() {
         if (["ppt", "pptx"].includes(ext)) return "slideshow";
         if (["txt", "md"].includes(ext)) return "article";
         if (["zip", "rar", "7z"].includes(ext)) return "folder_zip";
+        if (["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(ext)) return "audiotrack";
+        if (["mp4", "mkv", "avi", "mov", "webm", "flv", "3gp"].includes(ext)) return "video_file";
         return "insert_drive_file";
     };
 
@@ -279,14 +277,14 @@ function StudentNotesContent() {
                                 {/* Footer info & Action button */}
                                 <div className="flex items-center justify-between border-t border-[var(--st-divider)] pt-3">
                                     <div className="text-[10px] text-[var(--st-text-secondary)] leading-tight min-w-0 flex-1 pr-2">
-                                        <p className="font-semibold text-[var(--st-text-primary)] truncate">By {note.uploaded_by_name}</p>
+                                        <p className="font-semibold text-[var(--st-text-primary)] truncate">{note.uploaded_by_name}</p>
                                         <p className="text-[9px] text-[var(--st-text-secondary)]/80 mt-0.5">{formatDate(note.created_at)}</p>
                                     </div>
 
                                     <button
                                         onClick={(e) => handleDownload(note.id, note.file_name, e)}
                                         disabled={downloadingNotes[note.id]}
-                                        className="relative overflow-hidden px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
+                                        className="relative overflow-hidden w-[140px] justify-center h-[34px] rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
                                         style={{
                                             backgroundColor: isLight ? "#0d9488" : "#3b82f6",
                                             color: "#ffffff",

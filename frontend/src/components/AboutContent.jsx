@@ -72,7 +72,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
 
             {/* Description */}
             <div
-                className="w-full px-6 py-5 md:px-4 md:py-3 rounded-[28px] md:rounded-[16px] text-center animate-slide-up"
+                className="w-full px-6 py-5 md:px-4 md:py-3 rounded-[28px] md:rounded-[16px] text-left animate-slide-up"
                 style={{
                     backgroundColor: isLight ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.01)",
                     border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.05)"}`,

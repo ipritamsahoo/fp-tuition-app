@@ -11,8 +11,14 @@ from config import (
     GOOGLE_DRIVE_FOLDER_ID
 )
 
+_drive_service_cache = None
+
 def get_drive_service():
     """Initializes Google Drive API service using refresh token authentication."""
+    global _drive_service_cache
+    if _drive_service_cache is not None:
+        return _drive_service_cache
+
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or not GOOGLE_REFRESH_TOKEN:
         raise ValueError("Google Drive credentials not set in environment variables.")
 
@@ -23,7 +29,8 @@ def get_drive_service():
         client_secret=GOOGLE_CLIENT_SECRET,
         token_uri="https://oauth2.googleapis.com/token"
     )
-    return build('drive', 'v3', credentials=creds)
+    _drive_service_cache = build('drive', 'v3', credentials=creds)
+    return _drive_service_cache
 
 
 def _get_or_create_subfolder(service, parent_folder_id: str, folder_name: str) -> str:

@@ -210,20 +210,36 @@ function TeacherNotesContent() {
         formData.append("batch_id", selectedBatch);
         formData.append("file", selectedFile);
 
+        let currentProgress = 0;
+        let targetProgress = 0;
+        setUploadProgress(0);
+
+        const progressInterval = setInterval(() => {
+            if (currentProgress < targetProgress) {
+                const diff = targetProgress - currentProgress;
+                // Increment smoothly by small steps
+                const increment = Math.max(1, Math.min(3, Math.ceil(diff * 0.08)));
+                currentProgress += increment;
+                setUploadProgress(currentProgress);
+            }
+        }, 30);
+
         try {
             await api.upload("/api/notes/upload", formData, (progress) => {
-                // Map the browser upload progress (0-100%) to 0-95%
-                const scaled = Math.round(progress * 0.95);
-                setUploadProgress(scaled);
+                targetProgress = Math.round(progress * 0.95);
             });
             
-            // Once the API request succeeds, set to 100% and delay to let user see completion
+            // Let the smooth animation catch up before showing 100%
+            while (currentProgress < 92) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            clearInterval(progressInterval);
             setUploadProgress(100);
             await new Promise(resolve => setTimeout(resolve, 500));
 
             setUploadSuccess("Note uploaded successfully!");
             setNoteTitle("");
-            // Reset input element while it is still in DOM
             const fileInput = document.getElementById("note-file-input");
             if (fileInput) {
                 fileInput.value = "";
@@ -231,10 +247,12 @@ function TeacherNotesContent() {
             setSelectedFile(null);
             fetchNotes(selectedBatch, 1);
         } catch (err) {
+            clearInterval(progressInterval);
             if (!isSystemicError(err.message)) {
                 setUploadError(err.message || "Failed to upload note");
             }
         } finally {
+            clearInterval(progressInterval);
             setUploading(false);
         }
     };
@@ -284,6 +302,8 @@ function TeacherNotesContent() {
         if (["ppt", "pptx"].includes(ext)) return "slideshow";
         if (["txt", "md"].includes(ext)) return "article";
         if (["zip", "rar", "7z"].includes(ext)) return "folder_zip";
+        if (["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(ext)) return "audiotrack";
+        if (["mp4", "mkv", "avi", "mov", "webm", "flv", "3gp"].includes(ext)) return "video_file";
         return "insert_drive_file";
     };
 
@@ -417,15 +437,23 @@ function TeacherNotesContent() {
                             <button
                                 type="submit"
                                 disabled={uploading || !selectedFile || !noteTitle.trim()}
-                                className="relative overflow-hidden w-full py-4 rounded-2xl border border-[#4af8e3]/30 text-[#4af8e3] text-sm font-bold uppercase tracking-wider active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
+                                className={`relative overflow-hidden w-full py-4 rounded-2xl border text-sm font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2
+                                    ${(!selectedFile || !noteTitle.trim()) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
+                                    ${uploading ? 'border-[#4af8e3] text-white animate-pulse' : 'border-[#4af8e3]/30 text-[#4af8e3] hover:border-[#4af8e3]/50 active:scale-[0.98]'}
+                                `}
                                 style={{
-                                    background: uploading ? 'rgba(255, 255, 255, 0.02)' : 'linear-gradient(to right, rgba(74, 248, 227, 0.2), rgba(199, 153, 255, 0.2))',
+                                    background: uploading 
+                                        ? 'linear-gradient(to right, rgba(74, 248, 227, 0.4), rgba(199, 153, 255, 0.4))' 
+                                        : 'linear-gradient(to right, rgba(74, 248, 227, 0.2), rgba(199, 153, 255, 0.2))',
+                                    boxShadow: uploading 
+                                        ? '0 0 25px rgba(74, 248, 227, 0.5), 0 0 50px rgba(199, 153, 255, 0.3), inset 0 0 15px rgba(255,255,255,0.2)' 
+                                        : 'none'
                                 }}
                             >
                                 {/* Progress background fill overlay */}
                                 {uploading && (
                                     <div 
-                                        className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-[#4af8e3]/25 to-[#c799ff]/25 transition-all duration-300 ease-out z-0"
+                                        className={`absolute top-0 left-0 bottom-0 bg-gradient-to-r from-[#4af8e3]/35 to-[#c799ff]/35 transition-all duration-300 ease-out z-0 ${uploadProgress >= 95 ? 'animate-pulse' : ''}`}
                                         style={{ width: `${uploadProgress}%` }}
                                     />
                                 )}
@@ -434,11 +462,15 @@ function TeacherNotesContent() {
                                     {uploading ? (
                                         <>
                                             <div className="w-4 h-4 border-2 border-[#4af8e3]/30 border-t-[#4af8e3] rounded-full animate-spin" />
-                                            Uploading ({uploadProgress}%)...
+                                            {uploadProgress >= 95 ? (
+                                                <span className="animate-pulse">Processing...</span>
+                                            ) : (
+                                                `Uploading (${uploadProgress}%)...`
+                                            )}
                                         </>
                                     ) : (
                                         <>
-                                            <span className="material-symbols-outlined text-lg">publish</span>
+                                            <span className="material-symbols-outlined text-lg">cloud_upload</span>
                                             Upload Note
                                         </>
                                     )}
@@ -451,10 +483,10 @@ function TeacherNotesContent() {
                 {/* Right side: List of Uploaded Notes */}
                 <div className="lg:col-span-7">
                     <GlassCard className="p-6 min-h-[400px] flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between items-start gap-2 mb-4">
                             <h2 className="text-lg font-bold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>Your Shared Notes</h2>
                             {selectedBatch && (
-                                <span className="text-xs font-bold text-[#aaaab7] bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                                <span className="text-xs font-bold text-[#aaaab7] bg-white/5 px-3 py-1 rounded-full border border-white/5 shrink-0">
                                     {batches.find(b => b.id === selectedBatch)?.batch_name || ""}
                                 </span>
                             )}

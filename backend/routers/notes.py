@@ -1,9 +1,8 @@
 from typing import Optional
-import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse
 from database import db
-from dependencies import require_role
+from dependencies import require_role, require_role_flexible
 from utils import ts_now, serialize_doc
 from gdrive import upload_to_gdrive, delete_from_gdrive
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -185,7 +184,7 @@ def delete_note(
 @router.get("/{note_id}/download")
 def download_note_file(
     note_id: str,
-    user=Depends(require_role("student", "teacher", "admin")),
+    user=Depends(require_role_flexible("student", "teacher", "admin")),
 ):
     """Downloads a note's file directly from Google Drive and streams it to the user."""
     # 1. Fetch note metadata from Firestore
@@ -216,28 +215,10 @@ def download_note_file(
     file_id = note_data.get("file_id")
     if not file_id:
         raise HTTPException(status_code=404, detail="Google Drive file ID not found for this note")
-        
-    try:
-        from gdrive import get_drive_service
-        service = get_drive_service()
-        # Fetch file metadata from Google Drive to get the original MIME type
-        drive_file = service.files().get(fileId=file_id, fields="mimeType").execute()
-        mime_type = drive_file.get("mimeType", "application/octet-stream")
-        
-        # Download the file content from Google Drive
-        file_bytes = service.files().get_media(fileId=file_id).execute()
-        
-        # Stream the response with Content-Disposition attachment to trigger download
-        filename = note_data.get("file_name", "downloaded_note")
-        
-        return StreamingResponse(
-            io.BytesIO(file_bytes),
-            media_type=mime_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "Access-Control-Expose-Headers": "Content-Disposition"
-            }
-        )
-    except Exception as e:
-        print(f"Error downloading from GDrive: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to download file from Google Drive: {str(e)}")
+
+    # Redirect directly to Google Drive's public download URL.
+    # Since the file is already publicly readable (set during upload),
+    # this URL forces a direct file download without opening the Drive UI or
+    # requiring any Google account login — even on mobile.
+    direct_download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    return RedirectResponse(url=direct_download_url, status_code=302)
