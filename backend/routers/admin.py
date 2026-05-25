@@ -11,8 +11,9 @@ from typing import Optional
 
 import cloudinary.uploader
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from firebase_admin import auth as firebase_auth
+from utils_backup import export_database, import_database, get_last_backup_time
 
 from config import DEFAULT_FEE_AMOUNT
 from database import db
@@ -2349,4 +2350,48 @@ def reset_admin_account(req: EmergencyReset):
         deleted_count += 1
         
     return {"message": f"Successfully deleted {deleted_count} admin accounts. The system is ready to be seeded again."}
+
+
+# ──────────────────────────────────────────────
+#  DATABASE BACKUP & RESTORE
+# ──────────────────────────────────────────────
+
+@router.get("/backup/export")
+def admin_backup_export(mode: str = "full", user=Depends(require_role("admin"))):
+    """Export the database as a JSON backup (full or incremental)."""
+    if mode not in ["full", "incremental"]:
+        raise HTTPException(status_code=400, detail="Invalid backup mode. Must be 'full' or 'incremental'.")
+    try:
+        data = export_database(mode)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.post("/backup/import")
+async def admin_backup_import(file: UploadFile = File(...), user=Depends(require_role("admin"))):
+    """Import and restore database from a JSON backup file."""
+    import json
+    try:
+        contents = await file.read()
+        backup_data = json.loads(contents.decode("utf-8"))
+        
+        # Simple schema validation
+        if "data" not in backup_data or not isinstance(backup_data["data"], dict):
+            raise HTTPException(status_code=400, detail="Invalid backup file format. Missing 'data' object.")
+            
+        restored_count = import_database(backup_data)
+        return {"message": f"Backup restored successfully. {restored_count} documents updated/created."}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file format.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
+
+
+@router.get("/backup/info")
+def admin_backup_info(user=Depends(require_role("admin"))):
+    """Get metadata about the last backup."""
+    last_time = get_last_backup_time()
+    return {"last_backup_time": last_time}
+
 
