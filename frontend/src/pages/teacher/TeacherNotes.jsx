@@ -117,7 +117,7 @@ function TeacherNotesPageSkeleton() {
         </div>
     );
 }
-function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime, onPreview, onSaveToCache, savingFiles }) {
+function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime, onPreview, onSaveToCache, savingFiles, cacheVersion }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [cachedFileIds, setCachedFileIds] = useState(new Set());
 
@@ -135,7 +135,7 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     useEffect(() => {
         const ids = noteFiles.map(f => f.file_id).filter(Boolean);
         checkCachedFiles(ids).then(setCachedFileIds);
-    }, [note.id, savingFiles]); // Trigger check when savingFiles status changes
+    }, [note.id, savingFiles, cacheVersion]); // Trigger check when savingFiles or cacheVersion changes
 
     const handlePrev = (e) => {
         e.stopPropagation();
@@ -156,25 +156,27 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
         });
     };
 
-    const hasPreview = currentCached && isPreviewable(currentFile.file_name);
+    const isImgOrPdf = isPreviewable(currentFile.file_name);
 
     const handleCardClick = async (e) => {
         // Ignore container clicks if clicking interactive buttons (carousel arrows, save/delete icon)
         if (e.target.closest('button') || e.target.closest('a')) return;
 
-        if (!currentCached) {
-            if (!isSaving) {
-                onSaveToCache(note, () => {
-                    const ids = noteFiles.map(f => f.file_id).filter(Boolean);
-                    setCachedFileIds(prev => new Set([...prev, ...ids]));
-                });
-            }
-            return;
-        }
-
-        if (hasPreview) {
+        if (isImgOrPdf) {
+            // Open previewer immediately! Previewer will handle loading from cache or network automatically.
             onPreview(note, activeIndex);
         } else {
+            // For non-previewable files (docx, zip, etc.)
+            if (!currentCached) {
+                if (!isSaving) {
+                    onSaveToCache(note, () => {
+                        const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+                        setCachedFileIds(prev => new Set([...prev, ...ids]));
+                    });
+                }
+                return;
+            }
+
             // Local download from IndexedDB cache
             try {
                 const cached = await getCachedFile(currentFile.file_id);
@@ -297,6 +299,9 @@ function TeacherNotesContent() {
     const [deletingId, setDeletingId] = useState(null);
     const [previewData, setPreviewData] = useState(null); // { note, index }
     const [savingFiles, setSavingFiles] = useState({}); // { file_id: true/false }
+    const [cacheVersion, setCacheVersion] = useState(0);
+
+    const triggerCacheRefresh = () => setCacheVersion(prev => prev + 1);
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
@@ -787,6 +792,7 @@ function TeacherNotesContent() {
                                         onPreview={(noteItem, index) => setPreviewData({ note: noteItem, index })}
                                         savingFiles={savingFiles}
                                         onSaveToCache={handleSaveToCache}
+                                        cacheVersion={cacheVersion}
                                     />
                                 ))}
                             </div>
@@ -869,10 +875,14 @@ function TeacherNotesContent() {
                 <MediaPreviewer
                     note={previewData.note}
                     initialIndex={previewData.index}
-                    onClose={() => setPreviewData(null)}
+                    onClose={() => {
+                        setPreviewData(null);
+                        triggerCacheRefresh();
+                    }}
                     getFileIcon={getFileIcon}
                     formatDateTime={formatDateTime}
                     hideUploaderName={true}
+                    onFileCached={triggerCacheRefresh}
                 />
             )}
         </div>

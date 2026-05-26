@@ -94,7 +94,7 @@ function StudentNotesSkeleton() {
         </div>
     );
 }
-function StudentNoteCard({ note, getFileIcon, formatDate, isLight, onPreview, onSaveToCache, savingFiles }) {
+function StudentNoteCard({ note, getFileIcon, formatDate, isLight, onPreview, onSaveToCache, savingFiles, cacheVersion }) {
     const [activeIndex, setActiveIndex] = useState(0);
     // cachedFileIds: Set of file_id strings that are confirmed cached in IndexedDB
     const [cachedFileIds, setCachedFileIds] = useState(new Set());
@@ -110,11 +110,11 @@ function StudentNoteCard({ note, getFileIcon, formatDate, isLight, onPreview, on
     const currentCached = cachedFileIds.has(currentFile.file_id);
     const isSaving = noteFiles.some(f => savingFiles[f.file_id]);
 
-    // Check cache status for all files in this note on mount
+    // Check cache status for all files in this note on mount or when cache version changes
     useEffect(() => {
         const ids = noteFiles.map(f => f.file_id).filter(Boolean);
         checkCachedFiles(ids).then(setCachedFileIds);
-    }, [note.id, savingFiles]); // Trigger check when savingFiles status changes
+    }, [note.id, savingFiles, cacheVersion]); // Trigger check when savingFiles or cacheVersion changes
 
     const handlePrev = (e) => {
         e.stopPropagation();
@@ -135,26 +135,28 @@ function StudentNoteCard({ note, getFileIcon, formatDate, isLight, onPreview, on
         });
     };
 
-    const hasPreview = currentCached && isPreviewable(currentFile.file_name);
+    const isImgOrPdf = isPreviewable(currentFile.file_name);
 
     const handleCardClick = async (e) => {
         // If clicking slider buttons or actions, ignore card click
         if (e.target.closest('button') || e.target.closest('a')) return;
 
-        if (!currentCached) {
-            if (!isSaving) {
-                onSaveToCache(note, () => {
-                    const ids = noteFiles.map(f => f.file_id).filter(Boolean);
-                    setCachedFileIds(prev => new Set([...prev, ...ids]));
-                });
-            }
-            return;
-        }
-
-        if (hasPreview) {
+        if (isImgOrPdf) {
+            // Open previewer immediately! Previewer will handle loading from cache or network automatically.
             onPreview(note, activeIndex);
         } else {
-            // Instant local download for cached non-previewable files (docs, zips, etc.)
+            // For non-previewable files (docx, zip, etc.)
+            if (!currentCached) {
+                if (!isSaving) {
+                    onSaveToCache(note, () => {
+                        const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+                        setCachedFileIds(prev => new Set([...prev, ...ids]));
+                    });
+                }
+                return;
+            }
+
+            // Local download from IndexedDB cache
             try {
                 const cached = await getCachedFile(currentFile.file_id);
                 if (cached && cached.blob) {
@@ -273,6 +275,9 @@ function StudentNotesContent() {
     const [pageLoading, setPageLoading] = useState(false);
     const [savingFiles, setSavingFiles] = useState({}); // { file_id: true/false }
     const [previewData, setPreviewData] = useState(null); // { note, index }
+    const [cacheVersion, setCacheVersion] = useState(0);
+
+    const triggerCacheRefresh = () => setCacheVersion(prev => prev + 1);
 
     const isLight = theme === "light";
 
@@ -445,6 +450,7 @@ function StudentNotesContent() {
                                 formatDate={formatDate}
                                 isLight={isLight}
                                 onPreview={(noteItem, index) => setPreviewData({ note: noteItem, index })}
+                                cacheVersion={cacheVersion}
                             />
                         ))}
                     </div>
@@ -541,9 +547,13 @@ function StudentNotesContent() {
                 <MediaPreviewer
                     note={previewData.note}
                     initialIndex={previewData.index}
-                    onClose={() => setPreviewData(null)}
+                    onClose={() => {
+                        setPreviewData(null);
+                        triggerCacheRefresh();
+                    }}
                     getFileIcon={getFileIcon}
                     formatDateTime={formatDate}
+                    onFileCached={triggerCacheRefresh}
                 />
             )}
         </div>
