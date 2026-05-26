@@ -93,20 +93,20 @@ export default function MediaPreviewer({ note, initialIndex, onClose, getFileIco
             if (e.ctrlKey) {
                 e.preventDefault(); // Stop native browser window zoom
                 const newScale = Math.min(Math.max(scale - e.deltaY * 0.01, 1), 4);
-                
+
                 const rect = container.getBoundingClientRect();
                 const mouseX = e.clientX;
                 const mouseY = e.clientY;
-                
+
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-                
+
                 const ix = (mouseX - centerX - position.x) / scale;
                 const iy = (mouseY - centerY - position.y) / scale;
-                
+
                 const newX = mouseX - centerX - ix * newScale;
                 const newY = mouseY - centerY - iy * newScale;
-                
+
                 setScale(newScale);
                 if (newScale === 1) {
                     setPosition({ x: 0, y: 0 });
@@ -167,16 +167,16 @@ export default function MediaPreviewer({ note, initialIndex, onClose, getFileIco
                     const rect = container.getBoundingClientRect();
                     const mouseX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left + rect.width / 2);
                     const mouseY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top + rect.height / 2);
-                    
+
                     const centerX = rect.left + rect.width / 2;
                     const centerY = rect.top + rect.height / 2;
-                    
+
                     const ix = (mouseX - centerX - position.x) / scale;
                     const iy = (mouseY - centerY - position.y) / scale;
-                    
+
                     const newX = mouseX - centerX - ix * targetScale;
                     const newY = mouseY - centerY - iy * targetScale;
-                    
+
                     setScale(targetScale);
                     setPosition({ x: newX, y: newY });
                 } else {
@@ -293,6 +293,10 @@ export default function MediaPreviewer({ note, initialIndex, onClose, getFileIco
         if (!filename) return false;
         const ext = filename.split('.').pop().toLowerCase();
         return ext === "pdf";
+    };
+
+    const isMobileDevice = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     };
 
     const handlePrev = (e) => {
@@ -434,7 +438,7 @@ export default function MediaPreviewer({ note, initialIndex, onClose, getFileIco
                             </button>
                         </div>
                     ) : isImage(activeFile.file_name) && localUrl ? (
-                        <div 
+                        <div
                             ref={imageContainerRef}
                             className={`relative flex items-center justify-center ${scale > 1 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'}`}
                             onClick={handleDoubleTap}
@@ -455,29 +459,43 @@ export default function MediaPreviewer({ note, initialIndex, onClose, getFileIco
                             />
                         </div>
                     ) : isPDF(activeFile.file_name) && localUrl ? (
-                        <embed
-                            src={`${localUrl}#toolbar=0&navpanes=0`}
-                            type="application/pdf"
-                            className="w-full h-full bg-[#323639] border-none"
-                        />
+                        isMobileDevice() ? (
+                            <div className="flex items-center justify-center w-full h-full">
+                                <button
+                                    onClick={() => window.open(localUrl, "_blank")}
+                                    className="px-6 py-3.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 active:scale-95 shadow-lg shadow-[#3b82f6]/20"
+                                >
+                                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                                    Open in Browser
+                                </button>
+                            </div>
+                        ) : (
+                            <embed
+                                src={`${localUrl}#toolbar=0&navpanes=0`}
+                                type="application/pdf"
+                                className="w-full h-full bg-[#323639] border-none"
+                            />
+                        )
                     ) : (
-                        <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center text-center gap-4 max-w-sm">
-                            <span className="material-symbols-outlined text-5xl text-[#aaaab7]">
-                                {getFileIcon(activeFile.file_name)}
-                            </span>
-                            <div className="space-y-1">
-                                <h3 className="text-sm font-bold text-[#f0f0fd] truncate max-w-[280px]">
+                        <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center text-center gap-6 max-w-sm w-full mx-4 shadow-2xl backdrop-blur-md">
+                            <div className="w-16 h-16 rounded-2xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center text-[#3b82f6] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
+                                <span className="material-symbols-outlined text-4xl">
+                                    {getFileIcon(activeFile.file_name)}
+                                </span>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-base font-bold text-[#f0f0fd] truncate max-w-[280px]" title={activeFile.caption || activeFile.file_name}>
                                     {activeFile.caption || activeFile.file_name}
                                 </h3>
                                 <p className="text-xs text-[#aaaab7]">{activeFile.file_name}</p>
-                                <p className="text-[11px] text-[#aaaab7]/60 mt-1">Preview not available for this file type</p>
+                                <p className="text-[11px] text-[#aaaab7]/60">Preview not available for this file type</p>
                             </div>
                             <button
                                 onClick={handleDownload}
-                                className="px-4 py-2 mt-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-wider text-[#4af8e3] transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                className="w-full py-3 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#3b82f6]/20"
                             >
                                 <span className="material-symbols-outlined text-sm">download</span>
-                                Download File
+                                {isMobileDevice() ? "Open in App (Download)" : "Download File"}
                             </button>
                         </div>
                     )}
