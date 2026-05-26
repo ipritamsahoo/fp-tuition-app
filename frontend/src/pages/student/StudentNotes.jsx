@@ -5,8 +5,10 @@ import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
 import { auth } from "@/lib/firebase";
+import MediaPreviewer from "@/components/MediaPreviewer";
+import { checkCachedFiles, saveCachedFile, getCachedFile } from "@/lib/mediaDb";
 
-function GlassCard({ children, className = "", style = {} }) {
+function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
             className={`rounded-[28px] border border-white/[0.07] ${className}`}
@@ -16,6 +18,7 @@ function GlassCard({ children, className = "", style = {} }) {
                 WebkitBackdropFilter: "blur(20px)",
                 ...style,
             }}
+            {...props}
         >
             {children}
         </div>
@@ -91,20 +94,27 @@ function StudentNotesSkeleton() {
         </div>
     );
 }
-function StudentNoteCard({ note, downloadingNotes, handleDownload, getFileIcon, formatDate, isLight }) {
+function StudentNoteCard({ note, getFileIcon, formatDate, isLight, onPreview, onSaveToCache, savingFiles }) {
     const [activeIndex, setActiveIndex] = useState(0);
-    const noteFiles = note.files || [
-        {
-            title: note.title,
-            file_name: note.file_name,
-            file_url: note.file_url,
-            file_id: note.file_id
-        }
-    ];
+    // cachedFileIds: Set of file_id strings that are confirmed cached in IndexedDB
+    const [cachedFileIds, setCachedFileIds] = useState(new Set());
+
+    const noteFiles = note.files || [];
 
     const currentFile = noteFiles[activeIndex] || noteFiles[0];
-    const trackingKey = currentFile.file_id || note.id;
-    const isDownloading = downloadingNotes[trackingKey];
+    const isPreviewable = (filename) => {
+        if (!filename) return false;
+        const ext = filename.split('.').pop().toLowerCase();
+        return ["jpg", "jpeg", "png", "webp", "gif", "bmp", "pdf"].includes(ext);
+    };
+    const currentCached = cachedFileIds.has(currentFile.file_id);
+    const isSaving = noteFiles.some(f => savingFiles[f.file_id]);
+
+    // Check cache status for all files in this note on mount
+    useEffect(() => {
+        const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+        checkCachedFiles(ids).then(setCachedFileIds);
+    }, [note.id, savingFiles]); // Trigger check when savingFiles status changes
 
     const handlePrev = (e) => {
         e.stopPropagation();
@@ -116,9 +126,57 @@ function StudentNoteCard({ note, downloadingNotes, handleDownload, getFileIcon, 
         setActiveIndex((prev) => (prev === noteFiles.length - 1 ? 0 : prev + 1));
     };
 
+    const handleSave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSaveToCache(note, () => {
+            const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+            setCachedFileIds(prev => new Set([...prev, ...ids]));
+        });
+    };
+
+    const hasPreview = currentCached && isPreviewable(currentFile.file_name);
+
+    const handleCardClick = async (e) => {
+        // If clicking slider buttons or actions, ignore card click
+        if (e.target.closest('button') || e.target.closest('a')) return;
+
+        if (!currentCached) {
+            if (!isSaving) {
+                onSaveToCache(note, () => {
+                    const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+                    setCachedFileIds(prev => new Set([...prev, ...ids]));
+                });
+            }
+            return;
+        }
+
+        if (hasPreview) {
+            onPreview(note, activeIndex);
+        } else {
+            // Instant local download for cached non-previewable files (docs, zips, etc.)
+            try {
+                const cached = await getCachedFile(currentFile.file_id);
+                if (cached && cached.blob) {
+                    const url = URL.createObjectURL(cached.blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.setAttribute("download", currentFile.file_name || "download");
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            } catch (err) {
+                console.error("Local download failed:", err);
+            }
+        }
+    };
+
     return (
         <GlassCard
-            className="p-4 flex flex-col justify-between gap-3 hover:border-[#3b82f6]/20 transition-all group"
+            onClick={handleCardClick}
+            className={`p-4 flex flex-col justify-between gap-3 transition-all group cursor-pointer hover:border-[#3b82f6]/40 hover:bg-white/[0.01] ${isSaving ? 'opacity-80 pointer-events-none' : ''}`}
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -129,34 +187,21 @@ function StudentNoteCard({ note, downloadingNotes, handleDownload, getFileIcon, 
                         </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                        {/* Note Group Title */}
+                        {/* File Caption / Name */}
                         <h3
                             className="font-bold truncate text-sm leading-snug"
                             style={{ color: "var(--st-text-primary)" }}
-                            title={note.title}
+                            title={currentFile.caption || currentFile.file_name}
                         >
-                            {note.title}
+                            {currentFile.caption || currentFile.file_name}
                         </h3>
 
-                        {/* File Caption (if custom) */}
-                        {(() => {
-                            const fileNameWithoutExt = currentFile.file_name ? currentFile.file_name.substring(0, currentFile.file_name.lastIndexOf('.')) || currentFile.file_name : "";
-                            const hasCustomCaption = currentFile.title && 
-                                currentFile.title !== note.title && 
-                                currentFile.title !== currentFile.file_name && 
-                                currentFile.title !== fileNameWithoutExt;
-                            
-                            return hasCustomCaption ? (
-                                <p className="text-[11px] font-semibold mt-0.5 truncate" style={{ color: "var(--st-text-primary)" }}>
-                                    {currentFile.title}
-                                </p>
-                            ) : null;
-                        })()}
-
-                        {/* File Name */}
-                        <p className="text-[10px] text-[var(--st-text-secondary)]/70 mt-0.5 truncate" title={currentFile.file_name}>
-                            {currentFile.file_name}
-                        </p>
+                        {/* Original File Name if caption is used */}
+                        {currentFile.caption && currentFile.caption !== currentFile.file_name && (
+                            <p className="text-[10px] text-[var(--st-text-secondary)]/70 mt-0.5 truncate" title={currentFile.file_name}>
+                                {currentFile.file_name}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -166,78 +211,56 @@ function StudentNoteCard({ note, downloadingNotes, handleDownload, getFileIcon, 
                         <span className="text-[10px] text-[var(--st-text-secondary)]/70 font-semibold mr-1">
                             {activeIndex + 1} of {noteFiles.length}
                         </span>
-                        <button
-                            onClick={handlePrev}
+                        <button onClick={handlePrev}
                             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0"
-                            style={{
-                                backgroundColor: 'var(--st-icon-bg)',
-                                border: '1px solid var(--st-input-border)',
-                                color: 'var(--st-text-primary)'
-                            }}
-                            title="Previous File"
-                        >
+                            style={{ backgroundColor: 'var(--st-icon-bg)', border: '1px solid var(--st-input-border)', color: 'var(--st-text-primary)' }}
+                            title="Previous File">
                             <span className="material-symbols-outlined text-sm">chevron_left</span>
                         </button>
-                        <button
-                            onClick={handleNext}
+                        <button onClick={handleNext}
                             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0"
-                            style={{
-                                backgroundColor: 'var(--st-icon-bg)',
-                                border: '1px solid var(--st-input-border)',
-                                color: 'var(--st-text-primary)'
-                            }}
-                            title="Next File"
-                        >
+                            style={{ backgroundColor: 'var(--st-icon-bg)', border: '1px solid var(--st-input-border)', color: 'var(--st-text-primary)' }}
+                            title="Next File">
                             <span className="material-symbols-outlined text-sm">chevron_right</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            {/* Footer info & Action button */}
+            {/* Footer info & Action buttons */}
             <div className="flex items-center justify-between border-t border-[var(--st-divider)] pt-3">
                 <div className="text-[10px] text-[var(--st-text-secondary)] leading-tight min-w-0 flex-1 pr-2">
                     <p className="font-semibold text-[var(--st-text-primary)] truncate">{note.uploaded_by_name}</p>
                     <p className="text-[9px] text-[var(--st-text-secondary)]/80 mt-0.5">{formatDate(note.created_at)}</p>
                 </div>
 
-                <button
-                    onClick={(e) => handleDownload(note.id, currentFile.file_id, currentFile.file_name, e)}
-                    disabled={isDownloading}
-                    className="relative overflow-hidden w-[140px] justify-center h-[34px] rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed"
-                    style={{
-                        backgroundColor: isLight ? "#0d9488" : "#3b82f6",
-                        color: "#ffffff",
-                        border: "none",
-                        boxShadow: isLight
-                            ? "0 2px 8px rgba(13,148,136,0.15)"
-                            : "0 2px 8px rgba(59,130,246,0.2)",
-                    }}
-                >
-                    {isDownloading && (
-                        <div className="wave-container">
-                            <div className="wave-layer one" />
-                            <div className="wave-layer two" />
-                        </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {!currentCached && (
+                        /* ── SAVE button — file not yet cached ── */
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer border shrink-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                backgroundColor: 'var(--st-icon-bg)',
+                                borderColor: 'var(--st-input-border)',
+                                color: 'var(--st-text-secondary)',
+                            }}
+                            title="Save Offline"
+                        >
+                            {isSaving ? (
+                                <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-lg">download</span>
+                            )}
+                        </button>
                     )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                        {isDownloading ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
-                                Downloading...
-                            </>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-sm">download</span>
-                                Get Note
-                            </>
-                        )}
-                    </span>
-                </button>
+                </div>
             </div>
         </GlassCard>
     );
 }
+
 
 function StudentNotesContent() {
     const { user } = useAuth();
@@ -248,42 +271,56 @@ function StudentNotesContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageLoading, setPageLoading] = useState(false);
-    const [downloadingNotes, setDownloadingNotes] = useState({});
+    const [savingFiles, setSavingFiles] = useState({}); // { file_id: true/false }
+    const [previewData, setPreviewData] = useState(null); // { note, index }
 
     const isLight = theme === "light";
 
-    const handleDownload = (noteId, fileId, fileName, e) => {
-        e.preventDefault();
-        const trackingKey = fileId || noteId;
-        setDownloadingNotes(prev => ({ ...prev, [trackingKey]: true }));
+    // Downloads all files of the note to IndexedDB cache for offline preview
+    const handleSaveToCache = async (note, onDone) => {
+        const files = note.files || [];
+        if (!files.length) return;
 
-        const token = localStorage.getItem("idToken");
-        const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
-        let downloadUrl = `${baseUrl}/api/notes/${noteId}/download`;
-        
-        const params = [];
-        if (fileId) {
-            params.push(`file_id=${encodeURIComponent(fileId)}`);
-        }
-        if (token) {
-            params.push(`token=${encodeURIComponent(token)}`);
-        }
-        
-        if (params.length > 0) {
-            downloadUrl += `?${params.join("&")}`;
-        }
+        const fileIds = files.map(f => f.file_id);
+        setSavingFiles(prev => {
+            const next = { ...prev };
+            fileIds.forEach(id => { next[id] = true; });
+            return next;
+        });
 
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.setAttribute("download", fileName || "note");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        try {
+            const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = localStorage.getItem("idToken");
 
-        // Reset the loading state after a short delay
-        setTimeout(() => {
-            setDownloadingNotes(prev => ({ ...prev, [trackingKey]: false }));
-        }, 1500);
+            await Promise.all(files.map(async (file) => {
+                try {
+                    let url = `${baseUrl}/api/notes/${note.id}/files/${file.file_id}/view`;
+                    if (token) url += `?token=${encodeURIComponent(token)}`;
+
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    let mimeType = response.headers.get("content-type") || "application/octet-stream";
+                    const ext = (file.file_name || "").split(".").pop().toLowerCase();
+                    if (ext === "pdf") mimeType = "application/pdf";
+
+                    const blob = new Blob([arrayBuffer], { type: mimeType });
+                    await saveCachedFile(file.file_id, blob, mimeType, file.file_name);
+                } catch (err) {
+                    console.error(`Failed to cache file ${file.file_name}:`, err);
+                }
+            }));
+            onDone?.();
+        } catch (err) {
+            console.error("Save to cache failed:", err);
+        } finally {
+            setSavingFiles(prev => {
+                const next = { ...prev };
+                fileIds.forEach(id => { next[id] = false; });
+                return next;
+            });
+        }
     };
 
     const fetchNotes = useCallback(async (page = 1) => {
@@ -402,11 +439,12 @@ function StudentNotesContent() {
                             <StudentNoteCard
                                 key={note.id}
                                 note={note}
-                                downloadingNotes={downloadingNotes}
-                                handleDownload={handleDownload}
+                                savingFiles={savingFiles}
+                                onSaveToCache={handleSaveToCache}
                                 getFileIcon={getFileIcon}
                                 formatDate={formatDate}
                                 isLight={isLight}
+                                onPreview={(noteItem, index) => setPreviewData({ note: noteItem, index })}
                             />
                         ))}
                     </div>
@@ -497,6 +535,16 @@ function StudentNotesContent() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {previewData && (
+                <MediaPreviewer
+                    note={previewData.note}
+                    initialIndex={previewData.index}
+                    onClose={() => setPreviewData(null)}
+                    getFileIcon={getFileIcon}
+                    formatDateTime={formatDate}
+                />
             )}
         </div>
     );

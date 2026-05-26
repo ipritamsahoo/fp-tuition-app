@@ -1,10 +1,10 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from fastapi.responses import RedirectResponse
 from database import db
 from dependencies import require_role, require_role_flexible
 from utils import ts_now, serialize_doc
-from gdrive import upload_to_gdrive, delete_from_gdrive
+from gdrive import upload_to_gdrive, delete_from_gdrive, download_from_gdrive, _download_sync
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 router = APIRouter(prefix="/api/notes", tags=["Notes"])
@@ -14,10 +14,9 @@ router = APIRouter(prefix="/api/notes", tags=["Notes"])
 # ──────────────────────────────────────────────
 @router.post("/upload")
 async def upload_note(
-    title: str = Form(...),
     batch_id: str = Form(...),
     files: List[UploadFile] = File(...),
-    file_titles: List[str] = Form(...),
+    file_captions: List[str] = Form(default=[]),
     user=Depends(require_role("teacher", "admin")),
 ):
     """Uploads multiple files to Google Drive and saves metadata as a single document in Firestore."""
@@ -31,14 +30,15 @@ async def upload_note(
     # If the user is a teacher, verify they are assigned to this batch
     if user.get("role") == "teacher" and user["uid"] not in batch_data.get("teacher_ids", []):
         raise HTTPException(status_code=403, detail="Not assigned to this batch")
-        
-    if len(files) != len(file_titles):
-        raise HTTPException(status_code=400, detail="Number of files and file titles must match")
 
     batch_name = batch_data.get("batch_name", "General Notes")
+
+    # Pad file_captions to match number of files (in case fewer captions were sent)
+    padded_captions = list(file_captions) + [""] * (len(files) - len(file_captions))
+
     files_metadata = []
     
-    for f, f_title in zip(files, file_titles):
+    for f, f_caption in zip(files, padded_captions):
         contents = await f.read()
         try:
             drive_result = await upload_to_gdrive(
@@ -48,7 +48,7 @@ async def upload_note(
                 subfolder_name=batch_name
             )
             files_metadata.append({
-                "title": f_title.strip() or f.filename,
+                "caption": f_caption.strip() or f.filename,
                 "file_name": f.filename,
                 "file_url": drive_result["file_url"],
                 "file_id": drive_result["file_id"]
@@ -65,7 +65,6 @@ async def upload_note(
         
     # Store metadata in Firestore "notes" collection
     note_data = {
-        "title": title,
         "batch_id": batch_id,
         "batch_name": batch_data.get("batch_name", "Unknown"),
         "files": files_metadata,
@@ -259,4 +258,58 @@ def download_note_file(
     # to prevent mobile Google Drive app from intercepting the request
     direct_download_url = f"https://docs.google.com/uc?export=download&id={file_id}"
     return RedirectResponse(url=direct_download_url, status_code=302)
+
+
+# ──────────────────────────────────────────────
+# GET /api/notes/{note_id}/files/{file_id}/view
+# ──────────────────────────────────────────────
+@router.get("/{note_id}/files/{file_id}/view")
+def view_note_file(
+    note_id: str,
+    file_id: str,
+    user=Depends(require_role_flexible("student", "teacher", "admin")),
+):
+    """Streams a file from Google Drive for inline viewing (preview)."""
+    # 1. Fetch note metadata from Firestore
+    note_ref = db.collection("notes").document(note_id)
+    note_doc = note_ref.get()
+    
+    if not note_doc.exists:
+        raise HTTPException(status_code=404, detail="Note not found")
+        
+    note_data = note_doc.to_dict()
+    
+    # 2. Permissions check
+    if user.get("role") == "student" and user.get("batch_id") != note_data.get("batch_id"):
+        raise HTTPException(status_code=403, detail="Access denied to this note")
+        
+    if user.get("role") == "teacher":
+        batch_doc = db.collection("batches").document(note_data.get("batch_id", "")).get()
+        if batch_doc.exists:
+            batch_data = batch_doc.to_dict()
+            if user["uid"] not in batch_data.get("teacher_ids", []):
+                raise HTTPException(status_code=403, detail="Not assigned to this batch")
+        else:
+            raise HTTPException(status_code=404, detail="Batch associated with note not found")
+            
+    # 3. Verify file_id exists in note group
+    files_list = note_data.get("files", [])
+    matching_file = next((f for f in files_list if f.get("file_id") == file_id), None)
+    if not matching_file:
+        old_file_id = note_data.get("file_id")
+        if old_file_id != file_id:
+            raise HTTPException(status_code=404, detail="File not found in this note group")
+            
+    # 4. Download/Stream from Google Drive using credentials
+    try:
+        file_bytes, filename, mime_type = _download_sync(file_id)
+        headers = {
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "max-age=3600"
+        }
+        return Response(content=file_bytes, media_type=mime_type, headers=headers)
+    except Exception as e:
+        print(f"Error streaming file {file_id} from GDrive: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve file content from storage")
+
 

@@ -5,8 +5,10 @@ import ModernSelect from "@/components/ModernSelect";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { TeacherDashboardSkeleton } from "@/components/Skeletons";
+import MediaPreviewer from "@/components/MediaPreviewer";
+import { checkCachedFiles, saveCachedFile, getCachedFile } from "@/lib/mediaDb";
 
-function GlassCard({ children, className = "", style = {} }) {
+function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
             className={`rounded-[28px] border border-white/[0.07] ${className}`}
@@ -16,6 +18,7 @@ function GlassCard({ children, className = "", style = {} }) {
                 WebkitBackdropFilter: "blur(20px)",
                 ...style,
             }}
+            {...props}
         >
             {children}
         </div>
@@ -114,19 +117,25 @@ function TeacherNotesPageSkeleton() {
         </div>
     );
 }
-
-function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime }) {
+function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime, onPreview, onSaveToCache, savingFiles }) {
     const [activeIndex, setActiveIndex] = useState(0);
-    const noteFiles = note.files || [
-        {
-            title: note.title,
-            file_name: note.file_name,
-            file_url: note.file_url,
-            file_id: note.file_id
-        }
-    ];
+    const [cachedFileIds, setCachedFileIds] = useState(new Set());
+
+    const noteFiles = note.files || [];
 
     const currentFile = noteFiles[activeIndex] || noteFiles[0];
+    const isPreviewable = (filename) => {
+        if (!filename) return false;
+        const ext = filename.split('.').pop().toLowerCase();
+        return ["jpg", "jpeg", "png", "webp", "gif", "bmp", "pdf"].includes(ext);
+    };
+    const currentCached = cachedFileIds.has(currentFile.file_id);
+    const isSaving = noteFiles.some(f => savingFiles?.[f.file_id]);
+
+    useEffect(() => {
+        const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+        checkCachedFiles(ids).then(setCachedFileIds);
+    }, [note.id, savingFiles]); // Trigger check when savingFiles status changes
 
     const handlePrev = (e) => {
         e.stopPropagation();
@@ -138,8 +147,58 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
         setActiveIndex((prev) => (prev === noteFiles.length - 1 ? 0 : prev + 1));
     };
 
+    const handleSave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSaveToCache(note, () => {
+            const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+            setCachedFileIds(prev => new Set([...prev, ...ids]));
+        });
+    };
+
+    const hasPreview = currentCached && isPreviewable(currentFile.file_name);
+
+    const handleCardClick = async (e) => {
+        // Ignore container clicks if clicking interactive buttons (carousel arrows, save/delete icon)
+        if (e.target.closest('button') || e.target.closest('a')) return;
+
+        if (!currentCached) {
+            if (!isSaving) {
+                onSaveToCache(note, () => {
+                    const ids = noteFiles.map(f => f.file_id).filter(Boolean);
+                    setCachedFileIds(prev => new Set([...prev, ...ids]));
+                });
+            }
+            return;
+        }
+
+        if (hasPreview) {
+            onPreview(note, activeIndex);
+        } else {
+            // Local download from IndexedDB cache
+            try {
+                const cached = await getCachedFile(currentFile.file_id);
+                if (cached && cached.blob) {
+                    const url = URL.createObjectURL(cached.blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.setAttribute("download", currentFile.file_name || "download");
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            } catch (err) {
+                console.error("Local download failed:", err);
+            }
+        }
+    };
+
     return (
-        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between gap-3 group">
+        <div 
+            onClick={handleCardClick}
+            className={`p-4 rounded-2xl bg-white/[0.02] border border-white/5 transition-all flex flex-col justify-between gap-3 group cursor-pointer hover:border-white/20 hover:bg-white/[0.04] ${isSaving ? 'opacity-80 pointer-events-none' : ''}`}
+        >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* File Type Icon */}
@@ -149,30 +208,17 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                         </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                        {/* Note Group Title */}
-                        <h3 className="text-sm font-bold text-[#f0f0fd] truncate" title={note.title}>
-                            {note.title}
+                        {/* File Caption / Name */}
+                        <h3 className="text-sm font-bold text-[#f0f0fd] truncate" title={currentFile.caption || currentFile.file_name}>
+                            {currentFile.caption || currentFile.file_name}
                         </h3>
-                        
-                        {/* File Caption (if custom) */}
-                        {(() => {
-                            const fileNameWithoutExt = currentFile.file_name ? currentFile.file_name.substring(0, currentFile.file_name.lastIndexOf('.')) || currentFile.file_name : "";
-                            const hasCustomCaption = currentFile.title && 
-                                currentFile.title !== note.title && 
-                                currentFile.title !== currentFile.file_name && 
-                                currentFile.title !== fileNameWithoutExt;
-                            
-                            return hasCustomCaption ? (
-                                <p className="text-[11px] font-semibold text-[#4af8e3] mt-0.5 truncate">
-                                    {currentFile.title}
-                                </p>
-                            ) : null;
-                        })()}
 
-                        {/* File Name */}
-                        <p className="text-[10px] text-[#aaaab7]/80 mt-0.5 truncate" title={currentFile.file_name}>
-                            {currentFile.file_name}
-                        </p>
+                        {/* Original File Name if caption is used */}
+                        {currentFile.caption && currentFile.caption !== currentFile.file_name && (
+                            <p className="text-[10px] text-[#aaaab7]/80 mt-0.5 truncate" title={currentFile.file_name}>
+                                {currentFile.file_name}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -182,46 +228,45 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                         <span className="text-[10px] text-[#aaaab7]/70 font-semibold mr-1">
                             {activeIndex + 1} of {noteFiles.length}
                         </span>
-                        <button
-                            onClick={handlePrev}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95"
-                            title="Previous File"
-                        >
+                        <button onClick={handlePrev} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95" title="Previous File">
                             <span className="material-symbols-outlined text-sm">chevron_left</span>
                         </button>
-                        <button
-                            onClick={handleNext}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95"
-                            title="Next File"
-                        >
+                        <button onClick={handleNext} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95" title="Next File">
                             <span className="material-symbols-outlined text-sm">chevron_right</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            {/* Footer info & Action button */}
+            {/* Footer info & Action buttons */}
             <div className="flex items-center justify-between border-t border-white/5 pt-3">
                 <div className="text-[10px] text-[#aaaab7] leading-tight min-w-0 flex-1 pr-2">
                     <p className="text-[10px] text-[#aaaab7]/80">{formatDateTime(note.created_at)}</p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Open Link */}
-                    <a
-                        href={currentFile.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-9 h-9 rounded-xl bg-white/5 text-[#aaaab7] hover:text-white hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer border border-white/5"
-                        title="View File"
-                    >
-                        <span className="material-symbols-outlined text-lg">open_in_new</span>
-                    </a>
+                    {!currentCached && (
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="w-9 h-9 rounded-xl bg-white/5 text-[#aaaab7] hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Save Offline"
+                        >
+                            {isSaving ? (
+                                <div className="w-4 h-4 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-lg">download</span>
+                            )}
+                        </button>
+                    )}
 
                     {/* Delete Note */}
                     {note.uploaded_by === user.uid && (
                         <button
-                            onClick={() => handleDeleteNote(note.id)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNote(note.id);
+                            }}
                             disabled={deletingId === note.id}
                             className="w-9 h-9 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] hover:bg-[#ff6e84]/20 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 border border-white/5"
                             title="Delete Note Group"
@@ -239,6 +284,7 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     );
 }
 
+
 function TeacherNotesContent() {
     const { user } = useAuth();
     const [batches, setBatches] = useState([]);
@@ -249,13 +295,14 @@ function TeacherNotesContent() {
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [deletingId, setDeletingId] = useState(null);
+    const [previewData, setPreviewData] = useState(null); // { note, index }
+    const [savingFiles, setSavingFiles] = useState({}); // { file_id: true/false }
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     // Form inputs
-    const [noteTitle, setNoteTitle] = useState("");
-    const [selectedFiles, setSelectedFiles] = useState([]); // [{ id, file, title }]
+    const [selectedFiles, setSelectedFiles] = useState([]); // [{ id, file, caption }]
 
     // Alerts
     const [uploadError, setUploadError] = useState("");
@@ -267,11 +314,58 @@ function TeacherNotesContent() {
             const data = await api.get("/api/teacher/batches");
             setBatches(data);
         } catch (err) {
-            console.error("Failed to fetch batches:", err);
+            // silent
         } finally {
             setBatchesLoading(false);
         }
     }, []);
+
+    // Downloads all files of the note to IndexedDB for preview
+    const handleSaveToCache = async (note, onDone) => {
+        const files = note.files || [];
+        if (!files.length) return;
+
+        const fileIds = files.map(f => f.file_id);
+        setSavingFiles(prev => {
+            const next = { ...prev };
+            fileIds.forEach(id => { next[id] = true; });
+            return next;
+        });
+
+        try {
+            const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = localStorage.getItem("idToken");
+
+            await Promise.all(files.map(async (file) => {
+                try {
+                    let url = `${baseUrl}/api/notes/${note.id}/files/${file.file_id}/view`;
+                    if (token) url += `?token=${encodeURIComponent(token)}`;
+
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    let mimeType = response.headers.get("content-type") || "application/octet-stream";
+                    const ext = (file.file_name || "").split(".").pop().toLowerCase();
+                    if (ext === "pdf") mimeType = "application/pdf";
+
+                    const blob = new Blob([arrayBuffer], { type: mimeType });
+                    await saveCachedFile(file.file_id, blob, mimeType, file.file_name);
+                } catch (err) {
+                    console.error(`Failed to cache file ${file.file_name}:`, err);
+                }
+            }));
+            onDone?.();
+        } catch (err) {
+            console.error("Save to cache failed:", err);
+        } finally {
+            setSavingFiles(prev => {
+                const next = { ...prev };
+                fileIds.forEach(id => { next[id] = false; });
+                return next;
+            });
+        }
+    };
 
     const fetchNotes = useCallback(async (batchId, page = 1) => {
         if (!batchId) return;
@@ -308,11 +402,23 @@ function TeacherNotesContent() {
         if (files.length > 0) {
             setUploadError("");
             setUploadSuccess("");
+
+            // Enforce restriction: multiple files are ONLY allowed if ALL of them are images.
+            const totalFiles = [...selectedFiles.map(f => f.file), ...files];
+            if (totalFiles.length > 1) {
+                const allImages = totalFiles.every(file => file.type.startsWith("image/"));
+                if (!allImages) {
+                    setUploadError("You can only select multiple files if they are ALL images. Other documents (PDFs, etc.) must be sent one at a time.");
+                    e.target.value = ""; // reset input
+                    return;
+                }
+            }
+
             const newFiles = files.map((file) => {
                 return {
                     id: Math.random().toString(36).substring(2, 9),
                     file: file,
-                    title: ""
+                    caption: ""
                 };
             });
             setSelectedFiles((prev) => [...prev, ...newFiles]);
@@ -323,16 +429,16 @@ function TeacherNotesContent() {
         setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
     };
 
-    const handleFileTitleChange = (id, newTitle) => {
+    const handleFileCaptionChange = (id, newCaption) => {
         setSelectedFiles((prev) =>
-            prev.map((f) => (f.id === id ? { ...f, title: newTitle } : f))
+            prev.map((f) => (f.id === id ? { ...f, caption: newCaption } : f))
         );
     };
 
     const handleUploadSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedBatch || !noteTitle.trim() || selectedFiles.length === 0) {
-            setUploadError("Please fill in all fields (make sure to select a batch and add at least one file).");
+        if (!selectedBatch || selectedFiles.length === 0) {
+            setUploadError("Please select a batch and add at least one file.");
             return;
         }
 
@@ -342,12 +448,11 @@ function TeacherNotesContent() {
         setUploadSuccess("");
 
         const formData = new FormData();
-        formData.append("title", noteTitle);
         formData.append("batch_id", selectedBatch);
         
         selectedFiles.forEach((fileItem) => {
             formData.append("files", fileItem.file);
-            formData.append("file_titles", fileItem.title);
+            formData.append("file_captions", fileItem.caption);
         });
 
         let currentProgress = 0;
@@ -377,7 +482,6 @@ function TeacherNotesContent() {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             setUploadSuccess("Notes uploaded successfully!");
-            setNoteTitle("");
             const fileInput = document.getElementById("note-file-input");
             if (fileInput) {
                 fileInput.value = "";
@@ -489,22 +593,6 @@ function TeacherNotesContent() {
 
                         <form onSubmit={handleUploadSubmit} className="space-y-4">
 
-                            {/* Note Title */}
-                            <div>
-                                <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
-                                    Note Title / Topic
-                                </label>
-                                <input
-                                    type="text"
-                                    value={noteTitle}
-                                    onChange={(e) => setNoteTitle(e.target.value)}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-[#3b82f6]/50 focus:ring-1 focus:ring-[#3b82f6]/50 text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752]"
-                                    placeholder="e.g. C/C++ Notes"
-                                    required
-                                    autoComplete="off"
-                                />
-                            </div>
-
                             {/* File Upload Field */}
                             <div>
                                 <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
@@ -531,7 +619,11 @@ function TeacherNotesContent() {
                                 ) : (
                                     <div className="rounded-2xl border border-dashed border-white/20 p-4 bg-white/[0.01] space-y-4">
                                         <div className="max-h-[260px] overflow-y-auto pr-1 custom-scrollbar space-y-3">
-                                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Queue ({selectedFiles.length} files)</p>
+                                            {selectedFiles.length > 1 ? (
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Queue ({selectedFiles.length} images)</p>
+                                            ) : (
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Selected File</p>
+                                            )}
                                             {selectedFiles.map((fileItem) => (
                                                 <div key={fileItem.id} className="rounded-xl border border-white/10 p-3 bg-white/[0.02] flex flex-col gap-2">
                                                     <div className="flex items-center justify-between gap-3">
@@ -559,8 +651,8 @@ function TeacherNotesContent() {
                                                     </div>
                                                     <input
                                                         type="text"
-                                                        value={fileItem.title}
-                                                        onChange={(e) => handleFileTitleChange(fileItem.id, e.target.value)}
+                                                        value={fileItem.caption}
+                                                        onChange={(e) => handleFileCaptionChange(fileItem.id, e.target.value)}
                                                         className="w-full px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 focus:border-[#3b82f6]/30 focus:ring-1 focus:ring-[#3b82f6]/30 text-[#f0f0fd] text-xs focus:outline-none transition-all placeholder:text-[#464752]"
                                                         placeholder="File caption (optional)"
                                                     />
@@ -569,22 +661,24 @@ function TeacherNotesContent() {
                                         </div>
 
                                         {/* Add more files button inside the dashed container */}
-                                        <div className="relative group rounded-xl border border-dashed border-white/10 hover:border-[#3b82f6]/30 py-2.5 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex items-center justify-center cursor-pointer">
-                                            <input
-                                                id="note-file-input-more"
-                                                type="file"
-                                                accept="*"
-                                                onChange={handleFileChange}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                multiple
-                                            />
-                                            <span className="material-symbols-outlined text-sm text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mr-1.5">
-                                                add
-                                            </span>
-                                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#aaaab7] group-hover:text-white transition-colors">
-                                                Add more files
-                                            </span>
-                                        </div>
+                                        {selectedFiles.every(f => f.file.type.startsWith("image/")) && (
+                                            <div className="relative group rounded-xl border border-dashed border-white/10 hover:border-[#3b82f6]/30 py-2.5 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex items-center justify-center cursor-pointer">
+                                                <input
+                                                    id="note-file-input-more"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleFileChange}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    multiple
+                                                />
+                                                <span className="material-symbols-outlined text-sm text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mr-1.5">
+                                                    add
+                                                </span>
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-[#aaaab7] group-hover:text-white transition-colors">
+                                                    Add more images
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -605,9 +699,9 @@ function TeacherNotesContent() {
                             {/* Submit Button */}
                             <button
                                 type="submit"
-                                disabled={uploading || selectedFiles.length === 0 || !noteTitle.trim()}
+                                disabled={uploading || selectedFiles.length === 0}
                                 className={`relative overflow-hidden w-full py-4 rounded-2xl border text-sm font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2
-                                    ${(selectedFiles.length === 0 || !noteTitle.trim()) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
+                                    ${(selectedFiles.length === 0) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
                                     ${uploading ? 'border-[#4af8e3] text-white animate-pulse' : 'border-[#4af8e3]/30 text-[#4af8e3] hover:border-[#4af8e3]/50 active:scale-[0.98]'}
                                 `}
                                 style={{
@@ -690,6 +784,9 @@ function TeacherNotesContent() {
                                         handleDeleteNote={handleDeleteNote}
                                         getFileIcon={getFileIcon}
                                         formatDateTime={formatDateTime}
+                                        onPreview={(noteItem, index) => setPreviewData({ note: noteItem, index })}
+                                        savingFiles={savingFiles}
+                                        onSaveToCache={handleSaveToCache}
                                     />
                                 ))}
                             </div>
@@ -767,6 +864,17 @@ function TeacherNotesContent() {
                 </div>
 
             </div>
+
+            {previewData && (
+                <MediaPreviewer
+                    note={previewData.note}
+                    initialIndex={previewData.index}
+                    onClose={() => setPreviewData(null)}
+                    getFileIcon={getFileIcon}
+                    formatDateTime={formatDateTime}
+                    hideUploaderName={true}
+                />
+            )}
         </div>
     );
 }

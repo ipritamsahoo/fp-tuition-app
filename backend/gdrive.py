@@ -170,23 +170,37 @@ def delete_folder_from_gdrive(folder_name: str) -> bool:
 
 def _download_sync(file_id: str) -> tuple:
     """Synchronous file download from Google Drive."""
-    from googleapiclient.http import MediaIoBaseDownload
-    service = get_drive_service()
+    import requests
+    from google.auth.transport.requests import Request
     
-    # Get metadata
-    metadata = service.files().get(fileId=file_id, fields="name, mimeType").execute()
+    service = get_drive_service()
+    creds = service._http.credentials
+    
+    if not creds.valid:
+        creds.refresh(Request())
+        
+    headers = {
+        "Authorization": f"Bearer {creds.token}"
+    }
+    
+    # 1. Fetch metadata
+    meta_url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
+    meta_res = requests.get(meta_url, headers=headers)
+    if meta_res.status_code != 200:
+        raise Exception(f"Failed to fetch file metadata from GDrive: {meta_res.text}")
+        
+    metadata = meta_res.json()
     filename = metadata.get("name", "note")
     mime_type = metadata.get("mimeType", "application/octet-stream")
     
-    # Download content
-    request = service.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
+    # 2. Fetch media content
+    media_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+    media_res = requests.get(media_url, headers=headers)
+    if media_res.status_code != 200:
+        raise Exception(f"Failed to fetch file content from GDrive: {media_res.text}")
         
-    return fh.getvalue(), filename, mime_type
+    return media_res.content, filename, mime_type
+
 
 
 async def download_from_gdrive(file_id: str) -> tuple:
