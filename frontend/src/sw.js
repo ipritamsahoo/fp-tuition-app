@@ -91,18 +91,15 @@ import { enable as enableNavigationPreload } from "workbox-navigation-preload";
 // gap where the URL bar flashes on PWA launch.
 enableNavigationPreload();
 
-// Serve the app shell (index.html) with NetworkFirst for navigations.
-// This uses the preloaded response when available, making launch instant.
-registerRoute(
-    new NavigationRoute(
-        new NetworkFirst({
-            cacheName: "navigations",
-            plugins: [
-                new CacheableResponsePlugin({ statuses: [0, 200] }),
-            ],
-        })
-    )
-);
+// Handle all navigation requests (HTML page loads) with NetworkFirst.
+// Falls back to cached index.html if offline.
+const navigationHandler = new NetworkFirst({
+    cacheName: "navigations",
+    plugins: [
+        new CacheableResponsePlugin({ statuses: [0, 200] }),
+    ],
+});
+registerRoute(new NavigationRoute(navigationHandler));
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
@@ -142,10 +139,26 @@ registerRoute(
     })
 );
 
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        Promise.all([
+            self.clients.claim(),
+            caches.delete("navigations")
+        ])
+    );
+});
+
 // Allow the PWA plugin to force skipWaiting when auto-updating
 self.addEventListener("message", (event) => {
     if (event.data && event.data.type === "SKIP_WAITING") {
         self.skipWaiting();
+    }
+    if (event.data && event.data.type === "GET_VERSION") {
+        if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({
+                version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "Unknown"
+            });
+        }
     }
 });
 

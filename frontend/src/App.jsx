@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { ErrorProvider } from "@/context/ErrorContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import GlobalErrorModal from "@/components/GlobalErrorModal";
+import PwaUpdateBanner from "@/components/PwaUpdateBanner";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import WelcomePage from "@/pages/WelcomePage";
@@ -32,6 +34,105 @@ import FeedbackPage from "@/pages/FeedbackPage";
 import ScrollToTop from "@/components/ScrollToTop";
 
 export default function App() {
+    const [pwaModal, setPwaModal] = useState({ 
+        show: false, 
+        mode: "update", 
+        currentVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2.0',
+        newVersion: ""
+    });
+
+    useEffect(() => {
+        const handleUpdateAvailable = async () => {
+            console.log("PWA Update event received in React.");
+            
+            // Try to fetch version from waiting worker
+            let newVer = "";
+            if ("serviceWorker" in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg && reg.waiting) {
+                        newVer = await new Promise((resolve) => {
+                            const channel = new MessageChannel();
+                            channel.port1.onmessage = (event) => {
+                                resolve(event.data.version);
+                            };
+                            reg.waiting.postMessage({ type: "GET_VERSION" }, [channel.port2]);
+                            setTimeout(() => resolve(""), 800);
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Could not get waiting worker version:", e);
+                }
+            }
+
+            const currentVer = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2.0';
+            setPwaModal({ 
+                show: true, 
+                mode: "update", 
+                currentVersion: currentVer,
+                newVersion: newVer || "New Version"
+            });
+        };
+
+        const handleUpToDate = () => {
+            console.log("PWA Up To Date event received in React.");
+            setPwaModal({ 
+                show: true, 
+                mode: "up_to_date", 
+                currentVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2.0',
+                newVersion: ""
+            });
+        };
+
+        window.addEventListener("pwa-update-available", handleUpdateAvailable);
+        window.addEventListener("pwa-up-to-date", handleUpToDate);
+
+        // Step 5: Force Page Reload on controllerchange
+        const handleControllerChange = () => {
+            console.log("PWA controller changed. Reloading page.");
+            window.location.reload();
+        };
+
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+        }
+
+        return () => {
+            window.removeEventListener("pwa-update-available", handleUpdateAvailable);
+            window.removeEventListener("pwa-up-to-date", handleUpToDate);
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+            }
+        };
+    }, []);
+
+    // Step 4: Send the Skip Waiting Message
+    const handleUpdateClick = async () => {
+        if ("serviceWorker" in navigator) {
+            try {
+                // First try the registration controlling this page
+                const reg = await navigator.serviceWorker.getRegistration();
+                if (reg && reg.waiting) {
+                    console.log("Sending SKIP_WAITING to controlling registration's waiting worker.");
+                    reg.waiting.postMessage({ type: "SKIP_WAITING" });
+                    return;
+                }
+
+                // Fallback: search all registrations on this origin
+                console.log("Checking all registrations for waiting worker...");
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const r of registrations) {
+                    if (r.waiting) {
+                        console.log("Sending SKIP_WAITING to waiting worker in list.");
+                        r.waiting.postMessage({ type: "SKIP_WAITING" });
+                    }
+                }
+            } catch (err) {
+                console.error("Error sending skip waiting message:", err);
+            }
+        }
+    };
+
     return (
         <BrowserRouter>
             <ScrollToTop />
@@ -40,6 +141,14 @@ export default function App() {
                     <NotificationProvider>
                         <OfflineIndicator />
                         <GlobalErrorModal />
+                        <PwaUpdateBanner 
+                            show={pwaModal.show} 
+                            mode={pwaModal.mode} 
+                            currentVersion={pwaModal.currentVersion}
+                            newVersion={pwaModal.newVersion}
+                            onUpdate={handleUpdateClick} 
+                            onClose={() => setPwaModal({ ...pwaModal, show: false })} 
+                        />
                         <Routes>
                             <Route path="/" element={<HomePage />} />
                             <Route path="/welcome" element={<WelcomePage />} />

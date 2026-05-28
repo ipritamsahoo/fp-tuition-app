@@ -19,6 +19,34 @@ function TeacherSettingsContent() {
     const [devicesModalOpen, setDevicesModalOpen] = useState(false);
     const [aboutModalOpen, setAboutModalOpen] = useState(false);
 
+    // PWA manual update checking states
+    const [updateChecking, setUpdateChecking] = useState(false);
+    const [toast, setToast] = useState({ show: false, message: "", type: "" });
+
+    const handleCheckUpdate = async () => {
+        setUpdateChecking(true);
+        const result = await window.checkForPwaUpdate();
+        setUpdateChecking(false);
+
+        if (result === "up_to_date") {
+            window.dispatchEvent(new Event("pwa-up-to-date"));
+        } else if (result === "not_ready") {
+            setToast({
+                show: true,
+                message: "Update check is not ready. Try again in a few seconds.",
+                type: "info"
+            });
+            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+        } else if (result === "error") {
+            setToast({
+                show: true,
+                message: "Failed to check for updates. Try again later.",
+                type: "error"
+            });
+            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+        }
+    };
+
     // Credential modals
     const [usernameModalOpen, setUsernameModalOpen] = useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -92,6 +120,22 @@ function TeacherSettingsContent() {
 
     return (
         <div data-theme="dark" className="space-y-8" style={{ isolation: "isolate" }}>
+            {/* Custom PWA toast message */}
+            {toast.show && (
+                <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
+                    style={{
+                        backgroundColor: toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                        borderColor: toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(59, 130, 246, 0.3)",
+                        color: toast.type === "success" ? "#4af8e3" : "#f0f0fd",
+                    }}
+                >
+                    <span className="material-symbols-outlined">
+                        {toast.type === "success" ? "check_circle" : "info"}
+                    </span>
+                    <p className="flex-1 font-medium">{toast.message}</p>
+                    <button onClick={() => setToast({ ...toast, show: false })} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
+                </div>
+            )}
             {/* ── Profile Header Card ── */}
             <section className="relative" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden" }}>
                 <div className="bg-[#3b82f6]/10 backdrop-blur-2xl p-8 rounded-[32px] ring-1 ring-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col items-center text-center" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", outline: "1px solid transparent" }}>
@@ -207,6 +251,25 @@ function TeacherSettingsContent() {
                         <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>About</span>
                     </div>
                     <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                </button>
+
+                {/* Check for updates */}
+                <button
+                    onClick={handleCheckUpdate}
+                    disabled={updateChecking}
+                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
+                            <span className={updateChecking ? "material-symbols-outlined animate-spin text-[#3b82f6]" : "material-symbols-outlined text-[#3b82f6]"}>
+                                {updateChecking ? 'autorenew' : 'system_update'}
+                            </span>
+                        </div>
+                        <span className="font-medium text-[#f0f0fd]">
+                            {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
+                        </span>
+                    </div>
+                    <span className="material-symbols-outlined text-[#737580]">chevron_right</span>
                 </button>
             </section>
 

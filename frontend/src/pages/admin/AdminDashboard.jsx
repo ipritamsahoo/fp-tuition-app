@@ -48,6 +48,16 @@ function BentoStatCard({ label, value, icon, iconDivClass }) {
 
 function AdminDashboardContent() {
     const { user } = useAuth();
+
+    useEffect(() => {
+        document.documentElement.classList.add("allow-overscroll");
+        document.body.classList.add("allow-overscroll");
+        return () => {
+            document.documentElement.classList.remove("allow-overscroll");
+            document.body.classList.remove("allow-overscroll");
+        };
+    }, []);
+
     const cachedStats = getCache("admin_stats");
     const cachedBatches = getCache("admin_batches");
     const [stats, setStats] = useState(cachedStats || null);

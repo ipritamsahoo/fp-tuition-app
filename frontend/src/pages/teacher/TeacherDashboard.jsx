@@ -80,6 +80,15 @@ let GLOBAL_FETCHING_BATCHES = false;
 // ── Main Content ──
 function TeacherDashboardContent() {
     const { user } = useAuth();
+
+    useEffect(() => {
+        document.documentElement.classList.add("allow-overscroll");
+        document.body.classList.add("allow-overscroll");
+        return () => {
+            document.documentElement.classList.remove("allow-overscroll");
+            document.body.classList.remove("allow-overscroll");
+        };
+    }, []);
     
     const { month: prevMonth, year: prevYear } = getPreviousMonth();
     const [filterMonth, setFilterMonth] = useState(prevMonth);

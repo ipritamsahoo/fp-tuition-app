@@ -383,6 +383,15 @@ function StudentDashboardContent() {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
     
+    useEffect(() => {
+        document.documentElement.classList.add("allow-overscroll");
+        document.body.classList.add("allow-overscroll");
+        return () => {
+            document.documentElement.classList.remove("allow-overscroll");
+            document.body.classList.remove("allow-overscroll");
+        };
+    }, []);
+    
     // In-Memory Caching for instant load (Shared with Payments History)
     const cacheKey = `student_global_payments_${user?.uid}`;
     const cachedPayments = getCache(cacheKey);

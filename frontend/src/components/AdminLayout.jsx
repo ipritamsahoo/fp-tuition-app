@@ -51,6 +51,35 @@ export default function AdminLayout({ children }) {
     const [picUploadOpen, setPicUploadOpen] = useState(false);
     const profileDropdownRef = useRef(null);
 
+    // PWA manual update checking states
+    const [updateChecking, setUpdateChecking] = useState(false);
+    const [toast, setToast] = useState({ show: false, message: "", type: "" });
+
+    const handleCheckUpdate = async () => {
+        setDesktopProfileOpen(false);
+        setUpdateChecking(true);
+        const result = await window.checkForPwaUpdate();
+        setUpdateChecking(false);
+
+        if (result === "up_to_date") {
+            window.dispatchEvent(new Event("pwa-up-to-date"));
+        } else if (result === "not_ready") {
+            setToast({
+                show: true,
+                message: "Update check is not ready. Try again in a few seconds.",
+                type: "info"
+            });
+            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+        } else if (result === "error") {
+            setToast({
+                show: true,
+                message: "Failed to check for updates. Try again later.",
+                type: "error"
+            });
+            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+        }
+    };
+
     // Close profile dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
@@ -135,6 +164,22 @@ export default function AdminLayout({ children }) {
 
     return (
         <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0c0e17] text-[#f0f0fd] relative isolate" style={{ fontFamily: "'Inter', sans-serif" }}>
+            {/* Custom PWA toast message */}
+            {toast.show && (
+                <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
+                    style={{
+                        backgroundColor: toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                        borderColor: toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(59, 130, 246, 0.3)",
+                        color: toast.type === "success" ? "#4af8e3" : "#f0f0fd",
+                    }}
+                >
+                    <span className="material-symbols-outlined">
+                        {toast.type === "success" ? "check_circle" : "info"}
+                    </span>
+                    <p className="flex-1 font-medium">{toast.message}</p>
+                    <button onClick={() => setToast({ ...toast, show: false })} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
+                </div>
+            )}
             {/* ── Ambient Backgrounds ── */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-[radial-gradient(circle,rgba(59,130,246,0.15)_0%,transparent_70%)] blur-[100px]" />
@@ -250,6 +295,24 @@ export default function AdminLayout({ children }) {
                                             <span className="material-symbols-outlined text-[18px] text-[#3b82f6]">photo_camera</span>
                                         </div>
                                         <span className="text-sm font-medium text-[#f0f0fd]">Change Profile Photo</span>
+                                    </div>
+                                    <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
+                                </button>
+                                
+                                <button 
+                                    onClick={handleCheckUpdate}
+                                    disabled={updateChecking}
+                                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group cursor-pointer border border-transparent hover:border-[#3b82f6]/30 disabled:opacity-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 flex items-center justify-center bg-black/20 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
+                                            <span className={updateChecking ? "material-symbols-outlined text-[18px] text-[#3b82f6] animate-spin" : "material-symbols-outlined text-[18px] text-[#3b82f6]"}>
+                                                {updateChecking ? 'autorenew' : 'system_update'}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-medium text-[#f0f0fd]">
+                                            {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
+                                        </span>
                                     </div>
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>

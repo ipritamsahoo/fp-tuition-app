@@ -12,7 +12,16 @@ export function StudentThemeProvider({ children }) {
     });
 
     useEffect(() => {
-        try { localStorage.setItem("fp_student_theme_v2", theme); } catch {}
+        try { 
+            localStorage.setItem("fp_student_theme_v2", theme); 
+            window.dispatchEvent(new CustomEvent("fp-student-theme-change", { detail: theme }));
+            document.documentElement.setAttribute("data-theme", theme);
+            document.body.setAttribute("data-theme", theme);
+        } catch {}
+        return () => {
+            document.documentElement.removeAttribute("data-theme");
+            document.body.removeAttribute("data-theme");
+        };
     }, [theme]);
 
     const toggleTheme = () => setTheme(prev => prev === "dark" ? "light" : "dark");

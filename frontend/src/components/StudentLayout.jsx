@@ -31,6 +31,156 @@ const studentNav = [
     { label: "Settings", href: "/student/settings", icon: "settings" },
 ];
 
+// ── Custom Scroll Bounce Hook ──
+function useScrollBounce(isDisabled) {
+    const elementRef = useRef(null);
+    const startYRef = useRef(0);
+    const startXRef = useRef(0);
+    const isAtTopRef = useRef(false);
+    const isAtBottomRef = useRef(false);
+    const isDraggingRef = useRef(false);
+    const accumulatedBounceRef = useRef(0);
+    const decayRafRef = useRef(null);
+
+    useEffect(() => {
+        if (isDisabled) return;
+
+        const el = elementRef.current;
+        if (!el) return;
+
+        const getScrollMetrics = () => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            return { scrollTop, scrollHeight, clientHeight };
+        };
+
+        const handleTouchStart = (e) => {
+            if (e.touches.length !== 1) return;
+            
+            // Safety check: do not bounce if touch starts inside a portal/modal
+            if (!el.contains(e.target)) return;
+
+            // Cancel any running decay animation
+            if (decayRafRef.current) {
+                cancelAnimationFrame(decayRafRef.current);
+                decayRafRef.current = null;
+            }
+
+            const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
+            
+            startYRef.current = e.touches[0].clientY;
+            startXRef.current = e.touches[0].clientX;
+            isAtTopRef.current = scrollTop <= 1;
+            isAtBottomRef.current = (scrollTop + clientHeight) >= (scrollHeight - 2);
+            isDraggingRef.current = true;
+            accumulatedBounceRef.current = 0;
+
+            // Remove transitions for immediate tracking
+            el.style.transition = "none";
+        };
+
+        const handleTouchMove = (e) => {
+            if (!isDraggingRef.current) return;
+            if (!el.contains(e.target)) return;
+
+            const currentY = e.touches[0].clientY;
+            const currentX = e.touches[0].clientX;
+            const dy = currentY - startYRef.current;
+            const dx = currentX - startXRef.current;
+
+            // If it's primarily a vertical swipe
+            if (Math.abs(dy) > Math.abs(dx)) {
+                if (isAtTopRef.current && dy > 0) {
+                    // Pulling down at top (scrolling up)
+                    const bounce = Math.pow(dy, 0.7) * 1.5;
+                    el.style.transform = `translate3d(0, ${bounce}px, 0)`;
+                    accumulatedBounceRef.current = bounce;
+                    if (e.cancelable) e.preventDefault();
+                } else if (isAtBottomRef.current && dy < 0) {
+                    // Pulling up at bottom (scrolling down)
+                    const bounce = -Math.pow(-dy, 0.7) * 1.5;
+                    el.style.transform = `translate3d(0, ${bounce}px, 0)`;
+                    accumulatedBounceRef.current = bounce;
+                    if (e.cancelable) e.preventDefault();
+                }
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (!isDraggingRef.current) return;
+            isDraggingRef.current = false;
+
+            if (accumulatedBounceRef.current !== 0) {
+                // Spring back
+                el.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
+                el.style.transform = "translate3d(0, 0, 0)";
+                accumulatedBounceRef.current = 0;
+            }
+        };
+
+        const handleWheel = (e) => {
+            if (!el.contains(e.target)) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
+            const dy = e.deltaY;
+
+            if ((scrollTop <= 1 && dy < 0) || ((scrollTop + clientHeight) >= (scrollHeight - 2) && dy > 0)) {
+                if (decayRafRef.current) {
+                    cancelAnimationFrame(decayRafRef.current);
+                }
+                
+                el.style.transition = "none";
+                
+                // Limit maximum bounce to 80px
+                let targetBounce = accumulatedBounceRef.current - dy * 0.15;
+                if (dy < 0) {
+                    targetBounce = Math.min(80, targetBounce);
+                } else {
+                    targetBounce = Math.max(-80, targetBounce);
+                }
+                
+                accumulatedBounceRef.current = targetBounce;
+                el.style.transform = `translate3d(0, ${accumulatedBounceRef.current}px, 0)`;
+                if (e.cancelable) e.preventDefault();
+
+                // Decay/spring back function
+                const decay = () => {
+                    accumulatedBounceRef.current *= 0.82; // damping factor
+                    if (Math.abs(accumulatedBounceRef.current) < 0.5) {
+                        accumulatedBounceRef.current = 0;
+                        el.style.transform = "";
+                    } else {
+                        el.style.transform = `translate3d(0, ${accumulatedBounceRef.current}px, 0)`;
+                        decayRafRef.current = requestAnimationFrame(decay);
+                    }
+                };
+                decayRafRef.current = requestAnimationFrame(decay);
+            }
+        };
+
+        // Add event listeners (must be non-passive to allow preventDefault)
+        window.addEventListener("touchstart", handleTouchStart, { passive: false });
+        window.addEventListener("touchmove", handleTouchMove, { passive: false });
+        window.addEventListener("touchend", handleTouchEnd, { passive: false });
+        window.addEventListener("wheel", handleWheel, { passive: false });
+
+        return () => {
+            window.removeEventListener("touchstart", handleTouchStart);
+            window.removeEventListener("touchmove", handleTouchMove);
+            window.removeEventListener("touchend", handleTouchEnd);
+            window.removeEventListener("wheel", handleWheel);
+            if (decayRafRef.current) cancelAnimationFrame(decayRafRef.current);
+            if (el) {
+                el.style.transform = "";
+                el.style.transition = "";
+            }
+        };
+    }, [isDisabled]);
+
+    return elementRef;
+}
+
 function StudentLayoutInner({ children }) {
     const { pathname } = useLocation();
     const navigate = useNavigate();
@@ -38,6 +188,9 @@ function StudentLayoutInner({ children }) {
     const { user } = useAuth();
     const { theme } = useStudentTheme();
     const [notifOpen, setNotifOpen] = useState(false);
+
+    const isDashboard = pathname === "/student";
+    const bounceRef = useScrollBounce(false);
 
     const isLight = theme === "light";
 
@@ -381,7 +534,7 @@ function StudentLayoutInner({ children }) {
                 className={`relative z-10 md:ml-64 min-h-screen flex flex-col pt-28 ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
                 style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", contain: "paint layout", scrollbarGutter: "stable" }}
             >
-                <div className="max-w-4xl w-full mx-auto flex-1">
+                <div ref={bounceRef} className="max-w-4xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>
                     {children}
                 </div>
             </main>
