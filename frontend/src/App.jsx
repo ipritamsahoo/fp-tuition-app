@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ErrorProvider } from "@/context/ErrorContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { BiometricProvider } from "@/context/BiometricContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import GlobalErrorModal from "@/components/GlobalErrorModal";
 import PwaUpdateBanner from "@/components/PwaUpdateBanner";
+import BiometricLockScreen from "@/components/BiometricLockScreen";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import WelcomePage from "@/pages/WelcomePage";
@@ -32,6 +34,19 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import AboutPage from "@/pages/AboutPage";
 import FeedbackPage from "@/pages/FeedbackPage";
 import ScrollToTop from "@/components/ScrollToTop";
+
+/**
+ * BiometricGate: reads the logged-in userId from AuthContext and provides
+ * BiometricProvider with the correct userId so credentials are user-specific.
+ */
+function BiometricGate({ children }) {
+    const { user } = useAuth();
+    return (
+        <BiometricProvider key={user?.uid || "anonymous"} userId={user?.uid || null}>
+            {children}
+        </BiometricProvider>
+    );
+}
 
 export default function App() {
     const [pwaModal, setPwaModal] = useState({ 
@@ -139,43 +154,46 @@ export default function App() {
             <AuthProvider>
                 <ErrorProvider>
                     <NotificationProvider>
-                        <OfflineIndicator />
-                        <GlobalErrorModal />
-                        <PwaUpdateBanner 
-                            show={pwaModal.show} 
-                            mode={pwaModal.mode} 
-                            currentVersion={pwaModal.currentVersion}
-                            newVersion={pwaModal.newVersion}
-                            onUpdate={handleUpdateClick} 
-                            onClose={() => setPwaModal({ ...pwaModal, show: false })} 
-                        />
-                        <Routes>
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/welcome" element={<WelcomePage />} />
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/admin" element={<AdminDashboard />} />
-                            <Route path="/admin/approvals" element={<AdminApprovals />} />
-                            <Route path="/admin/students" element={<ManageStudents />} />
-                            <Route path="/admin/teachers" element={<ManageTeachers />} />
-                            <Route path="/admin/batches" element={<ManageBatches />} />
-                            <Route path="/admin/payments" element={<AllPayments />} />
-                            <Route path="/admin/distribution" element={<RevenueDistribution />} />
-                            <Route path="/admin/reports" element={<ReportExport />} />
-                            <Route path="/admin/profile" element={<AdminProfile />} />
-                            <Route path="/student" element={<StudentDashboard />} />
-                            <Route path="/student/payments" element={<StudentPayments />} />
-                            <Route path="/student/leaderboard" element={<StudentLeaderboard />} />
-                            <Route path="/student/notes" element={<StudentNotes />} />
-                            <Route path="/student/settings" element={<StudentSettings />} />
-                            <Route path="/teacher" element={<TeacherDashboard />} />
-                            <Route path="/teacher/payments" element={<TeacherPayments />} />
-                            <Route path="/teacher/distribution" element={<TeacherDistribution />} />
-                            <Route path="/teacher/notes" element={<TeacherNotes />} />
-                            <Route path="/teacher/settings" element={<TeacherSettings />} />
-                            <Route path="/notifications" element={<NotificationsPage />} />
-                            <Route path="/about" element={<AboutPage />} />
-                            <Route path="/feedback" element={<FeedbackPage />} />
-                        </Routes>
+                        <BiometricGate>
+                            <OfflineIndicator />
+                            <GlobalErrorModal />
+                            <PwaUpdateBanner 
+                                show={pwaModal.show} 
+                                mode={pwaModal.mode} 
+                                currentVersion={pwaModal.currentVersion}
+                                newVersion={pwaModal.newVersion}
+                                onUpdate={handleUpdateClick} 
+                                onClose={() => setPwaModal({ ...pwaModal, show: false })} 
+                            />
+                            <BiometricLockScreen />
+                            <Routes>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/welcome" element={<WelcomePage />} />
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/admin" element={<AdminDashboard />} />
+                                <Route path="/admin/approvals" element={<AdminApprovals />} />
+                                <Route path="/admin/students" element={<ManageStudents />} />
+                                <Route path="/admin/teachers" element={<ManageTeachers />} />
+                                <Route path="/admin/batches" element={<ManageBatches />} />
+                                <Route path="/admin/payments" element={<AllPayments />} />
+                                <Route path="/admin/distribution" element={<RevenueDistribution />} />
+                                <Route path="/admin/reports" element={<ReportExport />} />
+                                <Route path="/admin/profile" element={<AdminProfile />} />
+                                <Route path="/student" element={<StudentDashboard />} />
+                                <Route path="/student/payments" element={<StudentPayments />} />
+                                <Route path="/student/leaderboard" element={<StudentLeaderboard />} />
+                                <Route path="/student/notes" element={<StudentNotes />} />
+                                <Route path="/student/settings" element={<StudentSettings />} />
+                                <Route path="/teacher" element={<TeacherDashboard />} />
+                                <Route path="/teacher/payments" element={<TeacherPayments />} />
+                                <Route path="/teacher/distribution" element={<TeacherDistribution />} />
+                                <Route path="/teacher/notes" element={<TeacherNotes />} />
+                                <Route path="/teacher/settings" element={<TeacherSettings />} />
+                                <Route path="/notifications" element={<NotificationsPage />} />
+                                <Route path="/about" element={<AboutPage />} />
+                                <Route path="/feedback" element={<FeedbackPage />} />
+                            </Routes>
+                        </BiometricGate>
                     </NotificationProvider>
                 </ErrorProvider>
             </AuthProvider>

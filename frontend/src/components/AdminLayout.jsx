@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import ProfilePicture from "./ProfilePicture";
 import NotificationPanel from "./NotificationPanel";
 import ProfilePicUpload from "./ProfilePicUpload";
+import AppLockSetting from "./AppLockSetting";
 
 // ── Heavy inertia cubic-bezier(0.85, 0, 0.15, 1) solver ──
 const heavyInertia = (progress) => {
@@ -127,13 +128,6 @@ export default function AdminLayout({ children }) {
 
         if (result === "up_to_date") {
             window.dispatchEvent(new Event("pwa-up-to-date"));
-        } else if (result === "not_ready") {
-            setToast({
-                show: true,
-                message: "Update check is not ready. Try again in a few seconds.",
-                type: "info"
-            });
-            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
         } else if (result === "error") {
             setToast({
                 show: true,
@@ -344,7 +338,7 @@ export default function AdminLayout({ children }) {
 
                     {/* Profile Dropdown Popup */}
                     {desktopProfileOpen && (
-                        <div className="absolute top-14 right-0 w-72 bg-[#0c0e17]/95 backdrop-blur-3xl border border-[#464752]/50 rounded-[2rem] shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden animate-[modalIn_0.2s_ease-out] z-50 p-4 space-y-4" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                        <div className="absolute top-14 right-0 w-80 bg-[#0c0e17]/95 backdrop-blur-3xl border border-[#464752]/50 rounded-[2rem] shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden animate-[modalIn_0.2s_ease-out] z-50 p-4 space-y-4" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
                             {/* Profile Header Card */}
                             <div className="bg-[#3b82f6]/10 p-5 rounded-[1.5rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden">
                                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-[radial-gradient(circle,rgba(59,130,246,0.3)_0%,transparent_70%)] blur-xl pointer-events-none" />
@@ -374,6 +368,13 @@ export default function AdminLayout({ children }) {
                                     </div>
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
+                                
+                                <AppLockSetting 
+                                    accentColor="#3b82f6" 
+                                    isLight={false} 
+                                    variant="dropdown" 
+                                    onSelect={() => setDesktopProfileOpen(false)} 
+                                />
                                 
                                 <button 
                                     onClick={handleCheckUpdate}

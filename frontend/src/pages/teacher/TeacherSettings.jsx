@@ -11,6 +11,7 @@ import { auth } from "@/lib/firebase";
 import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePicUpload from "@/components/ProfilePicUpload";
 import MyDevicesModal from "@/components/MyDevicesModal";
+import AppLockSetting from "@/components/AppLockSetting";
 
 function TeacherSettingsContent() {
     const { user, logout, refreshUser } = useAuth();
@@ -30,13 +31,6 @@ function TeacherSettingsContent() {
 
         if (result === "up_to_date") {
             window.dispatchEvent(new Event("pwa-up-to-date"));
-        } else if (result === "not_ready") {
-            setToast({
-                show: true,
-                message: "Update check is not ready. Try again in a few seconds.",
-                type: "info"
-            });
-            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
         } else if (result === "error") {
             setToast({
                 show: true,
@@ -195,6 +189,9 @@ function TeacherSettingsContent() {
                     <span className="material-symbols-outlined text-[#737580]">chevron_right</span>
                 </button>
 
+                {/* App Lock (Biometric) */}
+                <AppLockSetting accentColor={accentColor} isLight={false} />
+
                 {/* Devices */}
                 <button
                     onClick={() => setDevicesModalOpen(true)}
@@ -222,6 +219,7 @@ function TeacherSettingsContent() {
                     </div>
                     <span className="text-xs text-[#aaaab7]">Dark mode</span>
                 </div>
+
 
                 {/* Help & Support */}
                 <a

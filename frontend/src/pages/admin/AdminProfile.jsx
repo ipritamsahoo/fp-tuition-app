@@ -4,6 +4,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { useAuth } from "@/context/AuthContext";
 import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePicUpload from "@/components/ProfilePicUpload";
+import AppLockSetting from "@/components/AppLockSetting";
 
 function AdminProfileContent() {
     const { user, logout } = useAuth();
@@ -20,13 +21,6 @@ function AdminProfileContent() {
 
         if (result === "up_to_date") {
             window.dispatchEvent(new Event("pwa-up-to-date"));
-        } else if (result === "not_ready") {
-            setToast({
-                show: true,
-                message: "Update check is not ready. Try again in a few seconds.",
-                type: "info"
-            });
-            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
         } else if (result === "error") {
             setToast({
                 show: true,
@@ -77,7 +71,7 @@ function AdminProfileContent() {
                 {/* Change Profile Photo */}
                 <button
                     onClick={() => setPicModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 bg-[#11131d]/60 backdrop-blur-md rounded-2xl hover:bg-[#1c1f2b] transition-all group cursor-pointer"
+                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
                 >
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
@@ -88,11 +82,14 @@ function AdminProfileContent() {
                     <span className="material-symbols-outlined text-[#737580]">chevron_right</span>
                 </button>
 
+                {/* App Lock (Biometric) */}
+                <AppLockSetting accentColor="#3b82f6" isLight={false} />
+
                 {/* Check for updates */}
                 <button
                     onClick={handleCheckUpdate}
                     disabled={updateChecking}
-                    className="w-full flex items-center justify-between p-4 bg-[#11131d]/60 backdrop-blur-md rounded-2xl hover:bg-[#1c1f2b] transition-all group cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
                 >
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">

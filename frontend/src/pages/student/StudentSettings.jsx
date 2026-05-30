@@ -13,6 +13,7 @@ import ProfilePicUpload from "@/components/ProfilePicUpload";
 import MyDevicesModal from "@/components/MyDevicesModal";
 import AboutContent from "@/components/AboutContent";
 import StudentFeedbackModal from "@/components/StudentFeedbackModal";
+import AppLockSetting from "@/components/AppLockSetting";
 
 function StudentSettingsContent() {
     const navigate = useNavigate();
@@ -36,13 +37,6 @@ function StudentSettingsContent() {
         if (result === "up_to_date") {
             // Show the "You're up to date" banner via App.jsx
             window.dispatchEvent(new Event("pwa-up-to-date"));
-        } else if (result === "not_ready") {
-            setToast({
-                show: true,
-                message: "Update check is not ready. Try again in a few seconds.",
-                type: "info"
-            });
-            setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
         } else if (result === "error") {
             setToast({
                 show: true,
@@ -241,6 +235,9 @@ function StudentSettingsContent() {
                     <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
                 </button>
 
+                {/* ── App Lock (Biometric) ── */}
+                <AppLockSetting accentColor={accentColor} isLight={isLight} />
+
                 {/* Devices */}
                 <button
                     onClick={() => setDevicesModalOpen(true)}
@@ -296,6 +293,7 @@ function StudentSettingsContent() {
                         </div>
                     </div>
                 </button>
+
 
                 {/* Help & Support */}
                 <a
