@@ -108,6 +108,10 @@ function AdminDashboardContent() {
     // Removed resource-intensive onSnapshot listener for entire payments collection
 
     const handleGenerate = async () => {
+        if (!genBatch) {
+            setError("Please select a batch first.");
+            return;
+        }
         setGenerating(true);
         setMessage("");
         setError("");
@@ -116,8 +120,8 @@ function AdminDashboardContent() {
                 month: genMonth,
                 year: genYear,
                 amount: genAmount,
+                batch_id: genBatch,
             };
-            if (genBatch) payload.batch_id = genBatch;
             const data = await api.post("/api/admin/generate-monthly", payload);
             setMessage(data.message);
             fetchStats();
@@ -131,14 +135,17 @@ function AdminDashboardContent() {
     };
 
     const handleUndo = async () => {
+        if (!genBatch) {
+            setError("Please select a batch first.");
+            return;
+        }
         const monthName = MONTHS[genMonth - 1];
         if (!window.confirm(`Are you sure you want to undo fee generation for ${monthName} ${genYear}?\n\nThis will delete only "Unpaid" records. Paid and pending payments are safe.`)) return;
         setUndoing(true);
         setMessage("");
         setError("");
         try {
-            const payload = { month: genMonth, year: genYear };
-            if (genBatch) payload.batch_id = genBatch;
+            const payload = { month: genMonth, year: genYear, batch_id: genBatch };
             const data = await api.post("/api/admin/undo-monthly", payload);
             setMessage(data.message);
             fetchStats();
@@ -224,8 +231,8 @@ function AdminDashboardContent() {
                             <ModernSelect
                                 value={genBatch}
                                 onChange={(e) => setGenBatch(e.target.value)}
-                                options={[{ id: "", batch_name: "All Batches" }, ...batches]}
-                                placeholder="All Batches"
+                                options={batches}
+                                placeholder="Select Batch"
                                 className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#3b82f6]/50 transition-colors rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 text-[#f0f0fd] text-sm"
                             />
                         </div>

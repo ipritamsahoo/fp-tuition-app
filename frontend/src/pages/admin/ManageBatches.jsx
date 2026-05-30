@@ -57,6 +57,19 @@ function BatchesContent() {
         fetchData();
     }, [fetchData]);
 
+    // Disable body scroll when any modal is open
+    useEffect(() => {
+        const isModalOpen = !!showForm || !!deleteModalBatch;
+        if (isModalOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [showForm, deleteModalBatch]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setFormLoading(true);
@@ -172,7 +185,7 @@ function BatchesContent() {
 
             {/* Form Modal */}
             {showForm && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setShowForm(false); setEditId(null); setError(""); setForm({ batch_name: "", teacher_ids: [], batch_fee: "" }); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setShowForm(false); setEditId(null); setError(""); setForm({ batch_name: "", teacher_ids: [], batch_fee: "" }); }}>
                     <form 
                         onSubmit={handleSubmit} 
                         className="bg-[#0c0e17]/95 backdrop-blur-3xl rounded-[32px] p-6 sm:p-8 w-full max-w-lg border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative animate-modal-in m-auto"
@@ -267,7 +280,7 @@ function BatchesContent() {
 
             {/* Delete Confirmation Modal */}
             {deleteModalBatch && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setDeleteModalBatch(null); setError(""); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setDeleteModalBatch(null); setError(""); }}>
                     <div 
                         className="bg-[#0c0e17]/60 backdrop-blur-[30px] rounded-[32px] p-6 sm:p-8 w-full max-w-[480px] border border-[#ff4466]/30 shadow-[0_30px_60px_rgba(255,68,102,0.2)] relative animate-modal-in m-auto"
                         onClick={(e) => e.stopPropagation()}

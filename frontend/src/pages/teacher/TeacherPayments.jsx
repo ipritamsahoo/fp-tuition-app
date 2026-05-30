@@ -5,7 +5,7 @@ import { api, isSystemicError } from "@/lib/api";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
+import { TableSkeleton, TeacherPaymentsPageSkeleton } from "@/components/Skeletons";
 
 const MONTHS = [
     { value: 1,  label: "January"   },
@@ -27,7 +27,7 @@ function PaymentsContent() {
     const cacheKeyBatches = "teacher_all_batches";
     const cachedBatches = getCache(cacheKeyBatches);
 
-    const [batches,     setBatches]     = useState(cachedBatches || []);
+    const [batches,     setBatches]     = useState([]);
     const [filterBatch, setFilterBatch] = useState("");
     const [filterYear,  setFilterYear]  = useState(prevYear);
     const [filterMonth, setFilterMonth] = useState(prevMonth);
@@ -36,40 +36,57 @@ function PaymentsContent() {
     const [loading,   setLoading]   = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [error,     setError]     = useState("");
+    const [batchesLoading, setBatchesLoading] = useState(true);
 
     // Fetch batches once on mount — no payment fetch yet
     useEffect(() => {
         const cached = getCache(cacheKeyBatches);
-        if (cached) { setBatches(cached); return; }
+        if (cached) { 
+            setBatches(cached); 
+            const timer = setTimeout(() => {
+                setBatchesLoading(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+        setBatchesLoading(true);
         api.get("/api/teacher/batches").then((data) => {
             setBatches(data);
             setCache(cacheKeyBatches, data);
-        }).catch(() => {});
+        }).catch(() => {}).finally(() => {
+            setBatchesLoading(false);
+        });
     }, [cacheKeyBatches]);
 
-    // Called ONLY when View button is clicked
-    const fetchPayments = useCallback(async () => {
-        if (!filterBatch) return;
-        setLoading(true);
-        setHasLoaded(false);
-        setPayments([]);
-        setError("");
-        try {
-            const res = await api.get(
-                `/api/teacher/all-payments?batch_id=${filterBatch}&year=${filterYear}&month=${filterMonth}`
-            );
-            setPayments(res);
-            setHasLoaded(true);
-        } catch (err) {
-            if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-        } finally {
-            setLoading(false);
+    // Automatically fetch payments when filters change
+    useEffect(() => {
+        if (!filterBatch) {
+            setPayments([]);
+            setHasLoaded(false);
+            return;
         }
-    }, [filterBatch, filterYear, filterMonth]);
 
-    const handleView = () => fetchPayments();
+        const runFetch = async () => {
+            setLoading(true);
+            setHasLoaded(false);
+            setPayments([]);
+            setError("");
+            try {
+                const res = await api.get(
+                    `/api/teacher/all-payments?batch_id=${filterBatch}&year=${filterYear}&month=${filterMonth}`
+                );
+                setPayments(res);
+                setHasLoaded(true);
+            } catch (err) {
+                if (!isSystemicError(err.message)) {
+                    setError(err.message);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        runFetch();
+    }, [filterBatch, filterYear, filterMonth]);
 
     // ── helpers ──────────────────────────────────────────
     const formatDate = (dateStr) => {
@@ -99,6 +116,10 @@ function PaymentsContent() {
     const selectedMonth = MONTHS.find(m => m.value === filterMonth)?.label || "";
     const selectedBatch = batches.find(b => b.id === filterBatch)?.batch_name || "";
 
+    if (batchesLoading) {
+        return <TeacherPaymentsPageSkeleton />;
+    }
+
     return (
         <div className="space-y-6" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
             {/* Header */}
@@ -121,9 +142,9 @@ function PaymentsContent() {
                 className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5"
                 style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
-                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-                    {/* Batch */}
-                    <div className="relative flex-1 md:flex-none md:w-[220px] z-30">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+                    {/* Batch - First on mobile, 3rd on desktop */}
+                    <div className="col-span-2 md:order-3 md:col-span-2 relative z-30">
                         <ModernSelect
                             value={filterBatch}
                             onChange={(e) => { setFilterBatch(e.target.value); setHasLoaded(false); setPayments([]); }}
@@ -132,42 +153,24 @@ function PaymentsContent() {
                             className="w-full"
                         />
                     </div>
-                    {/* Year & Month group */}
-                    <div className="flex flex-row gap-3 flex-1 md:flex-none">
-                        {/* Year */}
-                        <div className="relative flex-1 md:w-[140px] z-20">
-                            <ModernSelect
-                                value={filterYear}
-                                onChange={(e) => { setFilterYear(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
-                                options={yearOptions}
-                                className="w-full"
-                            />
-                        </div>
-                        {/* Month */}
-                        <div className="relative flex-1 md:w-[160px] z-10">
-                            <ModernSelect
-                                value={filterMonth}
-                                onChange={(e) => { setFilterMonth(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
-                                options={MONTHS.map(m => ({ id: m.value, batch_name: m.label }))}
-                                className="w-full"
-                            />
-                        </div>
+                    {/* Month - Second on mobile (left), 1st on desktop */}
+                    <div className="col-span-1 md:order-1 relative z-20">
+                        <ModernSelect
+                            value={filterMonth}
+                            onChange={(e) => { setFilterMonth(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                            options={MONTHS.map(m => ({ id: m.value, batch_name: m.label }))}
+                            className="w-full"
+                        />
                     </div>
-                    {/* View button */}
-                    <button
-                        onClick={handleView}
-                        disabled={!filterBatch || loading}
-                        className="px-6 py-3 rounded-xl bg-[#4af8e3]/10 text-[#4af8e3] border border-[#4af8e3]/30 text-sm font-bold uppercase tracking-widest
-                        hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(74,248,227,0.10)]
-                        disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap md:ml-auto"
-                    >
-                        {loading ? (
-                            <span className="w-4 h-4 rounded-full border-2 border-[#4af8e3]/30 border-t-[#4af8e3] animate-spin" />
-                        ) : (
-                            <span className="material-symbols-outlined text-[16px]">search</span>
-                        )}
-                        {loading ? "Loading..." : "View"}
-                    </button>
+                    {/* Year - Third on mobile (right), 2nd on desktop */}
+                    <div className="col-span-1 md:order-2 relative z-10">
+                        <ModernSelect
+                            value={filterYear}
+                            onChange={(e) => { setFilterYear(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                            options={yearOptions}
+                            className="w-full"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -187,12 +190,12 @@ function PaymentsContent() {
                 style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
                 {loading ? (
-                    <div className="p-6"><GenericListSkeleton /></div>
+                    <TableSkeleton />
                 ) : !hasLoaded ? (
                     <div className="flex flex-col items-center justify-center gap-4 p-14 text-center">
                         <span className="material-symbols-outlined text-5xl text-[#464752]">payments</span>
-                        <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select filters and click View</p>
-                        <p className="text-[#aaaab7] text-sm">No data is loaded until you click the View button.</p>
+                        <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</p>
+                        <p className="text-[#aaaab7] text-sm">Please select a batch to view its payments.</p>
                     </div>
                 ) : sorted.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-3 p-14 text-[#aaaab7]" style={{ fontFamily: "'Inter', sans-serif" }}>

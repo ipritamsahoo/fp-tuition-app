@@ -51,6 +51,70 @@ export default function AdminLayout({ children }) {
     const [picUploadOpen, setPicUploadOpen] = useState(false);
     const profileDropdownRef = useRef(null);
 
+    // Draggable FAB alignment states
+    const [fabAlign, setFabAlign] = useState("right");
+    const [dragX, setDragX] = useState(null);
+    const dragStartRef = useRef({ x: 0, buttonX: 0 });
+    const hasMovedRef = useRef(false);
+
+    const handlePointerDown = (e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragStartRef.current = {
+            x: e.clientX,
+            buttonX: e.currentTarget.getBoundingClientRect().left
+        };
+        hasMovedRef.current = false;
+        setDragX(dragStartRef.current.buttonX);
+    };
+
+    const handlePointerMove = (e) => {
+        if (dragX === null) return;
+        const deltaX = e.clientX - dragStartRef.current.x;
+        // If movement is more than 8 pixels, mark as drag
+        if (Math.abs(deltaX) > 8) {
+            hasMovedRef.current = true;
+        }
+        let newX = dragStartRef.current.buttonX + deltaX;
+        const btnWidth = 56; // 14rem is 56px
+        // Constrain within screen viewport (16px padding on edges)
+        newX = Math.max(16, Math.min(newX, window.innerWidth - 16 - btnWidth));
+        setDragX(newX);
+    };
+
+    const handlePointerUp = (e) => {
+        if (dragX === null) return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        
+        if (hasMovedRef.current) {
+            const btnWidth = 56;
+            const midPoint = window.innerWidth / 2;
+            const finalCenter = dragX + btnWidth / 2;
+            
+            // Snap to nearest side
+            if (finalCenter < midPoint) {
+                setFabAlign("left");
+            } else {
+                setFabAlign("right");
+            }
+        }
+        setDragX(null);
+    };
+
+    const handlePointerCancel = (e) => {
+        if (dragX === null) return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        setDragX(null);
+    };
+
+    const handleFabClick = (e) => {
+        if (hasMovedRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        setFabOpen(!fabOpen);
+    };
+
     // PWA manual update checking states
     const [updateChecking, setUpdateChecking] = useState(false);
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
@@ -90,6 +154,18 @@ export default function AdminLayout({ children }) {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // Disable body scroll when FAB menu is open on mobile
+    useEffect(() => {
+        if (fabOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [fabOpen]);
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = adminBottomNav.findIndex(item =>
@@ -388,7 +464,14 @@ export default function AdminLayout({ children }) {
             </main>
 
             {/* ── Mobile: FAB Menu Drawer ── */}
-            <div className={`md:hidden fixed bottom-[120px] right-6 z-[60] w-48 flex flex-col gap-3 transition-all duration-300 transform origin-bottom-right ${fabOpen && !isSubPageMobile ? "scale-100 opacity-100 translate-y-0" : "scale-50 opacity-0 translate-y-10 pointer-events-none"}`} style={{ transform: fabOpen ? "translateZ(0) scale(1) translateY(0)" : "translateZ(0) scale(0.5) translateY(40px)" }}>
+            <div 
+                className={`md:hidden fixed bottom-[176px] z-[60] w-48 flex flex-col gap-3 transition-all duration-300 transform ${
+                    fabAlign === "left" ? "left-6 origin-bottom-left" : "right-6 origin-bottom-right"
+                } ${fabOpen && !isSubPageMobile ? "scale-100 opacity-100 translate-y-0" : "scale-50 opacity-0 translate-y-10 pointer-events-none"}`} 
+                style={{ 
+                    transform: fabOpen ? "translateZ(0) scale(1) translateY(0)" : "translateZ(0) scale(0.5) translateY(40px)" 
+                }}
+            >
                 <div className="bg-[#171924]/95 backdrop-blur-3xl rounded-3xl p-3 shadow-2xl border border-white/5 space-y-1" style={{ isolation: "isolate" }}>
                     {adminFabNav.map((item) => (
                         <button 
@@ -408,16 +491,27 @@ export default function AdminLayout({ children }) {
                 <div 
                     className="md:hidden fixed inset-0 z-[55] bg-black/20 backdrop-blur-sm transition-opacity cursor-pointer"
                     onClick={() => setFabOpen(false)}
+                    style={{ touchAction: "none" }}
                 />
             )}
 
             {/* ── Mobile: Floating Action Button ── */}
             {!isSubPageMobile && (
                 <button 
-                    onClick={() => setFabOpen(!fabOpen)}
-                    className={`md:hidden fixed bottom-[110px] right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(74,248,227,0.3)] z-[60] active:scale-90 transition-all duration-300 cursor-pointer ${fabOpen ? "bg-[#ff6e84] text-white rotate-45 shadow-[0_10px_30px_rgba(255,110,132,0.3)]" : "bg-[#4af8e3] text-[#005b51]"}`}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
+                    onClick={handleFabClick}
+                    className={`md:hidden fixed bottom-[110px] w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(74,248,227,0.3)] z-[60] active:scale-95 transition-all duration-300 cursor-pointer ${fabOpen ? "bg-[#ff6e84] text-white rotate-45 shadow-[0_10px_30px_rgba(255,110,132,0.3)]" : "bg-[#4af8e3] text-[#005b51]"}`}
+                    style={{
+                        left: dragX !== null ? `${dragX}px` : (fabAlign === "left" ? "24px" : "auto"),
+                        right: dragX !== null ? "auto" : (fabAlign === "right" ? "24px" : "auto"),
+                        transition: dragX !== null ? "none" : "all 300ms cubic-bezier(0.25, 0.8, 0.25, 1)",
+                        touchAction: "none"
+                    }}
                 >
-                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <span className="material-symbols-outlined select-none" style={{ fontVariationSettings: "'FILL' 1" }}>
                         {fabOpen ? "add" : "grid_view"}
                     </span>
                 </button>

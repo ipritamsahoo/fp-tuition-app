@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import UserDevicesModal from "@/components/UserDevicesModal";
@@ -29,6 +30,40 @@ function TeachersContent() {
 
     // Devices modal state
     const [devicesTeacher, setDevicesTeacher] = useState(null);
+
+    // Delete confirmation state
+    const [deleteModalTeacher, setDeleteModalTeacher] = useState(null);
+
+    // Disable body scroll when any modal is open
+    useEffect(() => {
+        const isModalOpen = !!editingTeacher || !!deleteModalTeacher || !!devicesTeacher;
+        if (isModalOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [editingTeacher, deleteModalTeacher, devicesTeacher]);
+
+    const confirmDelete = async () => {
+        if (!deleteModalTeacher) return;
+        const uid = deleteModalTeacher.uid || deleteModalTeacher.id;
+        setDeleteModalTeacher(null);
+        setDeleting(uid);
+        try {
+            await api.delete(`/api/admin/teachers/${uid}`);
+            setSuccess("Teacher removed successfully.");
+            fetchData();
+        } catch (err) {
+            if (!isSystemicError(err.message)) {
+                setError(err.message);
+            }
+        } finally {
+            setDeleting(null);
+        }
+    };
 
     const fetchData = useCallback(async () => {
         if (!getCache("admin_teachers") || !getCache("admin_teacher_batches")) {
@@ -81,21 +116,7 @@ function TeachersContent() {
         }
     };
 
-    const handleDelete = async (uid) => {
-        if (!confirm("Are you sure you want to remove this teacher?")) return;
-        setDeleting(uid);
-        try {
-            await api.delete(`/api/admin/teachers/${uid}`);
-            setSuccess("Teacher removed.");
-            fetchData();
-        } catch (err) {
-            if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-        } finally {
-            setDeleting(null);
-        }
-    };
+
 
 
 
@@ -254,8 +275,8 @@ function TeachersContent() {
                 )}
 
                 {/* Edit Form Modal */}
-                {editingTeacher && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
+                {editingTeacher && createPortal(
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
                         <form onSubmit={handleEditSubmit} className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#737580]/20 shadow-2xl relative m-auto">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-[#f0f0fd] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -319,7 +340,49 @@ function TeachersContent() {
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {deleteModalTeacher && createPortal(
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+                        <div className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#ff6e84]/30 shadow-[0_0_40px_rgba(255,110,132,0.15)] relative animate-fade-in-up m-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-[#ff6e84] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                    <span className="material-symbols-outlined">delete</span>
+                                    Remove Teacher
+                                </h3>
+                                <button onClick={() => setDeleteModalTeacher(null)} className="text-[#aaaab7] hover:text-white transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                            <div className="space-y-4 mb-6 text-[#aaaab7]">
+                                <p className="text-base text-[#f0f0fd] font-medium">Are you sure you want to remove <span className="font-bold text-white">{deleteModalTeacher.name}</span>?</p>
+                                <div className="bg-[#ff6e84]/10 border border-[#ff6e84]/20 p-4 rounded-xl text-sm leading-relaxed text-[#ff9dac]">
+                                    <p className="font-bold mb-1">If you remove this teacher:</p>
+                                    <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
+                                        <li>They will be logged out of all devices immediately.</li>
+                                        <li>They will no longer have access to the teacher portal.</li>
+                                        <li>Their assigned batches will lose this instructor.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-4 pt-6 border-t border-[#464752]/30">
+                                <button onClick={() => setDeleteModalTeacher(null)} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 transition-all cursor-pointer">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-6 py-3 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] border border-[#ff6e84]/30 hover:bg-[#ff6e84]/20 hover:border-[#ff6e84]/50 shadow-[0_4px_15px_rgba(255,110,132,0.15)] border text-sm font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* Mobile: Card layout */}
@@ -349,7 +412,7 @@ function TeachersContent() {
                                         className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#aaaab7] hover:bg-[#c799ff]/10 hover:border-[#c799ff]/30 hover:text-[#c799ff] transition-all cursor-pointer flex-1 flex justify-center">
                                         <span className="material-symbols-outlined text-[20px]">edit</span>
                                     </button>
-                                    <button onClick={() => handleDelete(t.uid || t.id)} disabled={deleting === (t.uid || t.id)}
+                                    <button onClick={() => setDeleteModalTeacher(t)} disabled={deleting === (t.uid || t.id)}
                                         className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#aaaab7] hover:bg-[#ff6e84]/10 hover:border-[#ff6e84]/30 hover:text-[#ff6e84] transition-all disabled:opacity-50 cursor-pointer flex-1 flex justify-center">
                                         {deleting === (t.uid || t.id) ? (
                                             <span className="w-5 h-5 rounded-full border-2 border-[#ff6e84]/30 border-t-[#ff6e84] animate-spin" />
@@ -412,7 +475,7 @@ function TeachersContent() {
                                                     <span className="material-symbols-outlined text-[16px]">edit</span>
                                                     <span className="text-xs font-bold tracking-wide uppercase">Edit</span>
                                                 </button>
-                                                <button onClick={() => handleDelete(t.uid || t.id)} disabled={deleting === (t.uid || t.id)}
+                                                <button onClick={() => setDeleteModalTeacher(t)} disabled={deleting === (t.uid || t.id)}
                                                     className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#aaaab7] hover:text-[#ff6e84] hover:bg-[#ff6e84]/10 hover:border-[#ff6e84]/30 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2">
                                                     {deleting === (t.uid || t.id) ? (
                                                         <span className="w-4 h-4 rounded-full border-2 border-[#ff6e84]/30 border-t-[#ff6e84] animate-spin" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import UserDevicesModal from "@/components/UserDevicesModal";
@@ -103,6 +104,19 @@ function StudentsContent() {
     const handleViewStudents = () => loadStudents(selectedListBatch);
 
     useEffect(() => { fetchBatches(); }, [fetchBatches]);
+
+    // Disable body scroll when any modal is open
+    useEffect(() => {
+        const isModalOpen = !!editingStudent || !!overrideStudent || !!statusModalStudent || !!devicesStudent;
+        if (isModalOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [editingStudent, overrideStudent, statusModalStudent, devicesStudent]);
 
     // ── Add student ──────────────────────────────────────────────────────
     const handleSubmit = async (e) => {
@@ -549,8 +563,8 @@ function StudentsContent() {
             ══════════════════════════════════════════════════════════════ */}
 
             {/* Edit Student Modal */}
-            {editingStudent && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+            {editingStudent && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
                     <form onSubmit={handleEditSubmit} className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#737580]/20 shadow-2xl relative animate-fade-in-up m-auto">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-[#f0f0fd] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -627,12 +641,13 @@ function StudentsContent() {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Fee Override Modal */}
-            {overrideStudent && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+            {overrideStudent && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
                     <form onSubmit={handleOverrideSubmit} className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#f5c542]/20 shadow-2xl relative animate-fade-in-up m-auto">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-[#f0f0fd] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -713,7 +728,8 @@ function StudentsContent() {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Status Toggle Modal */}
@@ -721,8 +737,8 @@ function StudentsContent() {
                 const isDisabling = !statusModalStudent.is_disabled;
                 const actionText = isDisabling ? "disable" : "enable";
                 const targetText = `I confirm to ${actionText} ${statusModalStudent.name}`;
-                return (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+                return createPortal(
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
                         <div className={`bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border ${isDisabling ? "border-[#ff6e84]/30 shadow-[0_0_40px_rgba(255,110,132,0.15)]" : "border-[#4af8e3]/30 shadow-[0_0_40px_rgba(74,248,227,0.15)]"} relative animate-fade-in-up m-auto`}>
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className={`${isDisabling ? "text-[#ff6e84]" : "text-[#4af8e3]"} font-bold text-xl flex items-center gap-2`} style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -788,7 +804,8 @@ function StudentsContent() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 );
             })()}
 

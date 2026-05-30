@@ -48,30 +48,36 @@ function PaymentsContent() {
         }).catch(() => {});
     }, []);
 
-    // Called ONLY when View button is clicked
-    const fetchPayments = useCallback(async () => {
-        if (!filterBatch) return;
-        setLoading(true);
-        setHasLoaded(false);
-        setPayments([]);
-        setError("");
-        try {
-            const res = await api.get(
-                `/api/admin/payments?batch_id=${filterBatch}&year=${filterYear}&month=${filterMonth}`
-            );
-            setPayments(res);
-            setHasLoaded(true);
-        } catch (err) {
-            // Only show local banner for validation errors (others handled by Global Modal)
-            if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-        } finally {
-            setLoading(false);
+    // Automatically fetch payments when filters change
+    useEffect(() => {
+        if (!filterBatch) {
+            setPayments([]);
+            setHasLoaded(false);
+            return;
         }
-    }, [filterBatch, filterYear, filterMonth]);
 
-    const handleView = () => fetchPayments();
+        const fetchPayments = async () => {
+            setLoading(true);
+            setHasLoaded(false);
+            setPayments([]);
+            setError("");
+            try {
+                const res = await api.get(
+                    `/api/admin/payments?batch_id=${filterBatch}&year=${filterYear}&month=${filterMonth}`
+                );
+                setPayments(res);
+                setHasLoaded(true);
+            } catch (err) {
+                if (!isSystemicError(err.message)) {
+                    setError(err.message);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPayments();
+    }, [filterBatch, filterYear, filterMonth]);
 
     // ── helpers ──────────────────────────────────────────
     const formatDate = (dateStr) => {
@@ -119,26 +125,26 @@ function PaymentsContent() {
                 </div>
             )}
 
-            {/* Filters + View button */}
+            {/* Filters */}
             <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5">
                 <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
                     {/* Batch */}
                     <div className="relative flex-1 md:flex-none md:w-[220px] z-30">
                         <ModernSelect
                             value={filterBatch}
-                            onChange={(e) => { setFilterBatch(e.target.value); setHasLoaded(false); setPayments([]); }}
-                            options={[{ id: "", batch_name: "Select Batch" }, ...batches]}
+                            onChange={(e) => setFilterBatch(e.target.value)}
+                            options={batches}
                             placeholder="Select Batch"
                             className="w-full"
                         />
                     </div>
                     {/* Year & Month group */}
-                    <div className="flex flex-row gap-3 flex-1 md:flex-none">
+                    <div className="flex flex-row gap-3 flex-1">
                         {/* Year */}
                         <div className="relative flex-1 md:w-[140px] z-20">
                             <ModernSelect
                                 value={filterYear}
-                                onChange={(e) => { setFilterYear(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                                onChange={(e) => setFilterYear(Number(e.target.value))}
                                 options={yearOptions}
                                 className="w-full"
                             />
@@ -147,27 +153,12 @@ function PaymentsContent() {
                         <div className="relative flex-1 md:w-[160px] z-10">
                             <ModernSelect
                                 value={filterMonth}
-                                onChange={(e) => { setFilterMonth(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                                onChange={(e) => setFilterMonth(Number(e.target.value))}
                                 options={monthOptions.map(m => ({ id: m.value, batch_name: m.label }))}
                                 className="w-full"
                             />
                         </div>
                     </div>
-                    {/* View button */}
-                    <button
-                        onClick={handleView}
-                        disabled={!filterBatch || loading}
-                        className="px-6 py-3 rounded-xl bg-[#4af8e3]/10 text-[#4af8e3] border border-[#4af8e3]/30 text-sm font-bold uppercase tracking-widest
-                        hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(74,248,227,0.10)]
-                        disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap md:ml-auto"
-                    >
-                        {loading ? (
-                            <span className="w-4 h-4 rounded-full border-2 border-[#4af8e3]/30 border-t-[#4af8e3] animate-spin" />
-                        ) : (
-                            <span className="material-symbols-outlined text-[16px]">search</span>
-                        )}
-                        {loading ? "Loading..." : "View"}
-                    </button>
                 </div>
             </div>
 
@@ -188,8 +179,8 @@ function PaymentsContent() {
                 ) : !hasLoaded ? (
                     <div className="flex flex-col items-center justify-center gap-4 p-14 text-center">
                         <span className="material-symbols-outlined text-5xl text-[#464752]">payments</span>
-                        <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select filters and click View</p>
-                        <p className="text-[#aaaab7] text-sm">No data is loaded until you click the View button.</p>
+                        <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</p>
+                        <p className="text-[#aaaab7] text-sm">Please select a batch to view its payments.</p>
                     </div>
                 ) : sorted.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-3 p-14 text-[#aaaab7]" style={{ fontFamily: "'Inter', sans-serif" }}>

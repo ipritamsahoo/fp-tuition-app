@@ -4,7 +4,7 @@ import TeacherLayout from "@/components/TeacherLayout";
 import ModernSelect from "@/components/ModernSelect";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { TeacherDashboardSkeleton } from "@/components/Skeletons";
+import { TeacherNotesPageSkeleton, TeacherNotesSkeleton } from "@/components/Skeletons";
 import MediaPreviewer from "@/components/MediaPreviewer";
 import { checkCachedFiles, saveCachedFile, getCachedFile } from "@/lib/mediaDb";
 
@@ -25,98 +25,7 @@ function GlassCard({ children, className = "", style = {}, ...props }) {
     );
 }
 
-function TeacherNotesSkeleton() {
-    // Generate varying widths to make the loading look like real dynamic content
-    const items = [
-        { title: "w-[40%]", meta: "w-[55%]" },
-        { title: "w-[50%]", meta: "w-[45%]" },
-        { title: "w-[30%]", meta: "w-[60%]" },
-        { title: "w-[45%]", meta: "w-[50%]" },
-    ];
-
-    return (
-        <div className="space-y-3 animate-pulse">
-            {items.map((style, i) => (
-                <div 
-                    key={i}
-                    className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-4"
-                >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {/* Icon placeholder */}
-                        <div className="w-10 h-10 rounded-xl bg-white/5 shrink-0" />
-                        
-                        {/* Text placeholder with measured heights */}
-                        <div className="flex-1 space-y-2">
-                            {/* h-[14px] matches text-sm font size */}
-                            <div className={`h-[14px] bg-white/5 rounded-md ${style.title}`} />
-                            {/* h-[10px] matches text-[10px] font size */}
-                            <div className={`h-[10px] bg-white/5 rounded-md ${style.meta}`} />
-                        </div>
-                    </div>
-
-                    {/* Actions placeholder with exact button dimensions */}
-                    <div className="flex items-center gap-2 shrink-0">
-                        {/* View Button placeholder */}
-                        <div className="w-9 h-9 rounded-xl bg-white/5" />
-                        {/* Delete Button placeholder - tinted red to match actual theme */}
-                        <div className="w-9 h-9 rounded-xl bg-[#ff6e84]/5" />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function TeacherNotesPageSkeleton() {
-    return (
-        <div className="space-y-6 animate-pulse">
-            {/* Title Header Skeleton */}
-            <div className="flex flex-col gap-4">
-                <div className="h-8 bg-white/5 rounded-lg w-[200px]" />
-            </div>
-
-            {/* Main Layout Grid Skeleton */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Left side: Upload Form Skeleton */}
-                <div className="lg:col-span-5">
-                    <GlassCard className="p-6 space-y-5 border border-white/[0.03] min-h-[400px]">
-                        <div className="h-6 bg-white/5 rounded-md w-1/3" />
-                        
-                        <div className="space-y-4">
-                            {/* Note Title Input Placeholder */}
-                            <div className="space-y-2">
-                                <div className="h-3.5 bg-white/5 rounded-md w-1/4" />
-                                <div className="h-[46px] bg-white/[0.02] border border-white/5 rounded-2xl w-full" />
-                            </div>
-
-                            {/* File Upload Placeholder */}
-                            <div className="space-y-2">
-                                <div className="h-3.5 bg-white/5 rounded-md w-[40%]" />
-                                <div className="h-[120px] bg-white/[0.01] border border-dashed border-white/10 rounded-2xl w-full" />
-                            </div>
-
-                            {/* Submit Button Placeholder */}
-                            <div className="h-12 bg-white/5 rounded-2xl w-full mt-6" />
-                        </div>
-                    </GlassCard>
-                </div>
-
-                {/* Right side: Shared Notes List Skeleton */}
-                <div className="lg:col-span-7">
-                    <GlassCard className="p-6 min-h-[400px] flex flex-col border border-white/[0.03] space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                            <div className="h-6 bg-white/5 rounded-md w-1/3" />
-                        </div>
-                        
-                        {/* Nested list skeleton */}
-                        <TeacherNotesSkeleton />
-                    </GlassCard>
-                </div>
-            </div>
-        </div>
-    );
-}
+// Skeletons are imported from @/components/Skeletons
 function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime, onPreview, onSaveToCache, savingFiles, cacheVersion }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [cachedFileIds, setCachedFileIds] = useState(new Set());
@@ -571,20 +480,21 @@ function TeacherNotesContent() {
                 </div>
 
                 {/* Batch Selector at the top */}
-                <div className="flex items-center gap-3 shrink-0">
-                    <ModernSelect
-                        icon="school"
-                        value={selectedBatch}
-                        placeholder="Select Batch"
-                        options={batches}
-                        onChange={(e) => {
-                            setSelectedBatch(e.target.value);
-                            setUploadError("");
-                            setUploadSuccess("");
-                            setListError("");
-                        }}
-                        className="min-w-[180px]"
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+                    <div className="lg:col-span-5 flex items-center gap-3 shrink-0 w-full">
+                        <ModernSelect
+                            value={selectedBatch}
+                            placeholder="Select Batch"
+                            options={batches}
+                            onChange={(e) => {
+                                setSelectedBatch(e.target.value);
+                                setUploadError("");
+                                setUploadSuccess("");
+                                setListError("");
+                            }}
+                            className="w-full"
+                        />
+                    </div>
                 </div>
             </div>
 

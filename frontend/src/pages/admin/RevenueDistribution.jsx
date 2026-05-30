@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
@@ -23,12 +24,8 @@ function DistributionContent() {
     const cachedBatches = getCache(cacheKeyBatches);
     const [batches, setBatches] = useState(cachedBatches || []);
 
-    const cacheKeyData = `admin_distribution_${month}_${year}_${batchFilter || 'init'}`;
-    const cachedData = getCache(cacheKeyData);
-    const [data, setData] = useState(cachedData || null);
-
-    // If we have batches, and we have a selected batch, and we lack data cache for it, we should load.
-    const [loading, setLoading] = useState(!cachedData);
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [expandedDate, setExpandedDate] = useState(null);
     const [settleLoading, setSettleLoading] = useState(null);
@@ -353,15 +350,24 @@ function DistributionContent() {
         }).catch(() => { });
     }, []);
 
-    // Auto-select first batch
+    // Disable body scroll when modal is open
     useEffect(() => {
-        if (batches.length > 0 && !batchFilter) {
-            setBatchFilter(batches[0].id);
+        if (confirmModal || shareModalData) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
         }
-    }, [batches, batchFilter]);
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [confirmModal, shareModalData]);
 
     const fetchDistribution = useCallback(async () => {
-        if (!batchFilter) return;
+        if (!batchFilter) {
+            setData(null);
+            setLoading(false);
+            return;
+        }
 
         const fetchCacheKey = `admin_distribution_${month}_${year}_${batchFilter}`;
         const currentCache = getCache(fetchCacheKey);
@@ -445,6 +451,7 @@ function DistributionContent() {
                                 value={batchFilter}
                                 onChange={(e) => setBatchFilter(e.target.value)}
                                 options={batches}
+                                placeholder="Select Batch"
                                 className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm md:min-w-[200px]"
                             />
                         </div>
@@ -459,6 +466,12 @@ function DistributionContent() {
             {loading ? (
                 <div className="p-6">
                     <GenericListSkeleton />
+                </div>
+            ) : !batchFilter ? (
+                <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-12 text-center flex flex-col items-center shadow-lg">
+                    <span className="material-symbols-outlined text-[64px] text-[#464752] mb-4">account_balance_wallet</span>
+                    <p className="text-[#f0f0fd] font-bold text-xl mb-1" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</p>
+                    <p className="text-[#aaaab7] text-sm">Please select a batch to view its revenue distribution details.</p>
                 </div>
             ) : data ? (
                 <>
@@ -751,13 +764,13 @@ function DistributionContent() {
             }
 
             {/* ═══ Custom Confirmation Modal ═══ */}
-            {confirmModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" onClick={() => setConfirmModal(null)}>
+            {confirmModal && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-6" onClick={() => setConfirmModal(null)} style={{ touchAction: "none" }}>
                     {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                     {/* Modal */}
                     <div
-                        className="relative w-full max-w-sm bg-[#171924]/95 backdrop-blur-2xl border border-[#464752]/50 rounded-3xl p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-[modalIn_0.3s_ease-out]"
+                        className="relative w-full max-w-sm bg-[#171924]/95 backdrop-blur-2xl border border-[#464752]/50 rounded-3xl p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-[modalIn_0.3s_ease-out] z-10"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Warning icon */}
@@ -791,12 +804,13 @@ function DistributionContent() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ═══ Premium Share Modal with Glassmorphism ═══ */}
-            {shareModalData && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" onClick={() => setShareModalData(null)}>
+            {shareModalData && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-6" onClick={() => setShareModalData(null)} style={{ touchAction: "none" }}>
                     {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" />
                     {/* Modal */}
@@ -876,7 +890,8 @@ function DistributionContent() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div >
     );

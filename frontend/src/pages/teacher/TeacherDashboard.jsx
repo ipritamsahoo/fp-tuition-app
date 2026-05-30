@@ -11,7 +11,7 @@ import { db } from "@/lib/firebase";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ModernSelect from "@/components/ModernSelect";
-import { TeacherDashboardSkeleton } from "@/components/Skeletons";
+import { TeacherDashboardSkeleton, TeacherPaymentsListSkeleton } from "@/components/Skeletons";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -120,9 +120,7 @@ function TeacherDashboardContent() {
         try {
             const data = await api.get("/api/teacher/batches");
             setBatches(data);
-            if (data.length > 0) {
-                setSelectedBatch(prev => prev || data[0].id);
-            }
+            // Initially do not auto-select batch
         } catch (err) {
             // Handled globally
         } finally {
@@ -178,12 +176,34 @@ function TeacherDashboardContent() {
 
     // Track if the user has explicitly clicked View at least once for current filters
 
-    const handleView = async () => {
-        if (!selectedBatch) return;
-        setHasLoaded(false);
-        await fetchPayments();
-        setHasLoaded(true);
-    };
+    // Disable body scroll when warning modal is open
+    useEffect(() => {
+        if (warningModalData) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [warningModalData]);
+
+    // Automatically fetch payments when selected filters change
+    useEffect(() => {
+        if (!selectedBatch) {
+            setPayments([]);
+            setHasLoaded(false);
+            setCounts({ total_students: 0, paid_count: 0, unpaid_count: 0 });
+            return;
+        }
+
+        const runFetch = async () => {
+            setHasLoaded(false);
+            await fetchPayments();
+            setHasLoaded(true);
+        };
+        runFetch();
+    }, [selectedBatch, filterMonth, filterYear, fetchPayments]);
 
     // ── Granular Real-Time Listener ──
     // Tracks active specific query visually without heavy network refetches
@@ -318,7 +338,7 @@ function TeacherDashboardContent() {
     const filteredPayments = payments; // Now filtered on the backend!
 
     if (batchesLoading) {
-        return <div className="p-6"><TeacherDashboardSkeleton /></div>;
+        return <TeacherDashboardSkeleton />;
     }
 
     const selectedBatchName = batches.find(b => b.id === selectedBatch)?.batch_name || "Select Batch";
@@ -337,14 +357,17 @@ function TeacherDashboardContent() {
 
             {/* ── Current Filter ── */}
             <section>
-                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
-                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div
+                    className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 w-full"
+                    style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                >
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
                         {/* Batch - First on mobile */}
                         <div className="col-span-2 md:order-3 md:col-span-2">
                             <ModernSelect
-                                icon="school"
                                 value={selectedBatch}
                                 options={batches}
+                                placeholder="Select Batch"
                                 onChange={(e) => { setSelectedBatch(e.target.value); setHasLoaded(false); setPayments([]); }}
                                 className="w-full"
                             />
@@ -353,9 +376,8 @@ function TeacherDashboardContent() {
                         {/* Month */}
                         <div className="col-span-1 md:order-1">
                             <ModernSelect
-                                icon="calendar_month"
                                 value={filterMonth}
-                                options={MONTHS.map((m, i) => ({ value: i + 1, label: m }))}
+                                options={MONTH_FULL.map((m, i) => ({ value: i + 1, label: m }))}
                                 onChange={(e) => { setFilterMonth(e.target.value); setHasLoaded(false); setPayments([]); }}
                                 className="w-full"
                             />
@@ -364,7 +386,6 @@ function TeacherDashboardContent() {
                         {/* Year */}
                         <div className="col-span-1 md:order-2">
                             <ModernSelect
-                                icon="event"
                                 value={filterYear}
                                 options={getYearOptions()}
                                 onChange={(e) => { setFilterYear(parseInt(e.target.value)); setHasLoaded(false); setPayments([]); }}
@@ -372,18 +393,6 @@ function TeacherDashboardContent() {
                             />
                         </div>
                     </div>
-                    <button
-                        onClick={handleView}
-                        disabled={!selectedBatch || loading}
-                        className="px-8 py-3 rounded-2xl bg-[#4af8e3]/10 backdrop-blur-md border border-[#4af8e3]/30 text-[#4af8e3] text-sm font-bold uppercase tracking-widest hover:bg-[#4af8e3]/20 transition-all shadow-[0_4px_20px_rgba(74,248,227,0.1)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 h-[52px]"
-                    >
-                        {loading ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <span className="material-symbols-outlined text-lg">search</span>
-                        )}
-                        View
-                    </button>
                 </div>
             </section>
 
@@ -455,15 +464,15 @@ function TeacherDashboardContent() {
             {/* ── Payment Status ── */}
             {loading ? (
                 <div className="mt-6">
-                    <TeacherDashboardSkeleton />
+                    <TeacherPaymentsListSkeleton />
                 </div>
             ) : !hasLoaded ? (
                 /* ── Empty State: Not loaded yet ── */
                 <section className="mt-8">
                     <GlassCard className="p-16 flex flex-col items-center justify-center text-center gap-4">
                         <span className="material-symbols-outlined text-5xl text-[#464752]">payments</span>
-                        <h3 className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select filters and click View</h3>
-                        <p className="text-[#aaaab7] text-sm max-w-xs">No data is loaded until you click the View button.</p>
+                        <h3 className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</h3>
+                        <p className="text-[#aaaab7] text-sm max-w-xs">Please select a batch to view its payments and pending actions.</p>
                     </GlassCard>
                 </section>
             ) : (
@@ -533,7 +542,7 @@ function TeacherDashboardContent() {
                     const currentY = payment.year || filterYear;
                     
                     return (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setWarningModalData(null)}>
+                        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setWarningModalData(null)} style={{ touchAction: "none" }}>
                             <div 
                                 className="bg-[#0c0e17]/95 backdrop-blur-3xl rounded-[32px] p-6 sm:p-8 w-full max-w-md border border-amber-400/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative animate-modal-in"
                                 onClick={(e) => e.stopPropagation()}

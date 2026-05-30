@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
@@ -28,6 +29,7 @@ function ApprovalContent() {
     const [pending, setPending] = useState(cachedPending || []);
     const [batches, setBatches] = useState(cachedBatches || []);
     const [filterBatch, setFilterBatch] = useState("");
+    const [filterMode, setFilterMode] = useState("");
     const [loading, setLoading] = useState(!cachedPending || !cachedBatches);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -70,6 +72,18 @@ function ApprovalContent() {
 
     // Initial fetch — runs exactly ONCE on mount
     useEffect(() => { fetchPending(); }, [fetchPending]);
+
+    // Disable body scroll when payment screenshot preview is open
+    useEffect(() => {
+        if (previewImg) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [previewImg]);
 
     // Real-time listener: Hydrate and inject only newly added pending payments individually
     useEffect(() => {
@@ -172,9 +186,11 @@ function ApprovalContent() {
         return () => unsubscribe();
     }, [batches]);
 
-    const filtered = filterBatch
-        ? pending.filter((p) => p.batch_id === filterBatch)
-        : pending;
+    const filtered = pending.filter((p) => {
+        const matchesBatch = filterBatch ? p.batch_id === filterBatch : true;
+        const matchesMode = filterMode ? p.mode === filterMode : true;
+        return matchesBatch && matchesMode;
+    });
 
     const handleApprove = async (paymentId) => {
         setActionLoading(paymentId);
@@ -248,7 +264,8 @@ function ApprovalContent() {
                         Approval Queue
                     </h1>
                 </div>
-                    <div className="relative z-10 w-full sm:w-auto min-w-[200px]">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <div className="relative z-10 w-full sm:w-auto min-w-[150px]">
                         <ModernSelect
                             value={filterBatch}
                             onChange={(e) => setFilterBatch(e.target.value)}
@@ -257,6 +274,20 @@ function ApprovalContent() {
                             className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm"
                         />
                     </div>
+                    <div className="relative z-10 w-full sm:w-auto min-w-[150px]">
+                        <ModernSelect
+                            value={filterMode}
+                            onChange={(e) => setFilterMode(e.target.value)}
+                            options={[
+                                { value: "", label: "All Modes" },
+                                { value: "online", label: "📱 Online" },
+                                { value: "offline", label: "💵 Offline" }
+                            ]}
+                            placeholder="All Modes"
+                            className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm"
+                        />
+                    </div>
+                </div>
             </div>
 
             {error && (
@@ -340,16 +371,17 @@ function ApprovalContent() {
                 </div>
             )}
 
-            {previewImg && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setPreviewImg(null)}>
+            {previewImg && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setPreviewImg(null)} style={{ touchAction: "none" }}>
                     <div className="relative max-w-2xl w-full max-h-[80vh] flex justify-center" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => setPreviewImg(null)}
-                            className="absolute -top-4 -right-4 w-10 h-10 rounded-full bg-[#171924] border border-white/10 text-white flex items-center justify-center hover:bg-white/10 cursor-pointer z-10 transition-colors shadow-xl">
+                            className="absolute -top-10 sm:-top-4 right-1 sm:-right-4 w-10 h-10 rounded-full bg-[#171924] border border-white/10 text-white flex items-center justify-center hover:bg-white/10 cursor-pointer z-10 transition-colors shadow-xl">
                             <span className="material-symbols-outlined text-lg">close</span>
                         </button>
                         <img src={previewImg} alt="Payment Screenshot" className="rounded-3xl max-h-[80vh] w-auto max-w-full object-contain border border-[#464752]/50 shadow-2xl shadow-black/80" />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

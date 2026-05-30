@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
+import { TeacherDistributionSkeleton, TeacherDistributionPageSkeleton } from "@/components/Skeletons";
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",
@@ -66,20 +66,44 @@ function TeacherDistributionContent() {
     const [month, setMonth] = useState(defaultMonth);
     const [year, setYear] = useState(defaultYear);
     
-    // We cannot fully predict the initial batch filter without making the first call,
-    // but if we cached it before, we can use it.
-    const cacheKeyInit = `teacher_distribution_${defaultMonth}_${defaultYear}_init`;
-    const cachedData = getCache(cacheKeyInit);
-    
+    const cacheKeyBatches = "teacher_all_batches";
+    const cachedBatches = getCache(cacheKeyBatches);
+    const [batches, setBatches] = useState([]);
+    const [batchesLoading, setBatchesLoading] = useState(true);
     const [batchFilter, setBatchFilter] = useState("");
-    const [data, setData] = useState(cachedData || null);
-    const [loading, setLoading] = useState(!cachedData);
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [expandedDate, setExpandedDate] = useState(null);
     const [activeTab, setActiveTab] = useState("datewise");
 
+    // Fetch batches for dropdown
+    useEffect(() => {
+        const cached = getCache(cacheKeyBatches);
+        if (cached) {
+            setBatches(cached);
+            const timer = setTimeout(() => {
+                setBatchesLoading(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+        setBatchesLoading(true);
+        api.get("/api/teacher/batches").then((res) => {
+            setBatches(res);
+            setCache(cacheKeyBatches, res);
+        }).catch(() => {}).finally(() => {
+            setBatchesLoading(false);
+        });
+    }, [cacheKeyBatches]);
+
     const fetchDistribution = useCallback(async () => {
-        const cacheKeyCall = `teacher_distribution_${month}_${year}_${batchFilter || 'init'}`;
+        if (!batchFilter) {
+            setData(null);
+            setLoading(false);
+            return;
+        }
+
+        const cacheKeyCall = `teacher_distribution_${month}_${year}_${batchFilter}`;
         const currentCache = getCache(cacheKeyCall);
 
         if (currentCache) {
@@ -92,20 +116,12 @@ function TeacherDistributionContent() {
 
         setError("");
         try {
-            let url = `/api/teacher/distribution?month=${month}&year=${year}`;
-            if (batchFilter) url += `&batch_id=${batchFilter}`;
-            
+            let url = `/api/teacher/distribution?month=${month}&year=${year}&batch_id=${batchFilter}`;
             const res = await api.get(url);
             
             if (JSON.stringify(currentCache) !== JSON.stringify(res)) {
                 setData(res);
                 setCache(cacheKeyCall, res);
-                if (!batchFilter) setCache(`teacher_distribution_${month}_${year}_init`, res);
-            }
-            
-            // Auto-select first batch if none selected yet
-            if (!batchFilter && res.batches && res.batches.length > 0) {
-                setBatchFilter(res.batches[0].id);
             }
         } catch (err) {
             if (!isSystemicError(err.message)) {
@@ -145,45 +161,59 @@ function TeacherDistributionContent() {
         }
     };
 
+    if (batchesLoading) {
+        return <TeacherDistributionPageSkeleton />;
+    }
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
             {/* ── Title ── */}
-            {/* ── Title ── */}
-            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-2 gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                        My Earnings
-                    </h1>
-                </div>
+            <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                    My Earnings
+                </h1>
             </div>
 
             {/* ── Filters ── */}
-            {/* ── Filters ── */}
-            <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 transition-colors">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <ModernSelect
-                        icon="calendar_month"
-                        value={month}
-                        options={MONTHS.map((m, i) => ({ value: i + 1, label: MONTHS_SHORT[i] }))}
-                        onChange={(e) => setMonth(Number(e.target.value))}
-                        className="w-full"
-                    />
-                    <ModernSelect
-                        icon="event"
-                        value={year}
-                        options={yearOptions}
-                        onChange={(e) => setYear(Number(e.target.value))}
-                        className="w-full"
-                    />
-                    {data && data.batches && data.batches.length > 0 && (
+            <div
+                className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5"
+                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+                    {/* Batch - First on mobile, 3rd on desktop */}
+                    <div className="col-span-2 md:order-3 md:col-span-2">
+                        {batches.length > 0 ? (
+                            <ModernSelect
+                                value={batchFilter}
+                                options={batches}
+                                placeholder="Select Batch"
+                                onChange={(e) => setBatchFilter(e.target.value)}
+                                className="w-full"
+                            />
+                        ) : (
+                            <div className="bg-[#222532]/50 border border-[#464752]/50 rounded-2xl w-full h-[46px] animate-pulse" />
+                        )}
+                    </div>
+
+                    {/* Month - Second on mobile, 1st on desktop */}
+                    <div className="col-span-1 md:order-1">
                         <ModernSelect
-                            icon="school"
-                            value={batchFilter}
-                            options={data.batches}
-                            onChange={(e) => setBatchFilter(e.target.value)}
-                            className="col-span-2 w-full"
+                            value={month}
+                            options={MONTHS.map((m, i) => ({ value: i + 1, label: m }))}
+                            onChange={(e) => setMonth(Number(e.target.value))}
+                            className="w-full"
                         />
-                    )}
+                    </div>
+
+                    {/* Year - Third on mobile, 2nd on desktop */}
+                    <div className="col-span-1 md:order-2">
+                        <ModernSelect
+                            value={year}
+                            options={yearOptions}
+                            onChange={(e) => setYear(Number(e.target.value))}
+                            className="w-full"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -198,9 +228,13 @@ function TeacherDistributionContent() {
             )}
 
             {loading ? (
-                <div className="p-6">
-                    <GenericListSkeleton />
-                </div>
+                <TeacherDistributionSkeleton />
+            ) : !batchFilter ? (
+                <GlassCard className="p-12 text-center flex flex-col items-center">
+                    <span className="material-symbols-outlined text-[64px] text-[#464752] mb-4">account_balance_wallet</span>
+                    <p className="text-[#f0f0fd] font-bold text-xl mb-1">Select Batch</p>
+                    <p className="text-[#aaaab7] text-sm">Please select a batch to view its earnings and distribution breakdown.</p>
+                </GlassCard>
             ) : data ? (
                 <>
                     {/* ── Summary Bento Grid ── */}
