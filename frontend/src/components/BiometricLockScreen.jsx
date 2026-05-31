@@ -4,13 +4,48 @@ import { useBiometric } from "@/context/BiometricContext";
 import { useAuth } from "@/context/AuthContext";
 
 export default function BiometricLockScreen() {
-    const { isLocked, isAuthenticating, authError, unlock, setAuthError } = useBiometric();
+    const { isLocked, isAuthenticating, authError, unlock, setAuthError, settings } = useBiometric();
     const { user } = useAuth();
 
     const [visible, setVisible] = useState(false);
     const [animateIn, setAnimateIn] = useState(false);
+    const [isAppBackgrounded, setIsAppBackgrounded] = useState(() => document.visibilityState === "hidden");
     // Track if this is the first lock trigger (auto-prompt once)
     const autoTriggered = useRef(false);
+
+    // Track app background state (minimizing/multitasking history switcher)
+    useEffect(() => {
+        if (!settings?.enabled) {
+            setIsAppBackgrounded(false);
+            return;
+        }
+
+        const handleBlur = () => {
+            setIsAppBackgrounded(true);
+        };
+
+        const handleFocus = () => {
+            setIsAppBackgrounded(false);
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === "hidden") {
+                setIsAppBackgrounded(true);
+            } else if (document.visibilityState === "visible") {
+                setIsAppBackgrounded(false);
+            }
+        };
+
+        window.addEventListener("blur", handleBlur);
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            window.removeEventListener("blur", handleBlur);
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [settings?.enabled]);
 
     // Disable body scroll when app is locked
     useEffect(() => {
@@ -73,7 +108,9 @@ export default function BiometricLockScreen() {
         unlock();
     };
 
-    if (!visible) return null;
+    const showPrivacyOverlay = !isLocked && settings?.enabled && isAppBackgrounded;
+
+    if (!visible && !showPrivacyOverlay) return null;
 
     const isLight = user ? (user.role === "student" && localStorage.getItem("fp_student_theme_v2") === "light") : (localStorage.getItem("fp_student_theme_v2") === "light");
 
@@ -109,23 +146,36 @@ export default function BiometricLockScreen() {
     const btnHoverShadow = isLight ? "0 6px 24px rgba(13, 148, 136, 0.15)" : "0 6px 28px rgba(59, 130, 246, 0.25)";
 
     return createPortal(
-        <div
-            data-theme={isLight ? "light" : "dark"}
-            style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 99999,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                background: themeBg,
-                opacity: animateIn ? 1 : 0,
-                transition: "opacity 0.38s cubic-bezier(0.4, 0, 0.2, 1)",
-                userSelect: "none",
-                WebkitTapHighlightColor: "transparent",
-            }}
-        >
+        <>
+            {showPrivacyOverlay && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 999999,
+                        background: themeBg,
+                        pointerEvents: "all",
+                    }}
+                />
+            )}
+            {visible && (
+                <div
+                    data-theme={isLight ? "light" : "dark"}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 99999,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: themeBg,
+                        opacity: animateIn ? 1 : 0,
+                        transition: "opacity 0.38s cubic-bezier(0.4, 0, 0.2, 1)",
+                        userSelect: "none",
+                        WebkitTapHighlightColor: "transparent",
+                    }}
+                >
             {/* Background glow orbs — same as app's dashboard pages */}
             <div style={{
                 position: "absolute", top: "15%", left: "50%",
@@ -278,7 +328,9 @@ export default function BiometricLockScreen() {
                     80%      { transform: translateX(4px); }
                 }
             `}</style>
-        </div>,
+                </div>
+            )}
+        </>,
         document.body
     );
 }

@@ -7,21 +7,11 @@ import ProfilePicture from "./ProfilePicture";
 import NotificationPanel from "./NotificationPanel";
 import ProfilePicUpload from "./ProfilePicUpload";
 
-// ── Heavy inertia cubic-bezier(0.85, 0, 0.15, 1) solver ──
-const heavyInertia = (progress) => {
-    if (progress <= 0) return 0;
-    if (progress >= 1) return 1;
-    const x1 = 0.85, y1 = 0, x2 = 0.15, y2 = 1;
-    let t = progress;
-    for (let i = 0; i < 8; i++) {
-        const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-        const x = ((ax * t + bx) * t + cx) * t - progress;
-        const dx = (3 * ax * t + 2 * bx) * t + cx;
-        if (Math.abs(x) < 1e-7) break;
-        t = Math.max(0, Math.min(1, t - x / dx));
-    }
-    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-    return ((ay * t + by) * t + cy) * t;
+// ── Springy easeOutBack solver for bottom bar indicators ──
+const easeOutBack = (x) => {
+    const c1 = 1.2;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 };
 const studentNav = [
     { label: "Dashboard", href: "/student", icon: "dashboard" },
@@ -200,49 +190,86 @@ function StudentLayoutInner({ children }) {
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = studentNav.findIndex(item => pathname === item.href);
-    const prevIdxRef = useRef(activeIdx);
+    
+    // Retrieve previous active index from sessionStorage to animate across page mounts
+    const savedPrevIdx = sessionStorage.getItem("prevActiveIdx_student");
+    const initialPrevIdx = savedPrevIdx !== null ? Number(savedPrevIdx) : activeIdx;
+    
+    const [indicatorIdx, setIndicatorIdx] = useState(initialPrevIdx);
+    const prevIdxRef = useRef(initialPrevIdx);
     const rafRef = useRef(null);
     const iconRefs = useRef([]);
     const isAnimatingRef = useRef(false);
+
+    // Save active index to sessionStorage on change
+    useEffect(() => {
+        if (activeIdx >= 0) {
+            sessionStorage.setItem("prevActiveIdx_student", activeIdx);
+        }
+    }, [activeIdx]);
+
+    // Slide indicator position on activeIdx change
+    useEffect(() => {
+        if (indicatorIdx !== activeIdx && activeIdx >= 0) {
+            const timer = setTimeout(() => {
+                setIndicatorIdx(activeIdx);
+            }, 30);
+            return () => clearTimeout(timer);
+        }
+    }, [activeIdx, indicatorIdx]);
 
     useEffect(() => {
         const from = prevIdxRef.current;
         const to = activeIdx;
         if (from !== -1 && from !== to && to >= 0) {
-            isAnimatingRef.current = true;
-            const start = performance.now();
-            const duration = 1500;
+            const timer = setTimeout(() => {
+                isAnimatingRef.current = true;
+                const start = performance.now();
+                const duration = 500;
 
-            const tick = (now) => {
-                const raw = Math.min((now - start) / duration, 1);
-                const eased = heavyInertia(raw);
-                const pos = from + (to - from) * eased;
+                const tick = (now) => {
+                    const raw = Math.min((now - start) / duration, 1);
+                    const eased = easeOutBack(raw);
+                    const pos = from + (to - from) * eased;
 
-                studentNav.forEach((_, i) => {
-                    const el = iconRefs.current[i];
-                    if (!el) return;
-                    const prox = Math.max(0, 1 - Math.abs(pos - i) * 1.4);
-                    if (isLight) {
-                        el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'var(--st-nav-icon-inactive)';
-                    } else {
-                        el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'rgba(59,89,152,0.5)';
-                    }
-                    el.style.transform = `scale(${1 + 0.14 * prox})`;
-                    el.style.fontVariationSettings = prox > 0.4 ? "'FILL' 1" : "'FILL' 0";
-                });
-
-                if (raw < 1) {
-                    rafRef.current = requestAnimationFrame(tick);
-                } else {
-                    isAnimatingRef.current = false;
-                    iconRefs.current.forEach(el => {
-                        if (el) { el.style.color = ''; el.style.transform = ''; el.style.fontVariationSettings = ''; }
+                    studentNav.forEach((_, i) => {
+                        const el = iconRefs.current[i];
+                        if (!el) return;
+                        const prox = Math.max(0, 1 - Math.abs(pos - i) * 1.4);
+                        if (isLight) {
+                            el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'var(--st-nav-icon-inactive)';
+                        } else {
+                            el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'rgba(59,89,152,0.5)';
+                        }
+                        el.style.transform = `scale(${1 + 0.14 * prox})`;
+                        el.style.fontVariationSettings = prox > 0.4 ? "'FILL' 1" : "'FILL' 0";
                     });
-                }
-            };
-            rafRef.current = requestAnimationFrame(tick);
+
+                    if (raw < 1) {
+                        rafRef.current = requestAnimationFrame(tick);
+                    } else {
+                        isAnimatingRef.current = false;
+                        iconRefs.current.forEach((el, i) => {
+                            if (!el) return;
+                            if (i === to) {
+                                el.style.color = '#ffffff';
+                                el.style.transform = 'scale(1.14)';
+                                el.style.fontVariationSettings = "'FILL' 1";
+                            } else {
+                                el.style.color = isLight ? 'var(--st-nav-icon-inactive)' : 'rgba(59,89,152,0.5)';
+                                el.style.transform = 'scale(1)';
+                                el.style.fontVariationSettings = "'FILL' 0";
+                            }
+                        });
+                    }
+                };
+                rafRef.current = requestAnimationFrame(tick);
+            }, 30);
             prevIdxRef.current = to;
-            return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+            return () => {
+                clearTimeout(timer);
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            };
         }
         prevIdxRef.current = to;
     }, [activeIdx, isLight]);
@@ -316,21 +343,20 @@ function StudentLayoutInner({ children }) {
 
             {/* ── Mobile TopAppBar (Main Pages) ── */}
             {!isSubPageMobile && (
-                <div className="md:hidden fixed top-4 left-4 right-4 z-50 overflow-hidden rounded-[28px] isolate">
-                    <header
-                        className="flex justify-between items-center px-5 h-14 animate-fade-in overflow-hidden"
-                        style={{
-                            background: 'var(--st-nav-bg)',
-                            border: '1px solid var(--st-nav-border)',
-                            boxShadow: 'var(--st-nav-shadow)',
-                            backdropFilter: 'blur(28px) saturate(1.8)',
-                            WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
-                            transform: "translateZ(0)", isolation: "isolate"
-                        }}
-                    >
+                <header
+                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-3 h-14 animate-fade-in overflow-hidden rounded-[28px]"
+                    style={{
+                        background: 'var(--st-nav-bg)',
+                        border: '1px solid var(--st-nav-border)',
+                        boxShadow: 'var(--st-nav-shadow)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
+                        transform: "translateZ(0)", isolation: "isolate"
+                    }}
+                >
                     <div className="flex items-center gap-3" onClick={() => navigate("/student")}>
                         <div
-                            className="w-10 h-10 rounded-full overflow-hidden shadow-lg flex items-center justify-center p-0.5"
+                            className="w-10 h-10 rounded-full overflow-hidden shadow-lg flex items-center justify-center"
                             style={{
                                 borderWidth: 1,
                                 borderStyle: 'solid',
@@ -339,7 +365,7 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-[1.1]" />
+                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <h1
                             className="text-xl font-bold tracking-tighter"
@@ -351,7 +377,7 @@ function StudentLayoutInner({ children }) {
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={() => navigate("/notifications")}
-                            className="relative transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
                             style={{ color: 'var(--st-text-secondary)' }}
                         >
                             <span className="material-symbols-outlined">notifications</span>
@@ -376,7 +402,6 @@ function StudentLayoutInner({ children }) {
                         </div>
                     </div>
                 </header>
-                </div>
             )}
 
             {/* ── Mobile Header (Sub-Pages) ── */}
@@ -432,7 +457,7 @@ function StudentLayoutInner({ children }) {
                     />
                     <div className="relative z-10 flex items-center gap-3">
                         <div
-                            className="w-12 h-12 rounded-full overflow-hidden shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center p-0.5"
+                            className="w-12 h-12 rounded-full overflow-hidden shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center"
                             style={{
                                 borderWidth: 1,
                                 borderStyle: 'solid',
@@ -441,7 +466,7 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-[1.1]" />
+                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <h1
@@ -551,38 +576,37 @@ function StudentLayoutInner({ children }) {
 
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
-                <div className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate">
-                    <nav
-                        className="relative flex items-center overflow-hidden"
-                        style={{
-                            background: 'var(--st-nav-bg)',
-                            border: '1px solid var(--st-nav-border)',
-                            boxShadow: 'var(--st-nav-shadow)',
-                            backdropFilter: 'blur(28px) saturate(1.8)',
-                            WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
-                            transform: "translateZ(0)", isolation: "isolate"
-                        }}
-                    >
+                <nav 
+                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate flex items-center"
+                    style={{
+                        background: 'var(--st-nav-bg)',
+                        border: '1px solid var(--st-nav-border)',
+                        boxShadow: 'var(--st-nav-shadow)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
+                        transform: "translateZ(0)", isolation: "isolate"
+                    }}
+                >
                         {activeIdx >= 0 && (
                             <div
                                 className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
                                 style={{
                                     width: `${100 / studentNav.length}%`,
-                                    left: `${activeIdx * (100 / studentNav.length)}%`,
-                                    transition: 'left 1500ms cubic-bezier(0.85, 0, 0.15, 1)',
+                                    left: `${indicatorIdx * (100 / studentNav.length)}%`,
+                                    transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                                 }}
                             >
                                 <div
                                     className="w-12 h-12 rounded-full"
                                     style={{
                                         backgroundColor: 'var(--st-nav-indicator)',
-                                        boxShadow: `0 4px 20px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.5)'}`,
+                                        boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`,
                                     }}
                                 />
                             </div>
                         )}
                         {studentNav.map((item, i) => {
-                            const isActive = i === activeIdx;
+                            const isActive = i === indicatorIdx;
                             return (
                                 <Link
                                     key={item.href}
@@ -605,7 +629,6 @@ function StudentLayoutInner({ children }) {
                             );
                         })}
                     </nav>
-                </div>
             )}
 
             <style dangerouslySetInnerHTML={{__html: `
