@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import logoSrc from "@/assets/logo.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useNotifications } from "@/context/NotificationContext";
 import { useAuth } from "@/context/AuthContext";
@@ -365,7 +366,7 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <h1
                             className="text-xl font-bold tracking-tighter"
@@ -466,7 +467,7 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <h1

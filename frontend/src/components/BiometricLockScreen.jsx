@@ -119,14 +119,6 @@ export default function BiometricLockScreen() {
         ? "linear-gradient(135deg, #eef2ff 0%, #dbeafe 25%, #ede9fe 50%, #fce7f3 75%, #eef2ff 100%)"
         : "linear-gradient(145deg, #0a0a14 0%, #0d0d1f 50%, #080812 100%)";
 
-    const glowOrb1 = isLight
-        ? "radial-gradient(circle, rgba(99, 165, 255, 0.25) 0%, rgba(147, 197, 253, 0.08) 50%, transparent 70%)"
-        : "radial-gradient(circle, rgba(59, 130, 246, 0.09) 0%, transparent 70%)";
-
-    const glowOrb2 = isLight
-        ? "radial-gradient(circle, rgba(167, 139, 250, 0.20) 0%, rgba(196, 181, 253, 0.06) 50%, transparent 70%)"
-        : "radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%)";
-
     const iconColor = authError
         ? "#f87171"
         : isLight
@@ -176,20 +168,6 @@ export default function BiometricLockScreen() {
                         WebkitTapHighlightColor: "transparent",
                     }}
                 >
-            {/* Background glow orbs — same as app's dashboard pages */}
-            <div style={{
-                position: "absolute", top: "15%", left: "50%",
-                transform: "translateX(-50%)",
-                width: 340, height: 340, borderRadius: "50%",
-                background: glowOrb1,
-                pointerEvents: "none",
-            }} />
-            <div style={{
-                position: "absolute", bottom: "20%", right: "10%",
-                width: 220, height: 220, borderRadius: "50%",
-                background: glowOrb2,
-                pointerEvents: "none",
-            }} />
 
             {/* ── Main content ─────────────────────────────────────────────── */}
             <div

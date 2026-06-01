@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import logoSrc from "@/assets/logo.png";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
@@ -86,7 +87,7 @@ export default function Sidebar() {
                 {/* Logo */}
                 <div className="p-6 border-b border-[#1a1f2e]/60">
                     <div className="flex items-center gap-3">
-                        <img src="/logo.png" alt="FP Finance Logo" className="w-10 h-10 rounded-xl shadow-lg shadow-[#3861fb]/25 object-cover" />
+                        <img src={logoSrc} alt="FP Finance Logo" className="w-10 h-10 rounded-xl shadow-lg shadow-[#3861fb]/25 object-cover" />
                         <div>
                             <h1 className="text-white font-bold text-lg tracking-tight">FP Finance</h1>
                             <p className="text-[#8a8f98] text-xs">Future Point</p>
@@ -143,7 +144,7 @@ export default function Sidebar() {
             <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#0f1117]/95 backdrop-blur-xl border-b border-[#1a1f2e]/60">
                 <div className="flex items-center justify-between px-4 h-14">
                     <div className="flex items-center gap-2.5">
-                        <img src="/logo.png" alt="FP Finance Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-[#3861fb]/25 object-cover" />
+                        <img src={logoSrc} alt="FP Finance Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-[#3861fb]/25 object-cover" />
                         <span className="text-white font-bold text-base tracking-tight">FP Finance</span>
                     </div>
                     <div className="flex items-center gap-3">

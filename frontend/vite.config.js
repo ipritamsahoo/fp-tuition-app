@@ -81,4 +81,10 @@ export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(pkg.version),
     },
+    build: {
+        // Inline assets under 60KB as base64 data URIs (logo.png is ~54KB)
+        // This eliminates the HTTP round-trip for the logo, making it
+        // available instantly as part of the JS bundle — no network flash.
+        assetsInlineLimit: 60000,
+    },
 });

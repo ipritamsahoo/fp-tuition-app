@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import logoSrc from "@/assets/logo.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useNotifications } from "@/context/NotificationContext";
 import { useAuth } from "@/context/AuthContext";
@@ -136,7 +137,7 @@ export default function TeacherLayout({ children }) {
                 >
                     <div className="flex items-center gap-3" onClick={() => navigate("/teacher")}>
                         <div className="w-10 h-10 rounded-full overflow-hidden border border-[#3b82f6]/40 bg-[#0c0e17] shadow-lg shadow-[#3b82f6]/20 flex items-center justify-center">
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <h1 className="text-xl font-bold tracking-tighter text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>FP Finance</h1>
                     </div>
@@ -189,7 +190,7 @@ export default function TeacherLayout({ children }) {
                     <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <div className="relative z-10 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden border border-[#3b82f6]/40 bg-[#0c0e17] shadow-lg shadow-[#3b82f6]/20 group-hover:scale-110 transition-transform duration-300 flex items-center justify-center">
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <h1 className="text-sm font-extrabold text-white tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>FP Finance</h1>

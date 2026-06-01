@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import logoSrc from "@/assets/logo.png";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -34,7 +35,7 @@ export default function LoginPage() {
 
         try {
             await login(username, password);
-            setTimeout(() => navigate("/"), 500);
+            navigate("/");
         } catch (err) {
             setError(friendlyError(err));
         } finally {
@@ -54,7 +55,7 @@ export default function LoginPage() {
                 <div className="glass-card rounded-2xl p-6 sm:p-8 shadow-2xl shadow-[#3861fb]/10">
                     {/* Logo */}
                     <div className="flex flex-col items-center mb-6 sm:mb-8">
-                        <img src="/logo.png" alt="FP Finance Logo" className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl shadow-lg shadow-[#3861fb]/30 mb-3 sm:mb-4 object-cover" />
+                        <img src={logoSrc} alt="FP Finance Logo" className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl shadow-lg shadow-[#3861fb]/30 mb-3 sm:mb-4 object-cover" />
                         <h1 className="text-2xl font-bold text-white">FP Finance</h1>
                         <p className="text-[#8a8f98] text-sm mt-1">Sign in to your account</p>
                     </div>
