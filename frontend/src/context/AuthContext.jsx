@@ -261,15 +261,20 @@ export function AuthProvider({ children }) {
                 localStorage.setItem("current_device_session_id", sessionId);
 
                 const { os, browser } = getBrowserInfo();
-                await apiFetch("/api/auth/session", {
+                apiFetch("/api/auth/session", {
                     method: "POST",
                     body: JSON.stringify({
                         session_id: sessionId,
                         device_name: os,
                         platform: browser,
                     }),
+                })
+                .then(() => {
+                    localStorage.setItem("session_synced", "true");
+                })
+                .catch((err) => {
+                    console.error("Failed to register session:", err);
                 });
-                localStorage.setItem("session_synced", "true");
             } catch (err) {
                 console.error("Failed to register session:", err);
             }
@@ -283,30 +288,28 @@ export function AuthProvider({ children }) {
             clearCachedProfilePic(user.uid);
             localStorage.removeItem(`fpfinance_profile_${user.uid}`);
 
-            // Clean up our session from the database
+            // Clean up our session from the database in background
             const currentSessionId = localStorage.getItem("current_device_session_id");
             if (currentSessionId) {
-                try {
-                    await apiFetch(`/api/auth/session/${currentSessionId}`, { method: "DELETE" });
-                } catch (e) {
-                    console.error("Session cleanup failed:", e);
-                }
+                apiFetch(`/api/auth/session/${currentSessionId}`, { method: "DELETE" })
+                    .catch((e) => console.error("Session cleanup failed:", e));
             }
 
-            // Clean up FCM token from the database
+            // Clean up FCM token from the database in background
             const fcmToken = localStorage.getItem("fcm_token");
             if (fcmToken) {
-                try {
-                    await apiFetch("/api/auth/fcm-token", {
-                        method: "DELETE",
-                        body: JSON.stringify({ token: fcmToken }),
-                    });
-                } catch (e) {
-                    console.error("FCM token cleanup failed:", e);
-                }
+                apiFetch("/api/auth/fcm-token", {
+                    method: "DELETE",
+                    body: JSON.stringify({ token: fcmToken }),
+                })
+                .catch((e) => console.error("FCM token cleanup failed:", e));
                 localStorage.removeItem("fcm_token");
             }
         }
+        
+        // Give a tiny 50ms delay for requests to initiate with current credentials before signing out
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
         await signOut(auth);
         localStorage.removeItem("idToken");
         localStorage.removeItem("current_device_session_id");

@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import logoSrc from "@/assets/logo.png";
 
 /**
  * Shared About content — used in both AboutPage (mobile full-page)
@@ -27,7 +28,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
                 }}
             >
                 <img
-                    src="/logo.png"
+                    src={logoSrc}
                     alt="FP Finance Logo"
                     className="w-full h-full object-cover"
                 />
