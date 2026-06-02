@@ -5,6 +5,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import StudentLayout from "@/components/StudentLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { api } from "@/lib/api";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -19,6 +20,7 @@ function StudentSettingsContent() {
     const navigate = useNavigate();
     const { user, logout, refreshUser } = useAuth();
     const { theme, toggleTheme } = useStudentTheme();
+    const { pushEnabled, togglePushNotifications } = useNotifications();
     const isLight = theme === "light";
     const [picModalOpen, setPicModalOpen] = useState(false);
     const [devicesModalOpen, setDevicesModalOpen] = useState(false);
@@ -290,6 +292,43 @@ function StudentSettingsContent() {
                                     {isLight ? 'light_mode' : 'dark_mode'}
                                 </span>
                             </div>
+                        </div>
+                    </div>
+                </button>
+
+
+                {/* ── Push Notifications Toggle ── */}
+                <button
+                    onClick={togglePushNotifications}
+                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center gap-4 text-left">
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                            <span className="material-symbols-outlined" style={{ color: accentColor }}>
+                                notifications
+                            </span>
+                        </div>
+                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Push Notifications</span>
+                    </div>
+                    <div className="flex items-center">
+                        {/* Toggle switch */}
+                        <div
+                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                            style={{
+                                backgroundColor: pushEnabled
+                                    ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)')
+                                    : 'rgba(115, 117, 128, 0.3)',
+                            }}
+                        >
+                            <div
+                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                style={{
+                                    backgroundColor: pushEnabled
+                                        ? (isLight ? '#0d9488' : '#3b82f6')
+                                        : '#737580',
+                                    marginLeft: pushEnabled ? 'auto' : '0',
+                                }}
+                            />
                         </div>
                     </div>
                 </button>
