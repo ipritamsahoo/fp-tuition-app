@@ -42,6 +42,7 @@ export function NotificationProvider({ children }) {
     const { user, loading } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("push_enabled") !== "false");
     const userRef = useRef(null);
 
     // ── Helper: add a notification to state + IndexedDB ──
@@ -111,6 +112,9 @@ export function NotificationProvider({ children }) {
         if (!user?.uid) return;
 
         const setupFCM = async () => {
+            if (localStorage.getItem("push_enabled") === "false") {
+                return; // User disabled push notifications in-app
+            }
             try {
                 const token = await requestNotificationPermission();
                 if (token) {
@@ -123,7 +127,91 @@ export function NotificationProvider({ children }) {
         };
 
         setupFCM();
+
+        // Listen for browser notification permission change
+        let permissionStatus = null;
+        const handlePermissionChange = async () => {
+            const isPushEnabled = localStorage.getItem("push_enabled") !== "false";
+            if (permissionStatus?.state === "granted" && isPushEnabled) {
+                setupFCM();
+            } else {
+                try {
+                    const token = localStorage.getItem("fcm_token");
+                    if (token) {
+                        await api.delete("/api/auth/fcm-token", { token });
+                        localStorage.removeItem("fcm_token");
+                    }
+                } catch (err) {
+                    console.warn("FCM token cleanup failed on permission revoke:", err);
+                }
+            }
+        };
+
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions
+                .query({ name: "notifications" })
+                .then((status) => {
+                    permissionStatus = status;
+                    status.addEventListener("change", handlePermissionChange);
+                })
+                .catch((err) => {
+                    console.warn("Notification permissions query not supported:", err);
+                });
+        }
+
+        return () => {
+            if (permissionStatus) {
+                permissionStatus.removeEventListener("change", handlePermissionChange);
+            }
+        };
     }, [user?.uid]);
+
+    // ── Action to toggle push notification preferences in-app ──
+    const togglePushNotifications = useCallback(async () => {
+        const originalState = pushEnabled;
+        const nextState = !originalState;
+        
+        // Optimistically update state
+        setPushEnabled(nextState);
+        localStorage.setItem("push_enabled", String(nextState));
+
+        if (nextState) {
+            try {
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await api.post("/api/auth/fcm-token", { token });
+                    localStorage.setItem("fcm_token", token);
+                    return true;
+                } else {
+                    // Rollback if permission denied
+                    setPushEnabled(originalState);
+                    localStorage.setItem("push_enabled", String(originalState));
+                    return false;
+                }
+            } catch (err) {
+                console.warn("Failed to enable push notifications:", err);
+                // Rollback if call failed
+                setPushEnabled(originalState);
+                localStorage.setItem("push_enabled", String(originalState));
+                return false;
+            }
+        } else {
+            try {
+                const token = localStorage.getItem("fcm_token");
+                if (token) {
+                    await api.delete("/api/auth/fcm-token", { token });
+                    localStorage.removeItem("fcm_token");
+                }
+                return true;
+            } catch (err) {
+                console.warn("Failed to disable push notifications:", err);
+                // Rollback if call failed
+                setPushEnabled(originalState);
+                localStorage.setItem("push_enabled", String(originalState));
+                return false;
+            }
+        }
+    }, [pushEnabled]);
 
     // ── Foreground FCM message handler → save to localStorage ──
     useEffect(() => {
@@ -146,7 +234,7 @@ export function NotificationProvider({ children }) {
                     registration.showNotification(data.title || "FP Finance", {
                         body: notif.message,
                         icon: "/pwa-192x192.png", // Must be PNG
-                        badge: "/pwa-192x192.png", // Must be PNG
+                        badge: "/badge-icon-96x96.png", // Must be PNG (monochromatic)
                         tag: `fpfinance-fg-${Date.now()}`,
                         data: data,
                     });
@@ -200,7 +288,16 @@ export function NotificationProvider({ children }) {
 
     return (
         <NotificationContext.Provider
-            value={{ notifications, unreadCount, markRead, markAllRead, dismiss, clearAll }}
+            value={{
+                notifications,
+                unreadCount,
+                pushEnabled,
+                togglePushNotifications,
+                markRead,
+                markAllRead,
+                dismiss,
+                clearAll,
+            }}
         >
             {children}
         </NotificationContext.Provider>

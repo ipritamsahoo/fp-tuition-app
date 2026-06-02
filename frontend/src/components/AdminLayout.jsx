@@ -35,7 +35,7 @@ const adminSidebarNav = [...adminBottomNav, ...adminFabNav];
 export default function AdminLayout({ children }) {
     const { pathname } = useLocation();
     const navigate = useNavigate();
-    const { unreadCount } = useNotifications() || {};
+    const { unreadCount, pushEnabled, togglePushNotifications } = useNotifications() || {};
     const { user, logout } = useAuth();
     const [fabOpen, setFabOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
@@ -404,6 +404,36 @@ export default function AdminLayout({ children }) {
                                     variant="dropdown" 
                                     onSelect={() => setDesktopProfileOpen(false)} 
                                 />
+
+                                {/* Push Notifications Toggle */}
+                                <button 
+                                    onClick={togglePushNotifications}
+                                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group cursor-pointer border border-transparent hover:border-[#3b82f6]/30"
+                                >
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="shrink-0 w-8 h-8 flex items-center justify-center bg-black/20 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
+                                            <span className="material-symbols-outlined text-[18px] text-[#3b82f6]">notifications</span>
+                                        </div>
+                                        <span className="text-sm font-medium text-[#f0f0fd]">Push Notifications</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        {/* Toggle switch */}
+                                        <div
+                                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                                            style={{
+                                                backgroundColor: pushEnabled ? 'rgba(59,130,246,0.3)' : 'rgba(115, 117, 128, 0.3)',
+                                            }}
+                                        >
+                                            <div
+                                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                                style={{
+                                                    backgroundColor: pushEnabled ? '#3b82f6' : '#737580',
+                                                    marginLeft: pushEnabled ? 'auto' : '0',
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </button>
                                 
                                 <button 
                                     onClick={handleCheckUpdate}

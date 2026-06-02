@@ -5,6 +5,7 @@ import TeacherLayout from "@/components/TeacherLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import AboutContent from "@/components/AboutContent";
+import { useNotifications } from "@/context/NotificationContext";
 import { api } from "@/lib/api";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -16,6 +17,7 @@ import AppLockSetting from "@/components/AppLockSetting";
 function TeacherSettingsContent() {
     const { user, logout, refreshUser } = useAuth();
     const navigate = useNavigate();
+    const { pushEnabled, togglePushNotifications } = useNotifications();
     const [picModalOpen, setPicModalOpen] = useState(false);
     const [devicesModalOpen, setDevicesModalOpen] = useState(false);
     const [aboutModalOpen, setAboutModalOpen] = useState(false);
@@ -219,6 +221,37 @@ function TeacherSettingsContent() {
                     </div>
                     <span className="text-xs text-[#aaaab7]">Dark mode</span>
                 </div>
+
+
+                {/* Push Notifications Toggle */}
+                <button
+                    onClick={togglePushNotifications}
+                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center gap-4 text-left">
+                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
+                            <span className="material-symbols-outlined text-[#3b82f6]">notifications</span>
+                        </div>
+                        <span className="font-medium text-[#f0f0fd]">Push Notifications</span>
+                    </div>
+                    <div className="flex items-center">
+                        {/* Toggle switch */}
+                        <div
+                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                            style={{
+                                backgroundColor: pushEnabled ? 'rgba(59,130,246,0.3)' : 'rgba(115, 117, 128, 0.3)',
+                            }}
+                        >
+                            <div
+                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                style={{
+                                    backgroundColor: pushEnabled ? '#3b82f6' : '#737580',
+                                    marginLeft: pushEnabled ? 'auto' : '0',
+                                }}
+                            />
+                        </div>
+                    </div>
+                </button>
 
 
                 {/* Help & Support */}
