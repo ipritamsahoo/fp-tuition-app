@@ -219,6 +219,9 @@ function PaymentsContent() {
                                     <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest border-r border-[#464752]/40">
                                         Mode
                                     </th>
+                                    <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest border-r border-[#464752]/40 whitespace-nowrap">
+                                        Cash Received By
+                                    </th>
                                     <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest">
                                         Date
                                     </th>
@@ -252,6 +255,14 @@ function PaymentsContent() {
                                             <td className="px-5 py-4 text-center border-r border-[#464752]/40">
                                                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#222532]/50 border border-[#464752]/50 text-[#aaaab7] text-xs font-bold tracking-widest">
                                                     {p.mode ? p.mode.charAt(0).toUpperCase() + p.mode.slice(1) : "—"}
+                                                </span>
+                                            </td>
+                                            {/* Cash Received By */}
+                                            <td className="px-5 py-4 text-center border-r border-[#464752]/40 whitespace-nowrap">
+                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#222532]/30 border border-[#464752]/30 text-[#aaaab7] text-xs font-bold tracking-wide">
+                                                    {p.mode && p.mode.toLowerCase() === "offline" 
+                                                        ? (p.teacher_name || "—") 
+                                                        : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
                                                 </span>
                                             </td>
                                             {/* Date */}

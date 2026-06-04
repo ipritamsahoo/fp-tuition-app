@@ -6,7 +6,7 @@ import { api, isSystemicError } from "@/lib/api";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
+import { TeacherDistributionSkeleton, TeacherDistributionPageSkeleton } from "@/components/Skeletons";
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",
@@ -21,8 +21,8 @@ function DistributionContent() {
     const [batchFilter, setBatchFilter] = useState("");
 
     const cacheKeyBatches = "admin_distribution_batches";
-    const cachedBatches = getCache(cacheKeyBatches);
-    const [batches, setBatches] = useState(cachedBatches || []);
+    const [batches, setBatches] = useState([]);
+    const [batchesLoading, setBatchesLoading] = useState(true);
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -342,13 +342,22 @@ function DistributionContent() {
 
     // Fetch batches for the filter dropdown
     useEffect(() => {
+        const cached = getCache(cacheKeyBatches);
+        if (cached) {
+            setBatches(cached);
+            const timer = setTimeout(() => {
+                setBatchesLoading(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+        setBatchesLoading(true);
         api.get("/api/admin/batches").then((res) => {
-            if (JSON.stringify(getCache(cacheKeyBatches)) !== JSON.stringify(res)) {
-                setBatches(res);
-                setCache(cacheKeyBatches, res);
-            }
-        }).catch(() => { });
-    }, []);
+            setBatches(res);
+            setCache(cacheKeyBatches, res);
+        }).catch(() => { }).finally(() => {
+            setBatchesLoading(false);
+        });
+    }, [cacheKeyBatches]);
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -417,56 +426,66 @@ function DistributionContent() {
         return Array.from(map.entries()).map(([uid, name]) => ({ uid, name }));
     })();
 
+    if (batchesLoading) {
+        return <TeacherDistributionPageSkeleton />;
+    }
+
     return (
         <div>
-            {/* Header + Selectors */}
-            <div className="flex flex-col mb-8 gap-5">
-                <div>
-                    <h1 className="text-2xl md:text-4xl font-extrabold text-[#f0f0fd] tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                        Revenue Distribution
-                    </h1>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center gap-3 w-full">
-                    <div className="flex gap-3 w-full md:w-auto">
-                        <div className="relative flex-1 md:flex-none z-30">
-                            <ModernSelect
-                                value={month}
-                                onChange={(e) => setMonth(Number(e.target.value))}
-                                options={MONTHS.map((m, i) => ({ value: i + 1, label: m }))}
-                                className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm md:min-w-[140px]"
-                            />
-                        </div>
-                        <div className="relative flex-1 md:flex-none z-20">
-                            <ModernSelect
-                                value={year}
-                                onChange={(e) => setYear(Number(e.target.value))}
-                                options={yearOptions}
-                                className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm md:min-w-[120px]"
-                            />
-                        </div>
-                    </div>
-                    {batches.length > 0 ? (
-                        <div className="relative w-full md:w-auto z-10">
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl md:text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                    Revenue Distribution
+                </h1>
+            </div>
+
+            {/* Filters */}
+            <div
+                className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 mb-6"
+                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+                    {/* Batch - First on mobile, 3rd on desktop */}
+                    <div className="col-span-2 md:order-3 md:col-span-2">
+                        {batches.length > 0 ? (
                             <ModernSelect
                                 value={batchFilter}
-                                onChange={(e) => setBatchFilter(e.target.value)}
                                 options={batches}
                                 placeholder="Select Batch"
-                                className="w-full flex items-center justify-between bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] transition-colors rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 text-[#f0f0fd] text-sm md:min-w-[200px]"
+                                onChange={(e) => setBatchFilter(e.target.value)}
+                                className="w-full"
                             />
-                        </div>
-                    ) : (
-                        <div className="bg-[#222532]/50 border border-[#464752]/50 rounded-2xl w-full md:w-[200px] h-[46px] animate-pulse" />
-                    )}
+                        ) : (
+                            <div className="bg-[#222532]/50 border border-[#464752]/50 rounded-2xl w-full h-[46px] animate-pulse" />
+                        )}
+                    </div>
+
+                    {/* Month - Second on mobile, 1st on desktop */}
+                    <div className="col-span-1 md:order-1">
+                        <ModernSelect
+                            value={month}
+                            options={MONTHS.map((m, i) => ({ value: i + 1, label: m }))}
+                            onChange={(e) => setMonth(Number(e.target.value))}
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Year - Third on mobile, 2nd on desktop */}
+                    <div className="col-span-1 md:order-2">
+                        <ModernSelect
+                            value={year}
+                            options={yearOptions}
+                            onChange={(e) => setYear(Number(e.target.value))}
+                            className="w-full"
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Inline error banner removed to prevent duplicate messages (handled by modal logic) */}
 
             {loading ? (
-                <div className="p-6">
-                    <GenericListSkeleton />
-                </div>
+                <TeacherDistributionSkeleton />
             ) : !batchFilter ? (
                 <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-12 text-center flex flex-col items-center shadow-lg">
                     <span className="material-symbols-outlined text-[64px] text-[#464752] mb-4">account_balance_wallet</span>

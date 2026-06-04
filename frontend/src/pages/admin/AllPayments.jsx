@@ -5,7 +5,7 @@ import { api, isSystemicError } from "@/lib/api";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
+import { TableSkeleton, TeacherPaymentsPageSkeleton } from "@/components/Skeletons";
 
 const MONTHS = [
     { value: 1,  label: "January"   },
@@ -28,25 +28,35 @@ function PaymentsContent() {
 
     const { month: prevMonth, year: prevYear } = getPreviousMonth();
 
-    const [batches, setBatches] = useState(cachedBatches || []);
+    const [batches,     setBatches]     = useState([]);
     const [filterBatch, setFilterBatch] = useState("");
     const [filterYear,  setFilterYear]  = useState(prevYear);
     const [filterMonth, setFilterMonth] = useState(prevMonth);
 
-    const [payments,   setPayments]  = useState([]);
-    const [loading,    setLoading]   = useState(false);
-    const [hasLoaded,  setHasLoaded] = useState(false);
-    const [error,      setError]     = useState("");
+    const [payments,  setPayments]  = useState([]);
+    const [loading,   setLoading]   = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
+    const [error,     setError]     = useState("");
+    const [batchesLoading, setBatchesLoading] = useState(true);
 
     // Fetch batches once on mount — no payment fetch yet
     useEffect(() => {
         const cached = getCache(cacheKeyBatches);
-        if (cached) { setBatches(cached); return; }
+        if (cached) { 
+            setBatches(cached); 
+            const timer = setTimeout(() => {
+                setBatchesLoading(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+        setBatchesLoading(true);
         api.get("/api/admin/batches").then((res) => {
             setBatches(res);
             setCache(cacheKeyBatches, res);
-        }).catch(() => {});
-    }, []);
+        }).catch(() => {}).finally(() => {
+            setBatchesLoading(false);
+        });
+    }, [cacheKeyBatches]);
 
     // Automatically fetch payments when filters change
     useEffect(() => {
@@ -104,9 +114,12 @@ function PaymentsContent() {
     );
 
     const totalCollected = payments.reduce((s, p) => p.status === "Paid" ? s + (p.amount || 0) : s, 0);
-
     const selectedMonth = MONTHS.find(m => m.value === filterMonth)?.label || "";
     const selectedBatch = batches.find(b => b.id === filterBatch)?.batch_name || "";
+
+    if (batchesLoading) {
+        return <TeacherPaymentsPageSkeleton />;
+    }
 
     return (
         <div className="space-y-6">
@@ -126,38 +139,38 @@ function PaymentsContent() {
             )}
 
             {/* Filters */}
-            <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5">
-                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-                    {/* Batch */}
-                    <div className="relative flex-1 md:flex-none md:w-[220px] z-30">
+            <div
+                className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5"
+                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+                    {/* Batch - First on mobile, 3rd on desktop */}
+                    <div className="col-span-2 md:order-3 md:col-span-2 relative z-30">
                         <ModernSelect
                             value={filterBatch}
-                            onChange={(e) => setFilterBatch(e.target.value)}
+                            onChange={(e) => { setFilterBatch(e.target.value); setHasLoaded(false); setPayments([]); }}
                             options={batches}
                             placeholder="Select Batch"
                             className="w-full"
                         />
                     </div>
-                    {/* Year & Month group */}
-                    <div className="flex flex-row gap-3 flex-1">
-                        {/* Year */}
-                        <div className="relative flex-1 md:w-[140px] z-20">
-                            <ModernSelect
-                                value={filterYear}
-                                onChange={(e) => setFilterYear(Number(e.target.value))}
-                                options={yearOptions}
-                                className="w-full"
-                            />
-                        </div>
-                        {/* Month */}
-                        <div className="relative flex-1 md:w-[160px] z-10">
-                            <ModernSelect
-                                value={filterMonth}
-                                onChange={(e) => setFilterMonth(Number(e.target.value))}
-                                options={monthOptions.map(m => ({ id: m.value, batch_name: m.label }))}
-                                className="w-full"
-                            />
-                        </div>
+                    {/* Month - Second on mobile (left), 1st on desktop */}
+                    <div className="col-span-1 md:order-1 relative z-20">
+                        <ModernSelect
+                            value={filterMonth}
+                            onChange={(e) => { setFilterMonth(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                            options={monthOptions.map(m => ({ id: m.value, batch_name: m.label }))}
+                            className="w-full"
+                        />
+                    </div>
+                    {/* Year - Third on mobile (right), 2nd on desktop */}
+                    <div className="col-span-1 md:order-2 relative z-10">
+                        <ModernSelect
+                            value={filterYear}
+                            onChange={(e) => { setFilterYear(Number(e.target.value)); setHasLoaded(false); setPayments([]); }}
+                            options={yearOptions}
+                            className="w-full"
+                        />
                     </div>
                 </div>
             </div>
@@ -173,9 +186,12 @@ function PaymentsContent() {
             )}
 
             {/* Table */}
-            <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-3xl overflow-hidden shadow-xl">
+            <div
+                className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-3xl overflow-hidden shadow-xl"
+                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            >
                 {loading ? (
-                    <div className="p-6"><GenericListSkeleton /></div>
+                    <TableSkeleton />
                 ) : !hasLoaded ? (
                     <div className="flex flex-col items-center justify-center gap-4 p-14 text-center">
                         <span className="material-symbols-outlined text-5xl text-[#464752]">payments</span>
@@ -203,6 +219,9 @@ function PaymentsContent() {
                                     </th>
                                     <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest border-r border-[#464752]/40">
                                         Mode
+                                    </th>
+                                    <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest border-r border-[#464752]/40 whitespace-nowrap">
+                                        Cash Received By
                                     </th>
                                     <th className="px-5 py-3.5 text-center text-xs font-bold text-[#aaaab7] uppercase tracking-widest">
                                         Date
@@ -237,6 +256,14 @@ function PaymentsContent() {
                                             <td className="px-5 py-4 text-center border-r border-[#464752]/40">
                                                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#222532]/50 border border-[#464752]/50 text-[#aaaab7] text-xs font-bold tracking-widest">
                                                     {p.mode ? p.mode.charAt(0).toUpperCase() + p.mode.slice(1) : "—"}
+                                                </span>
+                                            </td>
+                                            {/* Cash Received By */}
+                                            <td className="px-5 py-4 text-center border-r border-[#464752]/40 whitespace-nowrap">
+                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#222532]/30 border border-[#464752]/30 text-[#aaaab7] text-xs font-bold tracking-wide">
+                                                    {p.mode && p.mode.toLowerCase() === "offline" 
+                                                        ? (p.teacher_name || "—") 
+                                                        : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
                                                 </span>
                                             </td>
                                             {/* Date */}

@@ -798,3 +798,21 @@ html[data-theme="light"], body[data-theme="light"] {
 html[data-theme="dark"], body[data-theme="dark"] {
     background: #0c0e17 !important;
 }
+
+/* ⚡ Breathing Pulse & Glow Animation for Select & Pay Button */
+@keyframes selectPayPulse {
+    0%, 100% {
+        transform: scale(1) translateZ(0);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15), 0 0 0 0px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+        transform: scale(1.04) translateZ(0);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25), 0 0 0 4px rgba(59, 130, 246, 0);
+    }
+}
+.select-pay-animate {
+    animation: selectPayPulse 2.4s ease-in-out infinite;
+}
+.select-pay-animate:hover {
+    animation-play-state: paused;
+}

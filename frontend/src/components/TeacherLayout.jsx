@@ -29,11 +29,11 @@ export default function TeacherLayout({ children }) {
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = teacherNav.findIndex(item => pathname === item.href);
-    
+
     // Retrieve previous active index from sessionStorage to animate across page mounts
     const savedPrevIdx = sessionStorage.getItem("prevActiveIdx_teacher");
     const initialPrevIdx = savedPrevIdx !== null ? Number(savedPrevIdx) : activeIdx;
-    
+
     const [indicatorIdx, setIndicatorIdx] = useState(initialPrevIdx);
     const prevIdxRef = useRef(initialPrevIdx);
     const rafRef = useRef(null);
@@ -109,11 +109,13 @@ export default function TeacherLayout({ children }) {
         prevIdxRef.current = to;
     }, [activeIdx]);
 
-    const isSubPageMobile = pathname !== "/teacher" && 
-                            pathname !== "/teacher/payments" &&
-                            pathname !== "/teacher/distribution" && 
-                            pathname !== "/teacher/notes" &&
-                            pathname !== "/teacher/settings";
+    const isSubPageMobile = pathname !== "/teacher" &&
+        pathname !== "/teacher/payments" &&
+        pathname !== "/teacher/distribution" &&
+        pathname !== "/teacher/notes" &&
+        pathname !== "/teacher/settings";
+
+    const isSettings = pathname === "/teacher/settings";
 
     const getSubPageTitle = () => {
         const item = teacherNav.find(i => i.href !== "/teacher" && pathname.startsWith(i.href));
@@ -130,9 +132,9 @@ export default function TeacherLayout({ children }) {
             </div>
 
             {/* ── Mobile TopAppBar (Main Pages) ── */}
-            {!isSubPageMobile && (
-                <header 
-                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-5 h-14 bg-[#111427]/70 backdrop-blur-2xl border border-[#2a3055]/50 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] animate-fade-in overflow-hidden rounded-[28px]" 
+            {!isSubPageMobile && !isSettings && (
+                <header
+                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-5 h-14 bg-[#111427]/70 backdrop-blur-2xl border border-[#2a3055]/50 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] animate-fade-in overflow-hidden rounded-[28px]"
                     style={{ transform: "translateZ(0)", isolation: "isolate" }}
                 >
                     <div className="flex items-center gap-3" onClick={() => navigate("/teacher")}>
@@ -142,7 +144,7 @@ export default function TeacherLayout({ children }) {
                         <h1 className="text-xl font-bold tracking-tighter text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>FP Finance</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
                             onClick={() => navigate("/notifications")}
                             className="relative flex items-center justify-center text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer"
                         >
@@ -153,7 +155,7 @@ export default function TeacherLayout({ children }) {
                                 </span>
                             )}
                         </button>
-                        <div 
+                        <div
                             className="transition-all cursor-pointer"
                             onClick={() => navigate("/teacher/settings")}
                         >
@@ -166,7 +168,7 @@ export default function TeacherLayout({ children }) {
             {/* ── Mobile Header (Sub-Pages) ── */}
             {isSubPageMobile && (
                 <header className="md:hidden fixed top-0 w-full bg-[#0c0e17]/90 backdrop-blur-3xl flex items-center px-4 h-16 z-50 border-b border-white/5 animate-fade-in-down shadow-xl" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-[#aaaab7] active:scale-90 transition-all mr-3"
                     >
@@ -208,8 +210,8 @@ export default function TeacherLayout({ children }) {
                                 key={item.href}
                                 to={item.href}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group
-                                    ${isActive 
-                                        ? "bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]" 
+                                    ${isActive
+                                        ? "bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]"
                                         : "text-[#aaaab7] hover:text-white hover:bg-white/5"
                                     }`}
                             >
@@ -228,7 +230,7 @@ export default function TeacherLayout({ children }) {
             <div className="hidden md:flex fixed top-0 right-0 z-50 p-6 items-center gap-5">
                 {/* Notification Bell */}
                 <div className="relative">
-                    <button 
+                    <button
                         onClick={() => setNotifOpen(true)}
                         className="relative text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer w-10 h-10 flex items-center justify-center rounded-full bg-[#171924]/60 backdrop-blur-md border border-[#464752]/50 hover:border-[#3b82f6]/50 shadow-lg"
                         style={{ transform: "translateZ(0)", isolation: "isolate" }}
@@ -244,7 +246,7 @@ export default function TeacherLayout({ children }) {
                 </div>
 
                 {/* Profile Picture */}
-                <div 
+                <div
                     className="flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                     onClick={() => navigate("/teacher/settings")}
                 >
@@ -253,9 +255,9 @@ export default function TeacherLayout({ children }) {
             </div>
 
             {/* ── Main Content ── */}
-            <main 
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col pt-28 ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
-                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", contain: "paint layout", scrollbarGutter: "stable" }}
+            <main
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
+                style={{ scrollbarGutter: "stable" }}
             >
                 <div className="max-w-7xl w-full mx-auto flex-1">
                     {children}
@@ -264,49 +266,53 @@ export default function TeacherLayout({ children }) {
 
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
-                <nav 
+                <nav
                     className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate bg-[#111427]/70 backdrop-blur-2xl border border-[#2a3055]/50 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] flex items-center"
                     style={{ transform: "translateZ(0)", isolation: "isolate" }}
                 >
-                        {activeIdx >= 0 && (
-                            <div
-                                className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
-                                style={{
-                                    width: `${100 / teacherNav.length}%`,
-                                    left: `${indicatorIdx * (100 / teacherNav.length)}%`,
-                                    transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                    {activeIdx >= 0 && (
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
+                            style={{
+                                width: `${100 / teacherNav.length}%`,
+                                left: `${indicatorIdx * (100 / teacherNav.length)}%`,
+                                transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                            }}
+                        >
+                            <div className="w-12 h-12 rounded-full bg-[#3b82f6] shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
+                        </div>
+                    )}
+                    {teacherNav.map((item, i) => {
+                        const isActive = i === indicatorIdx;
+                        return (
+                            <Link
+                                key={item.href}
+                                to={item.href}
+                                onClick={() => {
+                                    if (navigator.vibrate) navigator.vibrate(40);
                                 }}
+                                className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
                             >
-                                <div className="w-12 h-12 rounded-full bg-[#3b82f6] shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
-                            </div>
-                        )}
-                        {teacherNav.map((item, i) => {
-                            const isActive = i === indicatorIdx;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    to={item.href}
-                                    className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
+                                <span
+                                    ref={el => iconRefs.current[i] = el}
+                                    className="material-symbols-outlined text-[22px]"
+                                    style={{
+                                        color: isActive ? '#ffffff' : 'rgba(59,89,152,0.5)',
+                                        transform: isActive ? 'scale(1.14)' : 'scale(1)',
+                                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                                        willChange: 'transform, color',
+                                    }}
                                 >
-                                    <span
-                                        ref={el => iconRefs.current[i] = el}
-                                        className="material-symbols-outlined text-[22px]"
-                                        style={{
-                                            color: isActive ? '#ffffff' : 'rgba(59,89,152,0.5)',
-                                            transform: isActive ? 'scale(1.14)' : 'scale(1)',
-                                            fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                                            willChange: 'transform, color',
-                                        }}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                                    {item.icon}
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </nav>
             )}
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
                 }

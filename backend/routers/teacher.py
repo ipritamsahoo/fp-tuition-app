@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from config import DEFAULT_FEE_AMOUNT
 from database import db
-from schemas import OfflineRequest
+from schemas import OfflineRequest, BatchOfflineRequest
 from dependencies import require_role
 from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_admins
@@ -159,8 +159,8 @@ def teacher_all_payments(
 @router.get("/student-dues/{student_id}")
 def teacher_student_dues(
     student_id: str,
-    before_month: int,
-    before_year: int,
+    before_month: Optional[int] = None,
+    before_year: Optional[int] = None,
     user=Depends(require_role("teacher")),
 ):
     """Get unpaid previous dues for a single student to check before offline approval."""
@@ -173,11 +173,12 @@ def teacher_student_dues(
     
     for d in dues:
         p = serialize_doc(d)
-        py = p.get("year", 0)
-        pm = p.get("month", 0)
-        
-        if py < before_year or (py == before_year and pm < before_month):
-            result.append(p)
+        if before_year is not None and before_month is not None:
+            py = p.get("year", 0)
+            pm = p.get("month", 0)
+            if py > before_year or (py == before_year and pm >= before_month):
+                continue
+        result.append(p)
             
     result.sort(key=lambda x: (x.get("year", 0), x.get("month", 0)))
     return result
@@ -268,11 +269,120 @@ def teacher_offline_request(
             "updated_at": ts_now(),
         }
         _, doc_ref = db.collection("payments").add(payment_data)
-        # Notify student + admins
         student_tokens = student.get("fcm_tokens", [])
         notify_user(req.student_id, "Your payment is currently pending verification.", "payment_pending", tokens=student_tokens)
         notify_admins(f"New payment request for {student_name} (Offline) by {teacher_name}.", "new_approval")
         return {"message": "Offline request submitted", "payment_id": doc_ref.id}
+
+
+MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+@router.post("/offline-request/batch")
+def teacher_offline_request_batch(
+    req: BatchOfflineRequest,
+    user=Depends(require_role("teacher")),
+):
+    """Submit multiple offline payment requests for a single student in a single batch, and send a combined notification."""
+    # Verify the student exists
+    student_doc = db.collection("users").document(req.student_id).get()
+    if not student_doc.exists:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student = student_doc.to_dict()
+    if student.get("role") != "student":
+        raise HTTPException(status_code=400, detail="User is not a student")
+
+    if not req.items:
+        raise HTTPException(status_code=400, detail="No requests provided in batch")
+
+    teacher_name = user.get("name", "Teacher")
+    student_name = student.get("name", "Student")
+    batch_name = req.batch_name or "Unknown"
+    
+    # Resolve batch details for new payments if needed
+    batch_id = student.get("batch_id")
+    if not batch_id and batch_name == "Unknown":
+        batch_name = "Unknown"
+    elif batch_id and batch_name == "Unknown":
+        batch_doc = db.collection("batches").document(batch_id).get()
+        if batch_doc.exists:
+            batch_name = batch_doc.to_dict().get("batch_name", "Unknown")
+
+    # Use Firestore batch for atomic writes
+    db_batch = db.batch()
+    
+    for item in req.items:
+        # Check if payment record already exists for this month/year
+        existing = db.collection("payments") \
+            .where(filter=FieldFilter("student_id", "==", req.student_id)) \
+            .where(filter=FieldFilter("month", "==", item.month)) \
+            .where(filter=FieldFilter("year", "==", item.year)) \
+            .limit(1) \
+            .stream()
+
+        existing_list = list(existing)
+        
+        if existing_list:
+            payment_ref = db.collection("payments").document(existing_list[0].id)
+            current = existing_list[0].to_dict()
+            if current["status"] == "Paid":
+                # Skip already paid ones
+                continue
+
+            db_batch.update(payment_ref, {
+                "status": "Pending_Verification",
+                "mode": "offline",
+                "requested_by_teacher": user["uid"],
+                "teacher_name": teacher_name,
+                "student_name": student_name,
+                "batch_name": batch_name,
+                "requested_at": ts_now(),
+                "updated_at": ts_now(),
+            })
+        else:
+            amount = item.amount or DEFAULT_FEE_AMOUNT
+            payment_data = {
+                "student_id": req.student_id,
+                "student_name": student_name,
+                "batch_id": batch_id or "",
+                "batch_name": batch_name,
+                "month": item.month,
+                "year": item.year,
+                "amount": amount,
+                "mode": "offline",
+                "screenshot_url": None,
+                "requested_by_teacher": user["uid"],
+                "teacher_name": teacher_name,
+                "status": "Pending_Verification",
+                "requested_at": ts_now(),
+                "created_at": ts_now(),
+                "updated_at": ts_now(),
+            }
+            # Add to a new doc ref
+            new_doc_ref = db.collection("payments").document()
+            db_batch.set(new_doc_ref, payment_data)
+
+    db_batch.commit()
+
+    # Sort items chronologically for notification display
+    sorted_items = sorted(req.items, key=lambda x: (x.year, x.month))
+    months_str = ", ".join(f"{MONTH_FULL[item.month - 1]} {item.year}" for item in sorted_items)
+
+    # Notify student + admins
+    student_tokens = student.get("fcm_tokens", [])
+    notify_user(
+        req.student_id,
+        f"Your offline payment request for {months_str} is currently pending verification.",
+        "payment_pending",
+        tokens=student_tokens
+    )
+    
+    notify_admins(
+        f"New payment request for {student_name} ({months_str}) (Offline) by {teacher_name}.",
+        "new_approval"
+    )
+
+    return {"message": "Batch offline requests submitted successfully"}
 
 
 # ──────────────────────────────────────────────

@@ -107,6 +107,7 @@ function TeacherDashboardContent() {
     const [offlineLoading, setOfflineLoading] = useState(null);
     const [warningModalData, setWarningModalData] = useState(null);
     const [warningConfirmText, setWarningConfirmText] = useState("");
+    const [selectedDueIds, setSelectedDueIds] = useState([]);
     const [counts, setCounts] = useState({ total_students: 0, paid_count: 0, unpaid_count: 0 });
     const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -281,21 +282,19 @@ function TeacherDashboardContent() {
         setError("");
         
         try {
-            // Pre-check for previous dues
-            const targetMonth = payment.month || filterMonth;
-            const targetYear = payment.year || filterYear;
+            // Fetch all unpaid/rejected dues for the student
+            const dueRecords = await api.get(`/api/teacher/student-dues/${payment.student_id}`);
             
-            const dueRecords = await api.get(`/api/teacher/student-dues/${payment.student_id}?before_month=${targetMonth}&before_year=${targetYear}`);
-
-            
-            if (dueRecords.length > 0) {
+            if (dueRecords.length > 1) {
                 setOfflineLoading(null);
                 setWarningModalData({ payment, dues: dueRecords });
+                const clickedDue = dueRecords.find(d => d.id === payment.id || (d.month === (payment.month || filterMonth) && d.year === (payment.year || filterYear)));
+                setSelectedDueIds(clickedDue ? [clickedDue.id] : [payment.id]);
                 setWarningConfirmText("");
                 return; // Stop here, wait for modal unblock
             }
             
-            // No dues found, proceed
+            // No multiple dues found, proceed directly
             handleOfflineRequest(payment);
         } catch (err) {
             if (!isSystemicError(err.message)) {
@@ -310,17 +309,41 @@ function TeacherDashboardContent() {
         setError("");
 
         try {
-            await api.post("/api/teacher/offline-request", {
+            await api.post("/api/teacher/offline-request/batch", {
                 student_id: payment.student_id,
-                month: payment.month || filterMonth,
-                year: payment.year || filterYear,
                 batch_name: selectedBatchName,
-                amount: payment.amount,
+                items: [{
+                    month: payment.month || filterMonth,
+                    year: payment.year || filterYear,
+                    amount: payment.amount,
+                }],
             });
-            // ── No Optimistic UI here! ──
-            // We rely completely on onSnapshot. The API call updates the DB,
-            // the listener fetches the exact delta, updates the payments array with the REAL Firestore ID,
-            // and mathematically updates unpaid_count perfectly in sync.
+        } catch (err) {
+            const msg = typeof err.message === "string" ? err.message : JSON.stringify(err.message);
+            if (!isSystemicError(msg)) {
+                setError(msg);
+            }
+        } finally {
+            setOfflineLoading(null);
+        }
+    };
+
+    const handleBatchOfflineRequests = async (studentId, duesToPay) => {
+        const targetPaymentId = warningModalData ? warningModalData.payment.id : null;
+        if (targetPaymentId) setOfflineLoading(targetPaymentId);
+        setError("");
+
+        try {
+            await api.post("/api/teacher/offline-request/batch", {
+                student_id: studentId,
+                batch_name: selectedBatchName,
+                items: duesToPay.map(due => ({
+                    month: due.month,
+                    year: due.year,
+                    amount: due.amount,
+                })),
+            });
+            await fetchPayments();
         } catch (err) {
             const msg = typeof err.message === "string" ? err.message : JSON.stringify(err.message);
             if (!isSystemicError(msg)) {
@@ -537,9 +560,7 @@ function TeacherDashboardContent() {
             {warningModalData && createPortal(
                 (() => {
                     const { payment, dues } = warningModalData;
-                    const targetText = `I confirm to skip dues`;
-                    const currentM = MONTH_FULL[(payment.month || filterMonth) - 1];
-                    const currentY = payment.year || filterYear;
+                    const targetText = `I CONFIRM OFFLINE PAYMENT`;
                     
                     return (
                         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setWarningModalData(null)} style={{ touchAction: "none" }}>
@@ -550,7 +571,7 @@ function TeacherDashboardContent() {
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-amber-400 font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
                                         <span className="material-symbols-outlined">warning</span>
-                                        Previous Dues Found!
+                                        Multiple Dues Found!
                                     </h3>
                                     <button onClick={() => setWarningModalData(null)} className="text-[#aaaab7] hover:text-white transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
                                         <span className="material-symbols-outlined">close</span>
@@ -559,22 +580,45 @@ function TeacherDashboardContent() {
                                 
                                 <div className="space-y-4 mb-6 text-[#aaaab7]">
                                     <p className="text-sm text-[#f0f0fd] font-medium leading-relaxed">
-                                        <span className="font-bold text-white">{payment.student_name}</span> has unpaid dues for previous months. 
+                                        <span className="font-bold text-white">{payment.student_name}</span> has {dues.length} unpaid dues. 
                                     </p>
                                     
                                     <div className="bg-amber-400/5 border border-amber-400/10 p-4 rounded-2xl text-[13px] leading-relaxed text-amber-200/80">
-                                        <p className="font-bold mb-2 text-amber-400/90 tracking-wide uppercase text-[11px]">Unpaid Months:</p>
-                                        <ul className="space-y-1.5 font-medium">
-                                            {dues.map(d => (
-                                                <li key={d.id} className="flex items-center gap-2">
-                                                    <span className="w-1 h-1 rounded-full bg-amber-400/40" />
-                                                    {MONTH_FULL[d.month - 1]} {d.year} (₹{d.amount})
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        <p className="font-bold mb-3 text-amber-400/90 tracking-wide uppercase text-[11px]">Select Months to Mark Paid:</p>
+                                        <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1">
+                                            {dues.map(d => {
+                                                const isChecked = selectedDueIds.includes(d.id);
+                                                return (
+                                                    <label 
+                                                        key={d.id} 
+                                                        className={`flex items-center gap-3 cursor-pointer select-none py-2 px-3 rounded-xl transition-all border ${
+                                                            isChecked 
+                                                                ? 'bg-[#4af8e3]/10 text-[#4af8e3] font-bold border-[#4af8e3]/20 shadow-[0_2px_10px_rgba(74,248,227,0.05)]' 
+                                                                : 'text-[#aaaab7] hover:text-white border-transparent bg-white/[0.01]'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={() => {
+                                                                if (isChecked) {
+                                                                    setSelectedDueIds(selectedDueIds.filter(id => id !== d.id));
+                                                                } else {
+                                                                    setSelectedDueIds([...selectedDueIds, d.id]);
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 rounded border-white/10 text-[#4af8e3] bg-white/5 focus:ring-[#4af8e3] focus:ring-offset-0 focus:outline-none accent-[#4af8e3] cursor-pointer"
+                                                        />
+                                                        <span className="font-medium">
+                                                            {MONTH_FULL[d.month - 1]} {d.year} (₹{d.amount})
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                     <p className="text-xs font-medium text-amber-400/70 italic leading-snug">
-                                        Are you sure you want to exceptionally mark {currentM} {currentY} as Paid (Offline)?
+                                        Are you sure you want to exceptionally mark the selected months as Paid (Offline)?
                                     </p>
     
                                     <div className="mt-4">
@@ -585,7 +629,7 @@ function TeacherDashboardContent() {
                                             type="text"
                                             value={warningConfirmText}
                                             onChange={(e) => setWarningConfirmText(e.target.value)}
-                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-400/30 focus:border-amber-400/50 focus:ring-amber-400 text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752]"
+                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#4af8e3]/30 focus:border-[#4af8e3]/50 focus:ring-[#4af8e3] text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752]"
                                             placeholder={targetText}
                                             autoComplete="off"
                                         />
@@ -599,10 +643,13 @@ function TeacherDashboardContent() {
                                     <button
                                         onClick={() => {
                                             setWarningModalData(null);
-                                            handleOfflineRequest(payment);
+                                            const duesToPay = dues.filter(d => selectedDueIds.includes(d.id));
+                                            if (duesToPay.length > 0) {
+                                                handleBatchOfflineRequests(payment.student_id, duesToPay);
+                                            }
                                         }}
-                                        disabled={warningConfirmText !== targetText}
-                                        className="w-full sm:flex-[1.5] py-3.5 rounded-2xl bg-amber-400 text-[#0c0e17] shadow-[0_8px_20px_rgba(251,191,36,0.2)] text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2"
+                                        disabled={warningConfirmText !== targetText || selectedDueIds.length === 0}
+                                        className="w-full sm:flex-[1.5] py-3.5 rounded-2xl bg-[#4af8e3] text-[#0c0e17] shadow-[0_8px_20px_rgba(74,248,227,0.2)] text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">verified</span>
                                         Confirm

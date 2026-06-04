@@ -23,7 +23,7 @@ from schemas import (
     RegisterRequest, BatchCreate, StudentCreate, TeacherCreate,
     StudentUpdate, TeacherUpdate, GenerateMonthly, UndoMonthly, FeeOverride,
     SettleDistribution, AdminSeed, to_firebase_email, StudentStatusUpdate,
-    EmergencyReset,
+    EmergencyReset, BatchActionPayload,
 )
 from dependencies import require_role
 from utils import ts_now, serialize_doc
@@ -114,6 +114,175 @@ def admin_get_pending(user=Depends(require_role("admin"))):
                 p["pic_version"] = student_details[sid]["pic_version"]
 
     return results
+
+
+# ──────────────────────────────────────────────
+# PUT /api/admin/approve/batch
+# ──────────────────────────────────────────────
+@router.put("/approve/batch")
+def admin_approve_batch(req: BatchActionPayload, user=Depends(require_role("admin"))):
+    """Approve multiple pending payments in a single transaction."""
+    payment_ids = req.payment_ids
+    if not payment_ids:
+        raise HTTPException(status_code=400, detail="No payment IDs provided")
+
+    payment_docs = []
+    public_ids_to_delete = set()
+    student_id = None
+
+    for pid in payment_ids:
+        payment_ref = db.collection("payments").document(pid)
+        payment_doc = payment_ref.get()
+        if not payment_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Payment {pid} not found")
+        payment = payment_doc.to_dict()
+        if payment["status"] == "Paid":
+            continue # already approved, skip
+        
+        payment_docs.append((payment_ref, payment, pid))
+        student_id = payment.get("student_id")
+        
+        pub_id = payment.get("screenshot_public_id", "")
+        if pub_id:
+            public_ids_to_delete.add(pub_id)
+
+    if not payment_docs:
+        return {"message": "No pending payments to approve in this batch"}
+
+    # Delete screenshots from Cloudinary
+    for pub_id in public_ids_to_delete:
+        try:
+            cloudinary.uploader.destroy(pub_id)
+        except Exception as e:
+            print(f"Cloudinary delete failed (approve batch): {e}")
+
+    # Write batch updates
+    db_batch = db.batch()
+    
+    last_badge_tier = None
+    last_badge_month = None
+    last_badge_year = None
+    
+    for payment_ref, payment, pid in payment_docs:
+        badge_tier = None
+        created_at_raw = payment.get("created_at")
+        requested_at_raw = payment.get("requested_at")
+        if created_at_raw and requested_at_raw:
+            try:
+                if isinstance(created_at_raw, str):
+                    t1 = datetime.fromisoformat(created_at_raw)
+                elif hasattr(created_at_raw, "isoformat"):
+                    t1 = created_at_raw
+                else:
+                    t1 = datetime.fromisoformat(str(created_at_raw))
+
+                if isinstance(requested_at_raw, str):
+                    t2 = datetime.fromisoformat(requested_at_raw)
+                elif hasattr(requested_at_raw, "isoformat"):
+                    t2 = requested_at_raw
+                else:
+                    t2 = datetime.fromisoformat(str(requested_at_raw))
+
+                diff_minutes = (t2 - t1).total_seconds() / 60
+
+                if diff_minutes < 1440:      # within 24 hours → Prime
+                    badge_tier = "prime"
+                elif diff_minutes < 7200:    # within 5 days → Golden
+                    badge_tier = "golden"
+                else:                        # after 5 days → Silver
+                    badge_tier = "silver"
+            except Exception as e:
+                print(f"Badge calculation failed for {pid}: {e}")
+
+        if not badge_tier:
+            badge_tier = "silver"
+
+        last_badge_tier = badge_tier
+        last_badge_month = payment.get("month")
+        last_badge_year = payment.get("year")
+
+        db_batch.update(payment_ref, {
+            "status": "Paid",
+            "approved_by": user["uid"],
+            "screenshot_url": None,
+            "screenshot_public_id": None,
+            "updated_at": ts_now(),
+        })
+
+    db_batch.commit()
+
+    # Save badge on student doc if we have student_id
+    if student_id and last_badge_tier:
+        try:
+            db.collection("users").document(student_id).update({
+                "current_badge": last_badge_tier,
+                "badge_month": last_badge_month,
+                "badge_year": last_badge_year,
+                "badge_animation_pending": True,
+            })
+        except Exception as e:
+            print(f"Badge save to user doc failed (batch): {e}")
+
+    # Notify student
+    if student_id:
+        notify_user(student_id, "Success! Your payments have been approved.", "payment_approved")
+
+    return {"message": "Payments approved in batch", "payment_ids": payment_ids}
+
+
+# ──────────────────────────────────────────────
+# PUT /api/admin/reject/batch
+# ──────────────────────────────────────────────
+@router.put("/reject/batch")
+def admin_reject_batch(req: BatchActionPayload, user=Depends(require_role("admin"))):
+    """Reject multiple pending payments in a single transaction."""
+    payment_ids = req.payment_ids
+    if not payment_ids:
+        raise HTTPException(status_code=400, detail="No payment IDs provided")
+
+    payment_docs = []
+    public_ids_to_delete = set()
+    student_id = None
+
+    for pid in payment_ids:
+        payment_ref = db.collection("payments").document(pid)
+        payment_doc = payment_ref.get()
+        if not payment_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Payment {pid} not found")
+        payment = payment_doc.to_dict()
+        
+        payment_docs.append((payment_ref, payment, pid))
+        student_id = payment.get("student_id")
+        
+        pub_id = payment.get("screenshot_public_id", "")
+        if pub_id:
+            public_ids_to_delete.add(pub_id)
+
+    # Delete screenshots from Cloudinary
+    for pub_id in public_ids_to_delete:
+        try:
+            cloudinary.uploader.destroy(pub_id)
+        except Exception as e:
+            print(f"Cloudinary delete failed (reject batch): {e}")
+
+    # Write batch updates
+    db_batch = db.batch()
+    for payment_ref, _, _ in payment_docs:
+        db_batch.update(payment_ref, {
+            "status": "Rejected",
+            "rejected_by": user["uid"],
+            "rejected_at": ts_now(),
+            "screenshot_url": None,
+            "screenshot_public_id": None,
+            "updated_at": ts_now(),
+        })
+    db_batch.commit()
+
+    # Notify student
+    if student_id:
+        notify_user(student_id, "Payments rejected. Please contact your teacher for details.", "payment_rejected")
+
+    return {"message": "Payments rejected in batch", "payment_ids": payment_ids}
 
 
 @router.put("/approve/{payment_id}")
@@ -242,6 +411,10 @@ def admin_reject(payment_id: str, user=Depends(require_role("admin"))):
         notify_user(student_id, "Payment rejected. Please contact your teacher for details.", "payment_rejected")
 
     return {"message": "Payment rejected", "payment_id": payment_id}
+
+
+
+
 
 
 # ══════════════════════════════════════════════

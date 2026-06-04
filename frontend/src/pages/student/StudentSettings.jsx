@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -30,6 +30,39 @@ function StudentSettingsContent() {
     // PWA manual update checking states
     const [updateChecking, setUpdateChecking] = useState(false);
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
+
+    // Scrolling header micro-interactions state
+    const [avatarHidden, setAvatarHidden] = useState(false);
+    const [nameHidden, setNameHidden] = useState(false);
+    const [usernameHidden, setUsernameHidden] = useState(false);
+
+    const avatarElRef = useRef(null);
+    const nameElRef = useRef(null);
+    const usernameElRef = useRef(null);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.innerWidth >= 768) return; // Only on mobile view
+
+            if (avatarElRef.current) {
+                const rect = avatarElRef.current.getBoundingClientRect();
+                setAvatarHidden(rect.bottom < 64);
+            }
+            if (nameElRef.current) {
+                const rect = nameElRef.current.getBoundingClientRect();
+                setNameHidden(rect.bottom < 64);
+            }
+            if (usernameElRef.current) {
+                const rect = usernameElRef.current.getBoundingClientRect();
+                setUsernameHidden(rect.bottom < 64);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        handleScroll();
+
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     const handleCheckUpdate = async () => {
         setUpdateChecking(true);
@@ -113,9 +146,66 @@ function StudentSettingsContent() {
     const accentColor = isLight ? '#0d9488' : '#3b82f6';
 
     return (
-        <div className="space-y-8">
-            {/* Custom PWA toast message */}
-            {toast.show && (
+        <>
+            {/* Sticky Scrolling Profile Header Navbar - rendered in portal to bypass will-change:transform ancestor */}
+            {createPortal(
+                <div
+                    data-theme={theme}
+                    className="fixed top-0 left-0 right-0 h-16 z-[55] flex items-center px-6 gap-3 md:hidden"
+                    style={{
+                        backgroundColor: isLight ? 'rgba(238, 242, 255, 0.55)' : 'rgba(12, 14, 23, 0.55)',
+                        backdropFilter: 'blur(20px) saturate(1.6)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+                        transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease',
+                        transform: avatarHidden ? 'translateY(0)' : 'translateY(-100%)',
+                        opacity: avatarHidden ? 1 : 0,
+                        pointerEvents: avatarHidden ? 'auto' : 'none',
+                    }}
+                >
+                    {/* Profile Photo */}
+                    <div
+                        style={{
+                            transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+                            transform: avatarHidden ? 'scale(1)' : 'scale(0.4)',
+                            opacity: avatarHidden ? 1 : 0,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <ProfilePicture size={38} className="border border-white/20 shadow-md" />
+                    </div>
+
+                    {/* Name & Username */}
+                    <div className="flex flex-col justify-center min-w-0">
+                        <span
+                            className="font-extrabold text-base truncate leading-tight"
+                            style={{
+                                color: 'var(--st-text-primary)',
+                                transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+                                transform: nameHidden ? 'translateY(0)' : 'translateY(10px)',
+                                opacity: nameHidden ? 1 : 0,
+                            }}
+                        >
+                            {user?.name || "User"}
+                        </span>
+                        <span
+                            className="text-xs font-semibold truncate mt-0.5"
+                            style={{
+                                color: accentColor,
+                                transition: 'transform 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.45s ease',
+                                transform: usernameHidden ? 'translateY(0)' : 'translateY(8px)',
+                                opacity: usernameHidden ? 1 : 0,
+                            }}
+                        >
+                            @{displayUsername}
+                        </span>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            <div className="space-y-8">
+                {/* Custom PWA toast message */}
+                {toast.show && (
                 <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
                     style={{
                         backgroundColor: toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(59, 130, 246, 0.15)",
@@ -129,9 +219,10 @@ function StudentSettingsContent() {
                     <p className="flex-1 font-medium">{toast.message}</p>
                     <button onClick={() => setToast({ ...toast, show: false })} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
                 </div>
-            )}
+                )}
             {/* ── Profile Header Card ── */}
-            <section className="relative" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+
+            <section className="relative">
                 <div
                     className="backdrop-blur-2xl p-8 rounded-[32px] ring-1 flex flex-col items-center text-center"
                     style={{
@@ -140,19 +231,18 @@ function StudentSettingsContent() {
                         ringColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
                         borderWidth: 1, borderStyle: 'solid',
                         borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                        transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden"
                     }}
                 >
                     {/* Profile Picture */}
-                    <div className="mb-4 flex items-center justify-center">
+                    <div ref={avatarElRef} className="mb-4 flex items-center justify-center">
                         <ProfilePicture size={96} className="border-2 border-white/20" />
                     </div>
-                    <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                    <h2 ref={nameElRef} className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                         {user?.name || "User"}
                     </h2>
-                    <p className="tracking-wider mt-1 text-sm" style={{ color: 'var(--st-text-secondary)' }}>{displayUsername}</p>
+                    <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold" style={{ color: accentColor }}>@{displayUsername}</p>
                     <div className="mt-6 flex gap-2 flex-wrap justify-center">
-
+ 
                         {user?.currentBadge === "prime" && (
                             <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
                                 style={{
@@ -192,204 +282,231 @@ function StudentSettingsContent() {
                     </div>
                 </div>
             </section>
-
+ 
             {/* ── Settings List ── */}
-            <section className="space-y-3" style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
-                {/* Change Profile Photo */}
-                <button
-                    onClick={() => setPicModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </button>
-
-                {/* Change Username or Mobile */}
-                <button
-                    onClick={() => setUsernameModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4 text-left">
-                        <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
-                        </div>
-                        <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username or Mobile</span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </button>
-
-                {/* Change Password */}
-                <button
-                    onClick={() => setPasswordModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>lock</span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Password</span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </button>
-
-                {/* ── App Lock (Biometric) ── */}
-                <AppLockSetting accentColor={accentColor} isLight={isLight} />
-
-                {/* Devices */}
-                <button
-                    onClick={() => setDevicesModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>devices</span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Devices</span>
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded" style={{ color: 'var(--st-text-secondary)', backgroundColor: 'var(--st-icon-bg)' }}>
-                        {activeSessionCount} active
-                    </span>
-                </button>
-
-
-                {/* ── Theme Toggle (Functional) ── */}
-                <button
-                    onClick={toggleTheme}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>
-                                {isLight ? 'light_mode' : 'dark_mode'}
-                            </span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Theme</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs" style={{ color: 'var(--st-text-secondary)' }}>
-                            {isLight ? 'Light mode' : 'Dark mode'}
-                        </span>
-                        {/* Toggle switch */}
-                        <div
-                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
-                            style={{
-                                backgroundColor: isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)',
-                            }}
+            <section className="space-y-6">
+                {/* ── ACCOUNT ── */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Account</h3>
+                    <div className="space-y-3">
+                        {/* Change Profile Photo */}
+                        <button
+                            onClick={() => setPicModalOpen(true)}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
                         >
-                            <div
-                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center"
-                                style={{
-                                    backgroundColor: isLight ? '#0d9488' : '#3b82f6',
-                                    marginLeft: isLight ? 'auto' : '0',
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                    {isLight ? 'light_mode' : 'dark_mode'}
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </button>
+
+                        {/* Change Username or Mobile */}
+                        <button
+                            onClick={() => setUsernameModalOpen(true)}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                        >
+                            <div className="flex items-center gap-4 text-left">
+                                <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
+                                </div>
+                                <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username or Mobile</span>
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── SECURITY ── */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Security</h3>
+                    <div className="space-y-3">
+                        {/* Change Password */}
+                        <button
+                            onClick={() => setPasswordModalOpen(true)}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>lock</span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Password</span>
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </button>
+
+                        {/* ── App Lock (Biometric) ── */}
+                        <AppLockSetting accentColor={accentColor} isLight={isLight} />
+
+                        {/* Devices */}
+                        <button
+                            onClick={() => setDevicesModalOpen(true)}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>devices</span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Devices</span>
+                            </div>
+                            <span className="text-xs px-2 py-1 rounded" style={{ color: 'var(--st-text-secondary)', backgroundColor: 'var(--st-icon-bg)' }}>
+                                {activeSessionCount} active
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── PREFERENCES ── */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Preferences</h3>
+                    <div className="space-y-3">
+                        {/* ── Theme Toggle (Functional) ── */}
+                        <button
+                            onClick={toggleTheme}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>
+                                        {isLight ? 'light_mode' : 'dark_mode'}
+                                    </span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Theme</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs" style={{ color: 'var(--st-text-secondary)' }}>
+                                    {isLight ? 'Light mode' : 'Dark mode'}
+                                </span>
+                                {/* Toggle switch */}
+                                <div
+                                    className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)',
+                                    }}
+                                >
+                                    <div
+                                        className="w-4 h-4 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center"
+                                        style={{
+                                            backgroundColor: isLight ? '#0d9488' : '#3b82f6',
+                                            marginLeft: isLight ? 'auto' : '0',
+                                        }}
+                                    >
+                                        <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                            {isLight ? 'light_mode' : 'dark_mode'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+
+                        {/* ── Push Notifications Toggle ── */}
+                        <button
+                            onClick={togglePushNotifications}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                        >
+                            <div className="flex items-center gap-4 text-left">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>
+                                        notifications
+                                    </span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Push Notifications</span>
+                            </div>
+                            <div className="flex items-center">
+                                {/* Toggle switch */}
+                                <div
+                                    className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                                    style={{
+                                        backgroundColor: pushEnabled
+                                            ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)')
+                                            : 'rgba(115, 117, 128, 0.3)',
+                                    }}
+                                >
+                                    <div
+                                        className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                        style={{
+                                            backgroundColor: pushEnabled
+                                                ? (isLight ? '#0d9488' : '#3b82f6')
+                                                : '#737580',
+                                            marginLeft: pushEnabled ? 'auto' : '0',
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── SUPPORT ── */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Support</h3>
+                    <div className="space-y-3">
+                        {/* Help & Support */}
+                        <a
+                            href="https://wa.me/917001637243"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>support_agent</span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Help & Support</span>
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </a>
+                    </div>
+                </div>
+
+                {/* ── APP INFO ── */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>App Info</h3>
+                    <div className="space-y-3">
+                        {/* Check for updates */}
+                        <button
+                            onClick={handleCheckUpdate}
+                            disabled={updateChecking}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className={updateChecking ? "material-symbols-outlined animate-spin" : "material-symbols-outlined"} style={{ color: accentColor }}>
+                                        {updateChecking ? 'autorenew' : 'system_update'}
+                                    </span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>
+                                    {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
                                 </span>
                             </div>
-                        </div>
-                    </div>
-                </button>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </button>
 
-
-                {/* ── Push Notifications Toggle ── */}
-                <button
-                    onClick={togglePushNotifications}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
-                >
-                    <div className="flex items-center gap-4 text-left">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>
-                                notifications
-                            </span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Push Notifications</span>
-                    </div>
-                    <div className="flex items-center">
-                        {/* Toggle switch */}
-                        <div
-                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
-                            style={{
-                                backgroundColor: pushEnabled
-                                    ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)')
-                                    : 'rgba(115, 117, 128, 0.3)',
+                        {/* About */}
+                        <button
+                            onClick={() => {
+                                if (window.innerWidth >= 768) {
+                                    // Desktop: open modal
+                                    setAboutModalOpen(true);
+                                } else {
+                                    // Mobile: route to AboutPage
+                                    navigate("/about");
+                                }
                             }}
+                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
                         >
-                            <div
-                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
-                                style={{
-                                    backgroundColor: pushEnabled
-                                        ? (isLight ? '#0d9488' : '#3b82f6')
-                                        : '#737580',
-                                    marginLeft: pushEnabled ? 'auto' : '0',
-                                }}
-                            />
-                        </div>
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>info</span>
+                                </div>
+                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>About</span>
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                        </button>
                     </div>
-                </button>
-
-
-                {/* Help & Support */}
-                <a
-                    href="https://wa.me/917001637243"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>support_agent</span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Help & Support</span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </a>
-
-                {/* About */}
-                <button
-                    onClick={() => {
-                        if (window.innerWidth >= 768) {
-                            // Desktop: open modal
-                            setAboutModalOpen(true);
-                        } else {
-                            // Mobile: route to AboutPage
-                            navigate("/about");
-                        }
-                    }}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className="material-symbols-outlined" style={{ color: accentColor }}>info</span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>About</span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </button>
-
-                {/* Check for updates */}
-                <button
-                    onClick={handleCheckUpdate}
-                    disabled={updateChecking}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                            <span className={updateChecking ? "material-symbols-outlined animate-spin" : "material-symbols-outlined"} style={{ color: accentColor }}>
-                                {updateChecking ? 'autorenew' : 'system_update'}
-                            </span>
-                        </div>
-                        <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>
-                            {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
-                        </span>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                </button>
+                </div>
             </section>
 
             {/* ── Footer ── */}
@@ -699,6 +816,7 @@ function StudentSettingsContent() {
                 document.body
             )}
         </div>
+        </>
     );
 }
 

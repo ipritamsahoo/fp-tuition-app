@@ -18,6 +18,7 @@ import { get, del } from "idb-keyval";
 import ModernSelect from "@/components/ModernSelect";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const FULL_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function isMobile() {
     if (typeof navigator === "undefined") return false;
@@ -26,7 +27,7 @@ function isMobile() {
 }
 
 // ── Pay Now Modal (Nebula Theme) ──
-function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed, initialFile, onPaymentChange }) {
+function PayNowModal({ payment, unpaidPayments = [], onClose, onProceed, initialFile }) {
     const [file, setFile] = useState(initialFile || null);
     const [preview, setPreview] = useState(initialFile ? URL.createObjectURL(initialFile) : null);
     const [submitting, setSubmitting] = useState(false);
@@ -35,6 +36,52 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
+
+    // Checklist state: initialize with the clicked payment
+    const [selectedIds, setSelectedIds] = useState(new Set([payment.id]));
+    const [upiData, setUpiData] = useState(null);
+    const [loadingUpi, setLoadingUpi] = useState(false);
+
+    // Calculate total amount and selected list dynamically
+    const selectedPayments = unpaidPayments.length > 0
+        ? unpaidPayments.filter(p => selectedIds.has(p.id))
+        : [payment];
+    const totalAmount = selectedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const handleToggle = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                if (next.size > 1) {
+                    next.delete(id);
+                }
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    // Load UPI data dynamically when total amount changes
+    useEffect(() => {
+        let active = true;
+        const fetchUpi = async () => {
+            setLoadingUpi(true);
+            try {
+                const data = await api.get(`/api/student/upi-link?amount=${totalAmount}`);
+                if (active) {
+                    setUpiData(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch UPI link:", err);
+            } finally {
+                if (active) setLoadingUpi(false);
+            }
+        };
+
+        fetchUpi();
+        return () => { active = false; };
+    }, [totalAmount]);
 
     const handleFileChange = (e) => {
         const selected = e.target.files?.[0];
@@ -54,7 +101,7 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
         if (!file) return;
         setSubmitting(true);
         try {
-            await onProceed(payment.id, file);
+            await onProceed(Array.from(selectedIds), file);
         } finally {
             setSubmitting(false);
         }
@@ -111,13 +158,17 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
                     <div className="flex-1 flex items-center justify-between">
                         <div>
                             <h3 className="font-bold text-lg leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Secure Checkout</h3>
-                            <p className="text-[11px] font-medium tracking-wide flex items-center gap-1" style={{ color: 'var(--st-accent)' }}>
-                                <span className="material-symbols-outlined text-[12px] material-symbols-filled">verified</span> 100% SECURE
+                            <p className="text-[10px] font-medium tracking-wide flex items-center gap-1" style={{ color: 'var(--st-accent)', marginTop: '2px' }}>
+                                <span className="material-symbols-outlined text-[11px] material-symbols-filled">verified</span> 100% SECURE
                             </p>
                         </div>
                         <div className="text-right">
-                            <h3 className="font-extrabold text-xl leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>₹{payment.amount}</h3>
-                            <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>{MONTHS[payment.month - 1]} {payment.year}</p>
+                            <h3 className="font-extrabold text-xl leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>₹{totalAmount}</h3>
+                            <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
+                                {selectedPayments.length === 1 
+                                    ? `${FULL_MONTHS[selectedPayments[0].month - 1]} ${selectedPayments[0].year}`
+                                    : `${selectedPayments.length} Months`}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -133,30 +184,45 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
                             backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)' 
                         }}
                     >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-1">
                             <span className="material-symbols-outlined text-sm" style={{ color: 'var(--st-accent)' }}>event_repeat</span>
                             <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
-                                Paying for Month
+                                Pay for Multiple Months
                             </label>
                         </div>
-                        <ModernSelect
-                            icon="calendar_month"
-                            value={payment.id}
-                            onChange={(e) => {
-                                const selected = unpaidPayments.find(p => p.id === e.target.value);
-                                if (selected && onPaymentChange) {
-                                    onPaymentChange(selected);
-                                }
-                            }}
-                            options={unpaidPayments.map(p => ({
-                                value: p.id,
-                                label: `${MONTHS[p.month - 1]} ${p.year} — ₹${p.amount}`
-                            }))}
-                            theme={theme}
-                            className="w-full"
-                        />
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            {unpaidPayments.map(p => {
+                                const isChecked = selectedIds.has(p.id);
+                                return (
+                                    <label key={p.id} className="flex items-center justify-between p-2 rounded-xl border cursor-pointer select-none transition-colors"
+                                        style={{
+                                            borderColor: isChecked ? 'var(--st-accent)' : 'var(--st-divider)',
+                                            backgroundColor: isChecked 
+                                                ? (isLight ? 'rgba(59,130,246,0.05)' : 'rgba(74,248,227,0.03)')
+                                                : 'transparent'
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isChecked}
+                                                onChange={() => handleToggle(p.id)}
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                                style={{ accentColor: "var(--st-accent)" }}
+                                            />
+                                            <span className="text-xs font-semibold" style={{ color: 'var(--st-text-primary)' }}>
+                                                {FULL_MONTHS[p.month - 1]} {p.year}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--st-text-secondary)' }}>
+                                            ₹{p.amount}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                        </div>
                         <p className="text-[10px]" style={{ color: 'var(--st-text-muted)' }}>
-                            If you want to clear a different month's fee, select it from above.
+                            Check the months you want to pay for. Total amount will update automatically.
                         </p>
                     </div>
                 )}
@@ -171,7 +237,12 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
                         Make Payment
                     </p>
 
-                    {upiData && (
+                    {loadingUpi ? (
+                        <div className="flex items-center justify-center py-6">
+                            <div className="w-6 h-6 border-3 border-[#3b82f6]/30 border-t-[#3b82f6] rounded-full animate-spin" />
+                            <span className="text-sm ml-3" style={{ color: 'var(--st-text-secondary)' }}>Loading payment info...</span>
+                        </div>
+                    ) : upiData ? (
                         <div className="text-center mb-5 mt-2">
                             <div className="relative inline-block mx-auto">
                                 {/* Glowing backdrop */}
@@ -194,9 +265,13 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
                             </div>
                             <p className="text-[13px] mt-4 font-medium" style={{ color: 'var(--st-text-muted)' }}>Scan with any UPI app to pay</p>
                         </div>
+                    ) : (
+                        <div className="text-center py-6 text-xs text-rose-500">
+                            Failed to load UPI payment details.
+                        </div>
                     )}
 
-                    {isMobile() && upiData && (
+                    {isMobile() && upiData && !loadingUpi && (
                         <>
                             <button
                                 onClick={() => setUpiAppUnavailable(true)}
@@ -245,13 +320,6 @@ function PayNowModal({ payment, unpaidPayments = [], upiData, onClose, onProceed
                             <span className="font-semibold" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>⚠️ Payment Rejected!</span><br />
                             Your previous submission was rejected. Please ensure you upload a clear screenshot of the transaction showing the UTR/Transaction ID.
                             <button onClick={() => setUpiNotice(false)} className="ml-2 cursor-pointer font-bold" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>✕</button>
-                        </div>
-                    )}
-
-                    {!upiData && (
-                        <div className="flex items-center justify-center py-6">
-                            <div className="w-6 h-6 border-3 border-[#3b82f6]/30 border-t-[#3b82f6] rounded-full animate-spin" />
-                            <span className="text-sm ml-3" style={{ color: 'var(--st-text-secondary)' }}>Loading payment info...</span>
                         </div>
                     )}
                 </div>
@@ -399,6 +467,7 @@ function StudentDashboardContent() {
     const [payments, setPayments] = useState(cachedPayments || []);
     const [loading, setLoading] = useState(!cachedPayments);
     const [success, setSuccess] = useState("");
+    const [error, setError] = useState("");
     const [previewImg, setPreviewImg] = useState(null);
     const [sharedFile, setSharedFile] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(() => 
@@ -459,7 +528,7 @@ function StudentDashboardContent() {
 
     // Pay Now modal state
     const [payModalPayment, setPayModalPayment] = useState(null);
-    const [payModalUpi, setPayModalUpi] = useState(null);
+    const [payModalAllowMultiple, setPayModalAllowMultiple] = useState(false);
 
     const fetchPayments = useCallback(async () => {
         try {
@@ -536,38 +605,41 @@ function StudentDashboardContent() {
         }
     }, [user?.uid, fetchPayments]);
 
-    // Open Pay Now modal → fetch UPI link
-    const openPayModal = async (payment) => {
+    // Open Pay Now modal
+    const openPayModal = (payment) => {
         setPayModalPayment(payment);
-        setPayModalUpi(null);
-        try {
-            const data = await api.get(`/api/student/upi-link?amount=${payment.amount}&month=${payment.month}&year=${payment.year}`);
-            setPayModalUpi(data);
-        } catch (err) {
-            if (!isSystemicError(err.message)) {
-                // Handled globally
-            }
+        setPayModalAllowMultiple(false);
+    };
+
+    const openPayMultipleModal = () => {
+        const unpaid = payments.filter((p) => p.status === "Unpaid");
+        if (unpaid.length > 0) {
+            const sortedUnpaid = [...unpaid].sort((a, b) => {
+                if (a.year !== b.year) return a.year - b.year;
+                return a.month - b.month;
+            });
+            setPayModalPayment(sortedUnpaid[0]);
+            setPayModalAllowMultiple(true);
         }
     };
 
     const closePayModal = () => {
         setPayModalPayment(null);
-        setPayModalUpi(null);
+        setPayModalAllowMultiple(false);
     };
 
-    const handleProceed = async (paymentId, file) => {
+    const handleProceed = async (paymentIds, file) => {
+        setError("");
         try {
             const formData = new FormData();
             formData.append("file", file);
-            await apiFetch(`/api/student/payments/${paymentId}/upload`, {
+            formData.append("payment_ids_json", JSON.stringify(paymentIds));
+            await apiFetch(`/api/student/payments/batch/upload`, {
                 method: "POST",
                 body: formData,
             });
             setSuccess("Verification request sent successfully! 🎉");
             closePayModal();
-            // Note: No explicit fetchPayments() here.
-            // onSnapshot listener fires automatically when backend updates
-            // the Firestore payment document, triggering a fresh fetch.
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setError(err.message);
@@ -603,16 +675,17 @@ function StudentDashboardContent() {
                 const file = await get("shared_payment_screenshot");
                 if (file) {
                     const unpaid = payments.filter((p) => p.status === "Unpaid");
-                    if (unpaid.length > 0) {
-                        // Sort unpaid payments chronologically to find the oldest
+                    if (unpaid.length > 1) {
+                        setSharedFile(file);
                         const sortedUnpaid = [...unpaid].sort((a, b) => {
                             if (a.year !== b.year) return a.year - b.year;
                             return a.month - b.month;
                         });
-                        const targetPayment = sortedUnpaid[0];
-                        
+                        setPayModalPayment(sortedUnpaid[0]);
+                        setPayModalAllowMultiple(true);
+                    } else if (unpaid.length === 1) {
                         setSharedFile(file);
-                        openPayModal(targetPayment);
+                        openPayModal(unpaid[0]);
                     } else {
                         alert("You don't have any unpaid fees to verify!");
                     }
@@ -671,6 +744,23 @@ function StudentDashboardContent() {
                 >
                     <span>{success}</span>
                     <button onClick={() => setSuccess("")} className="ml-2 cursor-pointer" style={{ color: 'var(--st-accent)' }}>
+                        <span className="material-symbols-outlined text-lg">close</span>
+                    </button>
+                </div>
+            )}
+
+            {error && (
+                <div
+                    className="p-3 rounded-2xl text-sm flex items-center justify-between"
+                    style={{
+                        backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,110,132,0.1)',
+                        borderWidth: 1, borderStyle: 'solid',
+                        borderColor: isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)',
+                        color: isLight ? '#b91c1c' : '#ff9dac',
+                    }}
+                >
+                    <span>{error}</span>
+                    <button onClick={() => setError("")} className="ml-2 cursor-pointer" style={{ color: isLight ? '#b91c1c' : '#ff9dac' }}>
                         <span className="material-symbols-outlined text-lg">close</span>
                     </button>
                 </div>
@@ -740,10 +830,22 @@ function StudentDashboardContent() {
             {/* ── Action Required Section ── */}
             {actionPayments.length > 0 && (
                 <section className="space-y-4">
-                    <div className="flex items-center">
+                    <div className="flex items-center justify-between gap-2">
                         <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                             Action Required
                         </h2>
+                        {payments.filter((p) => p.status === "Unpaid").length > 1 && (
+                            <button
+                                onClick={openPayMultipleModal}
+                                className="select-pay-animate px-4 py-2.5 sm:py-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-full font-bold text-xs shadow-[0_4px_20px_rgba(59,130,246,0.4)] transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 uppercase tracking-wider"
+                                style={{ fontFamily: "'Inter', sans-serif" }}
+                            >
+                                <span className="hidden sm:inline-flex items-center">
+                                    <span className="material-symbols-outlined text-sm">event_repeat</span>
+                                </span>
+                                Select & Pay
+                            </button>
+                        )}
                     </div>
 
                     <div className="space-y-4">
@@ -893,10 +995,8 @@ function StudentDashboardContent() {
             {payModalPayment && (
                 <PayNowModal
                     payment={payModalPayment}
-                    unpaidPayments={payments.filter((p) => p.status === "Unpaid")}
-                    upiData={payModalUpi}
+                    unpaidPayments={payModalAllowMultiple ? payments.filter((p) => p.status === "Unpaid") : []}
                     initialFile={sharedFile}
-                    onPaymentChange={openPayModal}
                     onClose={() => {
                         closePayModal();
                         setSharedFile(null);
