@@ -6,7 +6,7 @@ from datetime import datetime
 
 import requests
 import cloudinary.uploader
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 
 from config import ADMIN_UPI_VPA, DEFAULT_FEE_AMOUNT
@@ -158,6 +158,85 @@ def student_get_payments(user=Depends(require_role("student"))):
     except Exception as e:
         print(f"Error fetching student payments: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch payments: {str(e)}")
+
+
+# ──────────────────────────────────────────────
+# POST /api/student/payments/batch/upload
+# ──────────────────────────────────────────────
+@router.post("/payments/batch/upload")
+def student_batch_upload_screenshot(
+    payment_ids_json: str = Form(...),
+    file: UploadFile = File(...),
+    user=Depends(require_role("student")),
+):
+    """Upload payment screenshot to Cloudinary and set status to Pending_Verification for multiple payments."""
+    import json
+    MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    try:
+        payment_ids = json.loads(payment_ids_json)
+        if not isinstance(payment_ids, list) or not payment_ids:
+            raise HTTPException(status_code=400, detail="Invalid payment_ids format")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON array format for payment_ids")
+
+    # Fetch and verify all payments
+    payment_docs = []
+    months_labels = []
+    
+    for pid in payment_ids:
+        pref = db.collection("payments").document(pid)
+        pdoc = pref.get()
+        if not pdoc.exists:
+            raise HTTPException(status_code=404, detail=f"Payment record {pid} not found")
+        pdata = pdoc.to_dict()
+        if pdata["student_id"] != user["uid"]:
+            raise HTTPException(status_code=403, detail="Not your payment record")
+        if pdata["status"] == "Paid":
+            raise HTTPException(status_code=400, detail=f"Payment for {MONTHS[pdata.get('month', 1) - 1]} {pdata.get('year')} is already verified")
+        payment_docs.append((pref, pdata))
+        
+        # Build month/year label for notification
+        month_num = pdata.get("month", 1)
+        year_num = pdata.get("year", "")
+        months_labels.append(f"{MONTHS[month_num - 1]} {year_num}")
+
+    # Upload to Cloudinary once
+    contents = file.file.read()
+    try:
+        upload_result = cloudinary.uploader.upload(
+            contents,
+            folder="payment_screenshots",
+            public_id=f"batch_{payment_ids[0]}_{uuid.uuid4().hex[:8]}",
+            resource_type="image",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload screenshot: {str(e)}")
+
+    screenshot_url = upload_result["secure_url"]
+    screenshot_public_id = upload_result["public_id"]
+
+    # Write Batch updates
+    batch = db.batch()
+    for pref, _ in payment_docs:
+        batch.update(pref, {
+            "screenshot_url": screenshot_url,
+            "screenshot_public_id": screenshot_public_id,
+            "status": "Pending_Verification",
+            "mode": "online",
+            "requested_at": ts_now(),
+            "updated_at": ts_now(),
+        })
+    batch.commit()
+
+    # Notify student + admins
+    student_name = user.get("name", "Student")
+    notify_user(user["uid"], "Your payments are currently pending verification.", "payment_pending")
+    
+    months_str = ", ".join(months_labels)
+    notify_admins(f"New payment request from {student_name} (Online) for {months_str}.", "new_approval")
+
+    return {"message": "Screenshot uploaded for batch", "screenshot_url": screenshot_url, "payment_ids": payment_ids}
 
 
 # ──────────────────────────────────────────────
@@ -387,6 +466,9 @@ def student_acknowledge_rejection(
         "requested_at": None,
         "rejected_at": None,
         "rejection_reason": None,
+        "mode": None,
+        "requested_by_teacher": None,
+        "teacher_name": None,
         "updated_at": ts_now(),
     })
 

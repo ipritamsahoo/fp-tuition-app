@@ -59,6 +59,18 @@ class OfflineRequest(BaseModel):
     batch_name: Optional[str] = None
 
 
+class OfflineRequestItem(BaseModel):
+    month: int
+    year: int
+    amount: Optional[float] = None
+
+
+class BatchOfflineRequest(BaseModel):
+    student_id: str
+    batch_name: Optional[str] = None
+    items: list[OfflineRequestItem]
+
+
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
@@ -139,4 +151,9 @@ class NoteResponse(BaseModel):
     uploaded_by: str
     uploaded_by_name: str
     created_at: str
+
+
+class BatchActionPayload(BaseModel):
+    payment_ids: list[str]
+
 

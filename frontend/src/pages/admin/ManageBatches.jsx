@@ -279,87 +279,90 @@ function BatchesContent() {
             )}
 
             {/* Delete Confirmation Modal */}
-            {deleteModalBatch && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setDeleteModalBatch(null); setError(""); }}>
-                    <div 
-                        className="bg-[#0c0e17]/60 backdrop-blur-[30px] rounded-[32px] p-6 sm:p-8 w-full max-w-[480px] border border-[#ff4466]/30 shadow-[0_30px_60px_rgba(255,68,102,0.2)] relative animate-modal-in m-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-[#ff4466] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                                <span className="material-symbols-outlined">warning</span>
-                                Delete Batch
-                            </h3>
-                            <button onClick={() => { setDeleteModalBatch(null); setError(""); }} className="text-[#aaaab7] hover:text-[#ff4466] transition-colors cursor-pointer p-2 rounded-full hover:bg-[#ff4466]/10 flex items-center justify-center">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        {error && (
-                            <div className="mb-6 p-4 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-sm flex items-center gap-3">
-                                <span className="material-symbols-outlined text-[#ff6e84]">error</span>
-                                <span className="flex-1 font-medium">{error}</span>
+            {deleteModalBatch && (() => {
+                const targetText = `I CONFIRM TO DELETE ${deleteModalBatch.batch_name.toUpperCase()} BATCH`;
+                return createPortal(
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => { setDeleteModalBatch(null); setError(""); }}>
+                        <div 
+                            className="bg-[#0c0e17]/60 backdrop-blur-[30px] rounded-[32px] p-6 sm:p-8 w-full max-w-[480px] border border-[#ff4466]/30 shadow-[0_30px_60px_rgba(255,68,102,0.2)] relative animate-modal-in m-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-[#ff4466] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                    <span className="material-symbols-outlined">warning</span>
+                                    Delete Batch
+                                </h3>
+                                <button onClick={() => { setDeleteModalBatch(null); setError(""); }} className="text-[#aaaab7] hover:text-[#ff4466] transition-colors cursor-pointer p-2 rounded-full hover:bg-[#ff4466]/10 flex items-center justify-center">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
                             </div>
-                        )}
-                        
-                        <div className="space-y-4 mb-6 text-[#aaaab7]">
-                            <p className="text-sm text-[#f0f0fd] font-medium leading-relaxed">
-                                Are you sure you want to permanently delete the <span className="font-bold text-[#ff4466] text-base">{deleteModalBatch.batch_name}</span> batch?
-                            </p>
+                            {error && (
+                                <div className="mb-6 p-4 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-sm flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[#ff6e84]">error</span>
+                                    <span className="flex-1 font-medium">{error}</span>
+                                </div>
+                            )}
                             
-                            <div className="bg-[#ff4466]/5 border border-[#ff4466]/10 p-5 rounded-2xl text-[13px] leading-relaxed text-[#ffadbb]">
-                                <p className="font-bold mb-3 text-[#ff4466] tracking-widest uppercase text-[11px] flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff4466] shadow-[0_0_8px_#ff4466]" />
-                                    Data to be deleted:
+                            <div className="space-y-4 mb-6 text-[#aaaab7]">
+                                <p className="text-sm text-[#f0f0fd] font-medium leading-relaxed">
+                                    Are you sure you want to permanently delete the <span className="font-bold text-[#ff4466] text-base">{deleteModalBatch.batch_name}</span> batch?
                                 </p>
-                                <ul className="space-y-2 font-medium">
-                                    <li className="flex items-start gap-3">
-                                        <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
-                                        All students assigned to this batch.
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
-                                        All payment records & receipts.
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
-                                        Revenue distribution snapshots.
-                                    </li>
-                                </ul>
-                                <p className="mt-5 text-[10px] italic font-bold text-[#ff4466]/60 uppercase tracking-[0.15em] text-center border-t border-[#ff4466]/10 pt-4">Teacher accounts remain safe.</p>
+                                
+                                <div className="bg-[#ff4466]/5 border border-[#ff4466]/10 p-5 rounded-2xl text-[13px] leading-relaxed text-[#ffadbb]">
+                                    <p className="font-bold mb-3 text-[#ff4466] tracking-widest uppercase text-[11px] flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff4466] shadow-[0_0_8px_#ff4466]" />
+                                        Data to be deleted:
+                                    </p>
+                                    <ul className="space-y-2 font-medium">
+                                        <li className="flex items-start gap-3">
+                                            <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
+                                            All students assigned to this batch.
+                                        </li>
+                                        <li className="flex items-start gap-3">
+                                            <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
+                                            All payment records & receipts.
+                                        </li>
+                                        <li className="flex items-start gap-3">
+                                            <span className="material-symbols-outlined text-[14px] mt-0.5 text-[#ff4466]/60">cancel</span>
+                                            Revenue distribution snapshots.
+                                        </li>
+                                    </ul>
+                                    <p className="mt-5 text-[10px] italic font-bold text-[#ff4466]/60 uppercase tracking-[0.15em] text-center border-t border-[#ff4466]/10 pt-4">Teacher accounts remain safe.</p>
+                                </div>
+ 
+                                <div className="mt-5">
+                                    <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7] ml-1">
+                                        Type <span className="text-[#ff4466] font-black select-all cursor-pointer bg-[#ff4466]/10 px-1 rounded">{targetText}</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={deleteConfirmText}
+                                        onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
+                                        className="w-full px-4 py-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#ff4466]/40 focus:border-[#ff4466]/60 text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752] shadow-inner"
+                                        placeholder={targetText}
+                                        autoComplete="off"
+                                    />
+                                </div>
                             </div>
-
-                            <div className="mt-5">
-                                <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7] ml-1">
-                                    Type <span className="text-[#ff4466] font-black select-all cursor-pointer bg-[#ff4466]/10 px-1 rounded">I confirm to delete {deleteModalBatch.batch_name} batch</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={deleteConfirmText}
-                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                    className="w-full px-4 py-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#ff4466]/40 focus:border-[#ff4466]/60 text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752] shadow-inner"
-                                    placeholder={`I confirm to delete ${deleteModalBatch.batch_name} batch`}
-                                    autoComplete="off"
-                                />
+ 
+                            <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8">
+                                <button onClick={() => { setDeleteModalBatch(null); setError(""); }} className="w-full sm:flex-1 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest text-[#aaaab7] bg-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer border border-white/5">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    disabled={deleteConfirmText !== targetText}
+                                    className="w-full sm:flex-[1.5] py-4 rounded-2xl bg-gradient-to-r from-[#ff4466] to-[#dd2244] text-white shadow-[0_12px_24px_rgba(255,68,102,0.3)] text-[11px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-20 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2 group"
+                                >
+                                    <span className="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">delete_forever</span>
+                                    Delete Permanently
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8">
-                            <button onClick={() => { setDeleteModalBatch(null); setError(""); }} className="w-full sm:flex-1 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest text-[#aaaab7] bg-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer border border-white/5">
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                disabled={deleteConfirmText !== `I confirm to delete ${deleteModalBatch.batch_name} batch`}
-                                className="w-full sm:flex-[1.5] py-4 rounded-2xl bg-gradient-to-r from-[#ff4466] to-[#dd2244] text-white shadow-[0_12px_24px_rgba(255,68,102,0.3)] text-[11px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-20 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2 group"
-                            >
-                                <span className="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">delete_forever</span>
-                                Delete Permanently
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                );
+            })()}
 
             {/* Batch cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

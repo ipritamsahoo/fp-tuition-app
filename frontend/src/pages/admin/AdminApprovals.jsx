@@ -192,58 +192,62 @@ function ApprovalContent() {
         return matchesBatch && matchesMode;
     });
 
-    const handleApprove = async (paymentId) => {
-        setActionLoading(paymentId);
+    const handleApproveGroup = async (group) => {
+        const paymentIds = group.payments.map(p => p.id);
+        setActionLoading(group.id);
         setError("");
 
         // Register to ignore future stale network reads
-        removedIdsRef.current.add(paymentId);
+        paymentIds.forEach(id => removedIdsRef.current.add(id));
 
         // Optimistic UI Update
         setPending(prev => {
-            const updated = prev.filter(p => p.id !== paymentId);
+            const updated = prev.filter(p => !paymentIds.includes(p.id));
             setCache(cacheKeyPending, updated);
             return updated;
         });
 
         try {
-            await api.put(`/api/admin/approve/${paymentId}`);
-            setSuccess("Payment approved!");
+            await api.put(`/api/admin/approve/batch`, { payment_ids: paymentIds });
+            setSuccess("Payments approved!");
         } catch (err) { 
             if (!isSystemicError(err.message)) {
                 setError(err.message); 
             }
-            removedIdsRef.current.delete(paymentId); // Untrack on failure
+            paymentIds.forEach(id => removedIdsRef.current.delete(id)); // Untrack on failure
             fetchPending(); // Revert on error
+        } finally { 
+            setActionLoading(null); 
         }
-        finally { setActionLoading(null); }
     };
 
-    const handleReject = async (paymentId) => {
-        setActionLoading(paymentId);
+    const handleRejectGroup = async (group) => {
+        const paymentIds = group.payments.map(p => p.id);
+        setActionLoading(group.id);
         setError("");
 
         // Register to ignore future stale network reads
-        removedIdsRef.current.add(paymentId);
+        paymentIds.forEach(id => removedIdsRef.current.add(id));
 
         // Optimistic UI Update
         setPending(prev => {
-            const updated = prev.filter(p => p.id !== paymentId);
+            const updated = prev.filter(p => !paymentIds.includes(p.id));
             setCache(cacheKeyPending, updated);
             return updated;
         });
 
         try {
-            await api.put(`/api/admin/reject/${paymentId}`);
-            setSuccess("Payment rejected.");
+            await api.put(`/api/admin/reject/batch`, { payment_ids: paymentIds });
+            setSuccess("Payments rejected.");
         } catch (err) { 
             if (!isSystemicError(err.message)) {
                 setError(err.message); 
             }
-            removedIdsRef.current.delete(paymentId); // Untrack on failure
+            paymentIds.forEach(id => removedIdsRef.current.delete(id)); // Untrack on failure
             fetchPending(); // Revert on error
+        } finally { 
+            setActionLoading(null); 
         }
-        finally { setActionLoading(null); }
     };
 
     const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -255,6 +259,42 @@ function ApprovalContent() {
             </div>
         );
     }
+
+    // Grouping the filtered list
+    const groupedPending = [];
+    const groups = {};
+
+    filtered.forEach(p => {
+        const key = p.screenshot_url ? `online-${p.student_id}-${p.screenshot_url}` : `offline-${p.student_id}`;
+        if (!groups[key]) {
+            groups[key] = {
+                id: key,
+                student_id: p.student_id,
+                student_name: p.student_name,
+                profile_pic_url: p.profile_pic_url,
+                pic_version: p.pic_version,
+                mode: p.mode,
+                screenshot_url: p.screenshot_url,
+                screenshot_public_id: p.screenshot_public_id,
+                batch_id: p.batch_id,
+                batch_name: p.batch_name,
+                teacher_name: p.teacher_name,
+                payments: [],
+            };
+            groupedPending.push(groups[key]);
+        }
+        groups[key].payments.push(p);
+    });
+
+    groupedPending.forEach(group => {
+        group.payments.sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return a.month - b.month;
+        });
+        
+        group.totalAmount = group.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        group.monthsLabel = group.payments.map(p => `${MONTHS[p.month - 1]} ${p.year}`).join(", ");
+    });
 
     return (
         <div className="space-y-6">
@@ -305,7 +345,7 @@ function ApprovalContent() {
                 </div>
             )}
 
-            {filtered.length === 0 ? (
+            {groupedPending.length === 0 ? (
                 <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-3xl p-10 sm:p-12 text-center">
                     <span className="text-5xl block mb-4 drop-shadow-md">🎉</span>
                     <p className="text-[#f0f0fd] text-xl font-bold" style={{ fontFamily: "'Manrope', sans-serif" }}>All clear!</p>
@@ -313,52 +353,52 @@ function ApprovalContent() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {filtered.map((item, idx) => (
-                        <div key={item.id} className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 sm:p-6 transition-colors hover:bg-[#171924]/80">
+                    {groupedPending.map((group, idx) => (
+                        <div key={group.id} className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 sm:p-6 transition-colors hover:bg-[#171924]/80">
                             {/* Top: Name + Badges */}
                             <div className="flex items-center gap-4 mb-4 flex-wrap">
-                                {item.profile_pic_url ? (
-                                    <img src={safeOptimizedUrl(item.profile_pic_url)} alt="Avatar" className="w-[44px] h-[44px] min-w-[44px] rounded-2xl object-cover shrink-0 shadow-lg border border-white/10" loading="lazy" />
+                                {group.profile_pic_url ? (
+                                    <img src={safeOptimizedUrl(group.profile_pic_url)} alt="Avatar" className="w-[44px] h-[44px] min-w-[44px] rounded-2xl object-cover shrink-0 shadow-lg border border-white/10" loading="lazy" />
                                 ) : (
-                                    <StudentAvatarFallback name={item.student_name} size={44} />
+                                    <StudentAvatarFallback name={group.student_name} size={44} />
                                 )}
                                 <h3 className="text-[#f0f0fd] font-bold text-base sm:text-lg truncate flex-1 min-w-0" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                                    {item.student_name || "Unknown Student"}
+                                    {group.student_name || "Unknown Student"}
                                 </h3>
                                 <span className={`shrink-0 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border
-                                    ${item.mode === "online" ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/30" : "bg-[#ff9dac]/10 text-[#ff9dac] border-[#ff9dac]/30"}`}>
-                                    {item.mode === "online" ? "📱 Online" : "💵 Offline"}
+                                    ${group.mode === "online" ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/30" : "bg-[#ff9dac]/10 text-[#ff9dac] border-[#ff9dac]/30"}`}>
+                                    {group.mode === "online" ? "📱 Online" : "💵 Offline"}
                                 </span>
                             </div>
 
                             {/* Details row */}
                             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-[#aaaab7] mb-6 font-medium">
-                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#c799ff] text-base">calendar_today</span> {MONTHS[item.month - 1]} {item.year}</span>
-                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#4af8e3] text-base">payments</span> ₹{item.amount}</span>
-                                {item.batch_name && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#ff9dac] text-base">group</span> {item.batch_name}</span>}
-                                {item.teacher_name && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-white/70 text-base">person</span> {item.teacher_name}</span>}
+                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#c799ff] text-base">calendar_today</span> {group.monthsLabel}</span>
+                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#4af8e3] text-base">payments</span> ₹{group.totalAmount}</span>
+                                {group.batch_name && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[#ff9dac] text-base">group</span> {group.batch_name}</span>}
+                                {group.mode !== "online" && group.teacher_name && group.teacher_name !== "Instructor" && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-white/70 text-base">person</span> {group.teacher_name}</span>}
                             </div>
 
                             {/* Screenshot + Actions */}
                             <div className="flex items-center justify-between gap-4">
-                                {item.screenshot_url ? (
-                                    <button onClick={() => setPreviewImg(item.screenshot_url)}
+                                {group.screenshot_url ? (
+                                    <button onClick={() => setPreviewImg(group.screenshot_url)}
                                         className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border border-[#464752]/50 active:border-[#c799ff] transition-all cursor-pointer group relative">
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
                                             <span className="material-symbols-outlined text-white">zoom_in</span>
                                         </div>
-                                        <img src={item.screenshot_url} alt="Screenshot" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        <img src={group.screenshot_url} alt="Screenshot" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                     </button>
                                 ) : <div />}
 
                                 <div className="flex gap-2 sm:gap-3">
-                                    <button onClick={() => handleApprove(item.id)} disabled={actionLoading === item.id}
+                                    <button onClick={() => handleApproveGroup(group)} disabled={actionLoading === group.id}
                                         className="flex-1 sm:flex-none px-4 sm:px-6 py-3 rounded-xl bg-[#4af8e3]/10 border border-[#4af8e3]/30 text-[#4af8e3] text-xs sm:text-sm shadow-sm transition-all
                                             hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 disabled:opacity-50 cursor-pointer flex items-center gap-2 font-bold uppercase tracking-wider" style={{ fontFamily: "'Inter', sans-serif" }}>
                                         <span className="material-symbols-outlined text-base">check_circle</span>
                                         <span className="hidden sm:inline">Approve</span>
                                     </button>
-                                    <button onClick={() => handleReject(item.id)} disabled={actionLoading === item.id}
+                                    <button onClick={() => handleRejectGroup(group)} disabled={actionLoading === group.id}
                                         className="flex-1 sm:flex-none px-4 sm:px-6 py-3 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff6e84] text-xs sm:text-sm shadow-sm transition-all
                                             hover:bg-[#ff6e84]/20 hover:border-[#ff6e84]/50 disabled:opacity-50 cursor-pointer flex items-center gap-2 font-bold uppercase tracking-wider" style={{ fontFamily: "'Inter', sans-serif" }}>
                                         <span className="material-symbols-outlined text-base">cancel</span>

@@ -51,9 +51,13 @@ export default function AdminLayout({ children }) {
 
     const handlePointerDown = (e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const actualWidth = 56;
+        const untransformedLeft = rect.left + (rect.width - actualWidth) / 2;
+        
         dragStartRef.current = {
             x: e.clientX,
-            buttonX: e.currentTarget.getBoundingClientRect().left
+            buttonX: untransformedLeft
         };
         hasMovedRef.current = false;
         setDragX(dragStartRef.current.buttonX);
@@ -611,6 +615,9 @@ export default function AdminLayout({ children }) {
                                 <Link
                                     key={item.href}
                                     to={item.href}
+                                    onClick={() => {
+                                        if (navigator.vibrate) navigator.vibrate(40);
+                                    }}
                                     className="flex-1 relative z-10 flex items-center justify-center h-[66px] rounded-full active:scale-90"
                                 >
                                     <span

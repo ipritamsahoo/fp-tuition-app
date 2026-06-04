@@ -101,7 +101,14 @@ function StudentsContent() {
         }
     }, []);
 
-    const handleViewStudents = () => loadStudents(selectedListBatch);
+    useEffect(() => {
+        if (selectedListBatch) {
+            loadStudents(selectedListBatch);
+        } else {
+            setStudents([]);
+            setHasLoaded(false);
+        }
+    }, [selectedListBatch, loadStudents]);
 
     useEffect(() => { fetchBatches(); }, [fetchBatches]);
 
@@ -336,30 +343,15 @@ function StudentsContent() {
                 <div className="space-y-5">
                     {/* Batch selector row */}
                     <div className="flex flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
-                        <div className="w-[65%] sm:w-auto sm:flex-1 sm:max-w-xs">
+                        <div className="w-full sm:flex-1 sm:max-w-xs">
                             <ModernSelect
                                 value={selectedListBatch}
-                                onChange={(e) => { setSelectedListBatch(e.target.value); setHasLoaded(false); setStudents([]); }}
+                                onChange={(e) => setSelectedListBatch(e.target.value)}
                                 options={batches}
                                 placeholder="Select Batch"
                                 className="w-full h-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
                             />
                         </div>
-                        <button
-                            onClick={handleViewStudents}
-                            disabled={!selectedListBatch || listLoading}
-                            className="w-[35%] sm:w-auto px-2 sm:px-6 py-3 rounded-xl bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 text-xs sm:text-sm font-bold uppercase tracking-widest
-                            hover:bg-[#c799ff]/20 hover:border-[#c799ff]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(199,153,255,0.15)]
-                            disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1 sm:gap-2 whitespace-nowrap"
-                        >
-                            {listLoading ? (
-                                <span className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-[#c799ff]/30 border-t-[#c799ff] animate-spin" />
-                            ) : (
-                                <span className="material-symbols-outlined text-[16px]">search</span>
-                            )}
-                            <span className="hidden sm:inline">{listLoading ? "Loading..." : "View Students"}</span>
-                            <span className="sm:hidden">{listLoading ? "WAIT" : "VIEW"}</span>
-                        </button>
                     </div>
 
                     {/* Loading skeleton */}
@@ -369,8 +361,8 @@ function StudentsContent() {
                     {!listLoading && !hasLoaded && (
                         <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4 text-center">
                             <span className="material-symbols-outlined text-5xl text-[#464752]">group</span>
-                            <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select a batch and click View</p>
-                            <p className="text-[#aaaab7] text-sm">No unnecessary database reads until you choose a batch.</p>
+                            <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</p>
+                            <p className="text-[#aaaab7] text-sm">Please select a batch to view its students.</p>
                         </div>
                     )}
 
@@ -735,8 +727,8 @@ function StudentsContent() {
             {/* Status Toggle Modal */}
             {statusModalStudent && (() => {
                 const isDisabling = !statusModalStudent.is_disabled;
-                const actionText = isDisabling ? "disable" : "enable";
-                const targetText = `I confirm to ${actionText} ${statusModalStudent.name}`;
+                const actionText = isDisabling ? "DISABLE" : "ENABLE";
+                const targetText = `I CONFIRM TO ${actionText} ${statusModalStudent.name.toUpperCase()}`;
                 return createPortal(
                     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
                         <div className={`bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border ${isDisabling ? "border-[#ff6e84]/30 shadow-[0_0_40px_rgba(255,110,132,0.15)]" : "border-[#4af8e3]/30 shadow-[0_0_40px_rgba(74,248,227,0.15)]"} relative animate-fade-in-up m-auto`}>
@@ -783,7 +775,7 @@ function StudentsContent() {
                                     <input
                                         type="text"
                                         value={statusConfirmText}
-                                        onChange={(e) => setStatusConfirmText(e.target.value)}
+                                        onChange={(e) => setStatusConfirmText(e.target.value.toUpperCase())}
                                         className={`w-full px-4 py-3.5 rounded-xl bg-[#222532]/50 border border-[#464752]/50 ${isDisabling ? "hover:border-[#ff6e84]/50 focus:border-[#ff6e84] focus:ring-[#ff6e84]" : "hover:border-[#4af8e3]/50 focus:border-[#4af8e3] focus:ring-[#4af8e3]"} text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-1 transition-colors`}
                                         placeholder={targetText}
                                         autoComplete="off"

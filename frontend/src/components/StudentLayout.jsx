@@ -48,7 +48,7 @@ function useScrollBounce(isDisabled) {
 
         const handleTouchStart = (e) => {
             if (e.touches.length !== 1) return;
-            
+
             // Safety check: do not bounce if touch starts inside a portal/modal
             if (!el.contains(e.target)) return;
 
@@ -59,7 +59,7 @@ function useScrollBounce(isDisabled) {
             }
 
             const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
-            
+
             startYRef.current = e.touches[0].clientY;
             startXRef.current = e.touches[0].clientX;
             isAtTopRef.current = scrollTop <= 1;
@@ -120,9 +120,9 @@ function useScrollBounce(isDisabled) {
                 if (decayRafRef.current) {
                     cancelAnimationFrame(decayRafRef.current);
                 }
-                
+
                 el.style.transition = "none";
-                
+
                 // Limit maximum bounce to 80px
                 let targetBounce = accumulatedBounceRef.current - dy * 0.15;
                 if (dy < 0) {
@@ -130,7 +130,7 @@ function useScrollBounce(isDisabled) {
                 } else {
                     targetBounce = Math.max(-80, targetBounce);
                 }
-                
+
                 accumulatedBounceRef.current = targetBounce;
                 el.style.transform = `translate3d(0, ${accumulatedBounceRef.current}px, 0)`;
                 if (e.cancelable) e.preventDefault();
@@ -191,11 +191,11 @@ function StudentLayoutInner({ children }) {
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = studentNav.findIndex(item => pathname === item.href);
-    
+
     // Retrieve previous active index from sessionStorage to animate across page mounts
     const savedPrevIdx = sessionStorage.getItem("prevActiveIdx_student");
     const initialPrevIdx = savedPrevIdx !== null ? Number(savedPrevIdx) : activeIdx;
-    
+
     const [indicatorIdx, setIndicatorIdx] = useState(initialPrevIdx);
     const prevIdxRef = useRef(initialPrevIdx);
     const rafRef = useRef(null);
@@ -275,11 +275,13 @@ function StudentLayoutInner({ children }) {
         prevIdxRef.current = to;
     }, [activeIdx, isLight]);
 
-    const isSubPageMobile = pathname !== "/student" && 
-                            pathname !== "/student/payments" && 
-                            pathname !== "/student/leaderboard" && 
-                            pathname !== "/student/notes" &&
-                            pathname !== "/student/settings";
+    const isSubPageMobile = pathname !== "/student" &&
+        pathname !== "/student/payments" &&
+        pathname !== "/student/leaderboard" &&
+        pathname !== "/student/notes" &&
+        pathname !== "/student/settings";
+
+    const isSettings = pathname === "/student/settings";
 
     const getSubPageTitle = () => {
         const item = studentNav.find(i => i.href !== "/student" && pathname.startsWith(i.href));
@@ -343,7 +345,7 @@ function StudentLayoutInner({ children }) {
             </div>
 
             {/* ── Mobile TopAppBar (Main Pages) ── */}
-            {!isSubPageMobile && (
+            {!isSubPageMobile && !isSettings && (
                 <header
                     className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-3 h-14 animate-fade-in overflow-hidden rounded-[28px]"
                     style={{
@@ -376,7 +378,7 @@ function StudentLayoutInner({ children }) {
                         </h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
                             onClick={() => navigate("/notifications")}
                             className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
                             style={{ color: 'var(--st-text-secondary)' }}
@@ -395,7 +397,7 @@ function StudentLayoutInner({ children }) {
                                 </span>
                             )}
                         </button>
-                        <div 
+                        <div
                             className="transition-all cursor-pointer"
                             onClick={() => navigate("/student/settings")}
                         >
@@ -415,7 +417,7 @@ function StudentLayoutInner({ children }) {
                         transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
                         className="w-10 h-10 flex items-center justify-center rounded-xl active:scale-90 transition-all mr-3"
                         style={{
@@ -513,7 +515,7 @@ function StudentLayoutInner({ children }) {
             <div className="hidden md:flex fixed top-0 right-0 z-50 p-6 items-center gap-5">
                 {/* Notification Bell */}
                 <div className="relative">
-                    <button 
+                    <button
                         onClick={() => setNotifOpen(true)}
                         className="relative transition-all active:scale-95 duration-200 cursor-pointer w-10 h-10 flex items-center justify-center rounded-full shadow-lg"
                         style={{
@@ -547,7 +549,7 @@ function StudentLayoutInner({ children }) {
                 </div>
 
                 {/* Profile Picture */}
-                <div 
+                <div
                     className="flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                     onClick={() => navigate("/student/settings")}
                 >
@@ -556,9 +558,9 @@ function StudentLayoutInner({ children }) {
             </div>
 
             {/* ── Main Content ── */}
-            <main 
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col pt-28 ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
-                style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", contain: "paint layout", scrollbarGutter: "stable" }}
+            <main
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
+                style={{ scrollbarGutter: "stable" }}
             >
                 <div ref={bounceRef} className="max-w-4xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>
                     {children}
@@ -570,14 +572,14 @@ function StudentLayoutInner({ children }) {
             {needsProfilePic && (
                 <ProfilePicUpload
                     isOpen={true}
-                    onClose={() => {}}
+                    onClose={() => { }}
                     mandatory={true}
                 />
             )}
 
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
-                <nav 
+                <nav
                     className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate flex items-center"
                     style={{
                         background: 'var(--st-nav-bg)',
@@ -588,51 +590,55 @@ function StudentLayoutInner({ children }) {
                         transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
-                        {activeIdx >= 0 && (
+                    {activeIdx >= 0 && (
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
+                            style={{
+                                width: `${100 / studentNav.length}%`,
+                                left: `${indicatorIdx * (100 / studentNav.length)}%`,
+                                transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                            }}
+                        >
                             <div
-                                className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
+                                className="w-12 h-12 rounded-full"
                                 style={{
-                                    width: `${100 / studentNav.length}%`,
-                                    left: `${indicatorIdx * (100 / studentNav.length)}%`,
-                                    transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                                    backgroundColor: 'var(--st-nav-indicator)',
+                                    boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`,
                                 }}
+                            />
+                        </div>
+                    )}
+                    {studentNav.map((item, i) => {
+                        const isActive = i === indicatorIdx;
+                        return (
+                            <Link
+                                key={item.href}
+                                to={item.href}
+                                onClick={() => {
+                                    if (navigator.vibrate) navigator.vibrate(40);
+                                }}
+                                className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
                             >
-                                <div
-                                    className="w-12 h-12 rounded-full"
+                                <span
+                                    ref={el => iconRefs.current[i] = el}
+                                    className="material-symbols-outlined text-[22px]"
                                     style={{
-                                        backgroundColor: 'var(--st-nav-indicator)',
-                                        boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                                        color: isActive ? '#ffffff' : 'var(--st-nav-icon-inactive)',
+                                        transform: isActive ? 'scale(1.14)' : 'scale(1)',
+                                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                                        willChange: 'transform, color',
                                     }}
-                                />
-                            </div>
-                        )}
-                        {studentNav.map((item, i) => {
-                            const isActive = i === indicatorIdx;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    to={item.href}
-                                    className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
                                 >
-                                    <span
-                                        ref={el => iconRefs.current[i] = el}
-                                        className="material-symbols-outlined text-[22px]"
-                                        style={{
-                                            color: isActive ? '#ffffff' : 'var(--st-nav-icon-inactive)',
-                                            transform: isActive ? 'scale(1.14)' : 'scale(1)',
-                                            fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                                            willChange: 'transform, color',
-                                        }}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                                    {item.icon}
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </nav>
             )}
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
                 }
