@@ -36,6 +36,7 @@ messaging.onBackgroundMessage((payload) => {
     // Save notification to IndexedDB so frontend can read it
     const notif = {
         id: `local_bg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        title: title !== "FP Finance" ? title : (data.title || ""),
         message: options.body,
         type: data.type || "general",
         target_uid: data.target_uid || null, // Ensure strict user isolation

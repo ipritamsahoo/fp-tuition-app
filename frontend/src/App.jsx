@@ -83,6 +83,15 @@ export default function App() {
             }
 
             const currentVer = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2.0';
+
+            // Guard: if the waiting SW is the same version already running,
+            // it's a stale waiting state (e.g. just after silent activation).
+            // Don't show the banner — silently skip it.
+            if (newVer && newVer !== "Unknown" && newVer === currentVer) {
+                console.log("[PWA] Waiting SW is same version as current — skipping banner.");
+                return;
+            }
+
             setPwaModal({ 
                 show: true, 
                 mode: "update", 

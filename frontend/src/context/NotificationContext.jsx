@@ -186,7 +186,11 @@ export function NotificationProvider({ children }) {
         // Listen for messages from service worker (background notification sync)
         const handleSWMessage = (event) => {
             if (event.data?.type === "NEW_NOTIFICATION" && event.data.notification) {
-                const notif = event.data.notification;
+                const raw = event.data.notification;
+                const notif = {
+                    ...raw,
+                    title: raw.title || raw.data?.title || "",
+                };
                 // Only add if it belongs to this user
                 if (!notif.target_uid || notif.target_uid === userRef.current) {
                     addNotification(notif);
@@ -317,12 +321,19 @@ export function NotificationProvider({ children }) {
             const data = payload.data || {};
             const notif = {
                 id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                title: data.title || payload.notification?.title || "",
                 message: data.body || payload.notification?.body || "New notification",
                 type: data.type || "general",
                 is_read: false,
                 created_at: new Date().toISOString(),
             };
             addNotification(notif);
+
+            // If it is a new notice notification, trigger count refresh
+            if (data.type === "notice") {
+                window.dispatchEvent(new CustomEvent("notices-updated"));
+                window.dispatchEvent(new CustomEvent("notices-read"));
+            }
 
             // Force native push notification even when app is open
             if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {

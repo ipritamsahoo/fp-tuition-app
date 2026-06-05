@@ -434,23 +434,30 @@ def teacher_distribution(
             raise HTTPException(status_code=403, detail="Not assigned to this batch")
         batch_map = {batch_id: batch_map[batch_id]}
 
+    # Calculate start and end strings for the month (lexicographical range query on updated_at)
+    if month == 12:
+        next_month = 1
+        next_year = year + 1
+    else:
+        next_month = month + 1
+        next_year = year
+    start_str = f"{year:04d}-{month:02d}-01"
+    end_str = f"{next_year:04d}-{next_month:02d}-01"
+
     # 2. Query paid payments for assigned batches (to build the date list)
+    # Fetch all paid payments in the month and filter by teacher's assigned batches in-memory to avoid composite index
     all_payments = []
-    batch_ids = list(batch_map.keys())
-    
-    # Firestore 'in' queries are limited to 10 items, so chunk the batch_ids
-    for i in range(0, len(batch_ids), 10):
-        chunk = batch_ids[i:i+10]
-        payments = db.collection("payments") \
-            .where(filter=FieldFilter("status", "==", "Paid")) \
-            .where(filter=FieldFilter("month", "==", month)) \
-            .where(filter=FieldFilter("year", "==", year)) \
-            .where(filter=FieldFilter("batch_id", "in", chunk)) \
-            .stream()
-            
-        for p in payments:
-            data = serialize_doc(p)
-            data["_batch_id"] = data.get("batch_id", "unknown")
+    payments = db.collection("payments") \
+        .where(filter=FieldFilter("status", "==", "Paid")) \
+        .where(filter=FieldFilter("updated_at", ">=", start_str)) \
+        .where(filter=FieldFilter("updated_at", "<", end_str)) \
+        .stream()
+        
+    for p in payments:
+        data = serialize_doc(p)
+        bid = data.get("batch_id")
+        if bid in batch_map:
+            data["_batch_id"] = bid
             all_payments.append(data)
 
     # 3. Fetch settlement snapshots

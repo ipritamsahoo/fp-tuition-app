@@ -14,6 +14,28 @@ const MONTHS = [
 ];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+const groupPayments = (payments) => {
+    if (!payments) return [];
+    const grouped = {};
+    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    payments.forEach(p => {
+        const key = p.student_id || p.student_name;
+        if (!grouped[key]) {
+            grouped[key] = {
+                student_name: p.student_name,
+                amount: 0,
+                billingCycles: []
+            };
+        }
+        grouped[key].amount += (p.amount || 0);
+        const cycle = p.month ? `${MONTHS_SHORT[p.month - 1]} ${p.year}` : "N/A";
+        grouped[key].billingCycles.push(cycle);
+    });
+
+    return Object.values(grouped);
+};
+
 // ── Glass Card ──
 function GlassCard({ children, className = "", style = {} }) {
     return (
@@ -62,7 +84,9 @@ function InitialAvatar({ name, size = 36, className = "" }) {
 
 function TeacherDistributionContent() {
     const { user } = useAuth();
-    const { month: defaultMonth, year: defaultYear } = getPreviousMonth();
+    const now = new Date();
+    const defaultMonth = now.getMonth() + 1;
+    const defaultYear = now.getFullYear();
     const [month, setMonth] = useState(defaultMonth);
     const [year, setYear] = useState(defaultYear);
     
@@ -333,7 +357,7 @@ function TeacherDistributionContent() {
                                                         <div className="text-left flex-1 min-w-0">
                                                             <p className="text-[#f0f0fd] font-bold text-sm md:text-lg tracking-wide truncate" style={{ fontFamily: "'Manrope', sans-serif" }}>{formattedDate}</p>
                                                             <p className="text-[#aaaab7] text-[11px] md:text-xs font-medium tracking-wide mt-0.5 md:mt-1 flex items-center gap-1.5 md:gap-2 flex-wrap">
-                                                                <span>{dist.payments_count} payment(s)</span>
+                                                                <span>{dist.payments ? groupPayments(dist.payments).length : 0} student payment(s)</span>
                                                             </p>
                                                         </div>
                                                     </button>
@@ -366,14 +390,18 @@ function TeacherDistributionContent() {
                                                                     <thead className="bg-white/5">
                                                                         <tr>
                                                                             <th className="px-4 py-2 text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest">Student</th>
+                                                                            <th className="px-4 py-2 text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest text-center">Billing Cycle</th>
                                                                             <th className="px-4 py-2 text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest text-right">Amount</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-white/5">
-                                                                        {dist.payments.map((p, idx) => (
+                                                                        {groupPayments(dist.payments).map((p, idx) => (
                                                                             <tr key={idx} className="hover:bg-white/5 transition-colors">
                                                                                 <td className="px-4 py-3 text-[#f0f0fd]">{p.student_name}</td>
-                                                                                <td className="px-4 py-3 text-[#4af8e3] font-bold text-right">₹{(p.amount || 0).toLocaleString()}</td>
+                                                                                <td className="px-4 py-3 text-xs text-[#aaaab7] font-semibold text-center">
+                                                                                    {p.billingCycles.join(", ")}
+                                                                                </td>
+                                                                                <td className="px-4 py-3 text-[#4af8e3] font-bold text-right">₹{p.amount.toLocaleString()}</td>
                                                                             </tr>
                                                                         ))}
                                                                     </tbody>

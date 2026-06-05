@@ -148,9 +148,16 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="text-sm leading-snug font-medium" style={{ color: 'var(--st-text-primary)' }}>
-                                            {n.message}
-                                        </p>
+                                        <div className="flex-1 min-w-0">
+                                            {n.title && (
+                                                <p className="text-sm font-bold leading-snug truncate mb-0.5" style={{ color: 'var(--st-text-primary)' }}>
+                                                    {n.title}
+                                                </p>
+                                            )}
+                                            <p className={`leading-snug font-medium ${n.title ? "text-xs" : "text-sm"}`} style={{ color: n.title ? 'var(--st-text-muted)' : 'var(--st-text-primary)' }}>
+                                                {n.message}
+                                            </p>
+                                        </div>
                                         {/* Dismiss */}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}

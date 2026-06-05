@@ -75,7 +75,7 @@ function StudentNoticeCard({ notice, user, formatDateTime }) {
 
             {/* Content Body */}
             <p 
-                className="text-xs text-[#f0f0fd] leading-relaxed whitespace-pre-wrap select-text pl-1"
+                className="text-sm text-[#f0f0fd] leading-relaxed whitespace-pre-wrap select-text pl-1"
                 style={{ color: "var(--st-text-primary)" }}
             >
                 {notice.content}

@@ -15,9 +15,10 @@ if ("serviceWorker" in navigator) {
 
                 /**
                  * Show the update banner to the user.
-                 * Called ONLY when the app is already open and a new update arrives,
-                 * OR when the user manually presses "Check for Updates".
-                 * NOT called on page load (silent activation instead).
+                 * Called ONLY when:
+                 *   1. The user manually presses "Check for Updates"
+                 *   2. The 30-min periodic check finds a waiting SW
+                 * NOT called on page load or background updatefound.
                  */
                 const showUpdateBanner = () => {
                     console.log("[PWA] Dispatching pwa-update-available.");
@@ -34,26 +35,38 @@ if ("serviceWorker" in navigator) {
                     registration.waiting.postMessage({ type: "SKIP_WAITING" });
                 }
 
-                // ── 2. Background update during session → show banner ──────────
-                // If a new SW installs while the app is ALREADY open,
-                // notify the user with the banner so they can choose when to update.
+                // ── 2. Background updatefound → let SW install silently ────────
+                // New SW installs in the background but we do NOT show the banner.
+                // It will sit in "waiting" state until the 30-min interval or the
+                // user's manual check picks it up and shows the banner.
                 registration.addEventListener("updatefound", () => {
-                    const sw = registration.installing;
-                    if (!sw) return;
-                    sw.addEventListener("statechange", () => {
-                        if (sw.state === "installed" && navigator.serviceWorker.controller) {
-                            console.log("[PWA] New SW installed during session — showing banner.");
-                            showUpdateBanner();
-                        }
-                    });
+                    console.log("[PWA] New SW installing silently in background.");
                 });
 
                 // ── 3. Periodic background check (every 30 min) ────────────────
-                // Ensures long-lived sessions catch updates automatically.
-                setInterval(() => {
+                // If a waiting SW is found, show the update banner.
+                const periodicCheck = async () => {
                     console.log("[PWA] Periodic background update check.");
-                    registration.update().catch(() => {});
-                }, 30 * 60 * 1000);
+                    try {
+                        await registration.update();
+                    } catch {
+                        return;
+                    }
+                    // Poll for up to 15s to see if a new SW enters waiting state
+                    const startTime = Date.now();
+                    const poll = () => {
+                        if (registration.waiting) {
+                            console.log("[PWA] Periodic check: new SW waiting — showing banner.");
+                            window.dispatchEvent(new Event("pwa-update-available"));
+                            return;
+                        }
+                        if (registration.installing && Date.now() - startTime < 15_000) {
+                            setTimeout(poll, 300);
+                        }
+                    };
+                    setTimeout(poll, 500);
+                };
+                setInterval(periodicCheck, 30 * 60 * 1000);
 
                 // ── 4. Manual "Check for Updates" ──────────────────────────────
                 window.checkForPwaUpdate = async () => {

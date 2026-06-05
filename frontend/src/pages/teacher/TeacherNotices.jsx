@@ -72,7 +72,7 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
             </div>
 
             {/* Content Body */}
-            <p className="text-xs text-[#f0f0fd] leading-relaxed whitespace-pre-wrap select-text pl-1">
+            <p className="text-sm text-[#f0f0fd] leading-relaxed whitespace-pre-wrap select-text pl-1">
                 {notice.content}
             </p>
 

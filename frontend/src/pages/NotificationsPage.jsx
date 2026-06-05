@@ -154,9 +154,16 @@ export default function NotificationsPage() {
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-3">
-                                        <p className="text-sm sm:text-base leading-snug font-bold" style={{ color: 'var(--st-text-primary)' }}>
-                                            {n.message}
-                                        </p>
+                                        <div className="flex-1 min-w-0">
+                                            {n.title && (
+                                                <p className="text-sm sm:text-base font-bold leading-snug truncate mb-0.5" style={{ color: 'var(--st-text-primary)' }}>
+                                                    {n.title}
+                                                </p>
+                                            )}
+                                            <p className={`leading-snug font-medium ${n.title ? "text-xs sm:text-sm" : "text-sm sm:text-base font-bold"}`} style={{ color: n.title ? 'var(--st-text-muted)' : 'var(--st-text-primary)' }}>
+                                                {n.message}
+                                            </p>
+                                        </div>
                                         {/* Dismiss */}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
