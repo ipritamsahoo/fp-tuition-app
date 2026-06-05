@@ -1464,20 +1464,32 @@ def admin_distribution(
     batch_id: Optional[str] = None,
     user=Depends(require_role("admin")),
 ):
-    """Calculate revenue distribution among teachers for a given fee month/year.
+    """Calculate revenue distribution among teachers for a given approval (collection) month/year.
     Groups paid payments by batch and splits revenue among assigned teachers.
     Optionally filter by batch_id."""
 
-    # 1. Query paid payments for this fee month/year (+ optional batch filter)
-    # This is used for the individual date/payment listings
+    # 1. Query paid payments for this approval month/year (+ optional batch filter)
+    # Calculate start and end strings for the month (lexicographical range query on updated_at)
+    if month == 12:
+        next_month = 1
+        next_year = year + 1
+    else:
+        next_month = month + 1
+        next_year = year
+    start_str = f"{year:04d}-{month:02d}-01"
+    end_str = f"{next_year:04d}-{next_month:02d}-01"
+
     query = db.collection("payments") \
         .where(filter=FieldFilter("status", "==", "Paid")) \
-        .where(filter=FieldFilter("month", "==", month)) \
-        .where(filter=FieldFilter("year", "==", year))
-    if batch_id:
-        query = query.where(filter=FieldFilter("batch_id", "==", batch_id))
+        .where(filter=FieldFilter("updated_at", ">=", start_str)) \
+        .where(filter=FieldFilter("updated_at", "<", end_str))
 
-    matching_payments = [serialize_doc(p) for p in query.stream()]
+    matching_payments = []
+    for p in query.stream():
+        p_doc = serialize_doc(p)
+        if batch_id and p_doc.get("batch_id") != batch_id:
+            continue
+        matching_payments.append(p_doc)
 
     # 2. Fetch settlement snapshots for summary aggregation
     snapshot_query = db.collection("distribution_snapshots") \
@@ -1589,6 +1601,20 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
             detail=f"Cannot settle revenue for today ({req.date}). Please wait until tomorrow."
         )
 
+    # Sanity check: Ensure date matches requested cycle (month/year)
+    try:
+        dt_parts = req.date.split("-")
+        if len(dt_parts) == 3:
+            req_year = int(dt_parts[0])
+            req_month = int(dt_parts[1])
+            if req_year != req.year or req_month != req.month:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Settlement date {req.date} does not fall within the selected cycle {req.month}/{req.year}"
+                )
+    except (ValueError, IndexError):
+        raise HTTPException(status_code=400, detail="Invalid date format.")
+
     # Check if already settled
     existing = db.collection("distribution_snapshots") \
         .where(filter=FieldFilter("date", "==", req.date)) \
@@ -1601,8 +1627,6 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
         raise HTTPException(status_code=400, detail="This date is already settled.")
 
     # Re-calculate distribution for this specific date using updated_at range
-    # This drastically reduces reads by only bringing in today's payments.
-    # It requires a Firebase Composite Index: Collection 'payments' -> 'status' (Asc) + 'updated_at' (Asc)
     query = db.collection("payments") \
         .where(filter=FieldFilter("status", "==", "Paid")) \
         .where(filter=FieldFilter("updated_at", ">=", req.date)) \
@@ -1610,16 +1634,12 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
         
     all_selected_payments = [serialize_doc(p) for p in query.stream()]
     
-    # Filter by batch_id AND month/year in memory.
-    # month+year filter is critical: the updated_at range query fetches ALL payments
-    # approved on that date regardless of fee month. Without this filter, settling
-    # April 13 while viewing "March 2026" would incorrectly include April 2026 fee
-    # payments also approved that day — causing totals to conflict across months.
+    # Filter by batch_id in memory.
+    # Note: we do NOT filter by billing month/year anymore.
+    # We include all payments approved on this date matching the batch_id.
     date_payments = []
     for p in all_selected_payments:
         if req.batch_id and p.get("batch_id") != req.batch_id:
-            continue
-        if p.get("month") != req.month or p.get("year") != req.year:
             continue
         date_payments.append(p)
 
@@ -2047,16 +2067,35 @@ def admin_report_export(
     for month_num in month_list:
         month_label = MONTHS_FULL[month_num - 1] if 1 <= month_num <= 12 else str(month_num)
 
-        # ── Fetch payments for this month ──
-        payments_raw = list(
+        # ── Fetch payments approved in this month (Paid) ──
+        if month_num == 12:
+            next_month = 1
+            next_year = year + 1
+        else:
+            next_month = month_num + 1
+            next_year = year
+        start_str = f"{year:04d}-{month_num:02d}-01"
+        end_str = f"{next_year:04d}-{next_month:02d}-01"
+
+        all_paid_month = db.collection("payments") \
+            .where("status", "==", "Paid") \
+            .where("updated_at", ">=", start_str) \
+            .where("updated_at", "<", end_str) \
+            .stream()
+        paid_payments_raw = [p for p in all_paid_month if p.to_dict().get("batch_id") == batch_id]
+
+        # ── Fetch payments billed for this month that are not Paid ──
+        unpaid_payments_raw = list(
             db.collection("payments")
             .where("batch_id", "==", batch_id)
             .where("month", "==", month_num)
             .where("year", "==", year)
             .stream()
         )
+        unpaid_payments_raw = [p for p in unpaid_payments_raw if p.to_dict().get("status") != "Paid"]
+
         payments = []
-        for p in payments_raw:
+        for p in (paid_payments_raw + unpaid_payments_raw):
             d = p.to_dict()
             d["id"] = p.id
             # Overlay latest student name

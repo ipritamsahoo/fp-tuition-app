@@ -189,38 +189,47 @@ function StudentLayoutInner({ children }) {
     const { theme } = useStudentTheme();
     const [notifOpen, setNotifOpen] = useState(false);
     const [unreadNotices, setUnreadNotices] = useState(0);
+    const hasFetchedOnMount = useRef(false);
 
     useEffect(() => {
         if (!user || user.role !== "student") return;
 
-        let active = true;
+        // Reset on user change so count is always fetched for the current user
+        hasFetchedOnMount.current = false;
+
         const fetchUnreadNotices = async () => {
             try {
                 const res = await api.get("/api/notices/unread-count");
-                if (active) {
-                    setUnreadNotices(res.unread_count || 0);
-                }
+                setUnreadNotices(res.unread_count || 0);
             } catch (err) {
                 console.error("Failed to fetch unread notices count", err);
             }
         };
 
-        // Only fetch unread count when landing on the student dashboard (/student)
-        if (pathname === "/student") {
-            fetchUnreadNotices();
-        }
+        // Fetch once on mount / user change
+        fetchUnreadNotices();
+        hasFetchedOnMount.current = true;
 
-        // Listen for a custom notices-read event to update instantly (e.g. when student reads notices)
-        const handleNoticesRead = () => {
-            fetchUnreadNotices();
+        // Refresh when student reads notices (or new notice arrives)
+        const handleNoticesRead = () => fetchUnreadNotices();
+
+        // Refresh when app comes to foreground (covers background-notification + app-open case)
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") {
+                fetchUnreadNotices();
+            }
         };
+
         window.addEventListener("notices-read", handleNoticesRead);
+        window.addEventListener("notices-updated", handleNoticesRead);
+        document.addEventListener("visibilitychange", handleVisibility);
 
         return () => {
-            active = false;
             window.removeEventListener("notices-read", handleNoticesRead);
+            window.removeEventListener("notices-updated", handleNoticesRead);
+            document.removeEventListener("visibilitychange", handleVisibility);
         };
-    }, [user, pathname]);
+    }, [user]);
 
     const isDashboard = pathname === "/student";
     const bounceRef = useScrollBounce(false);
@@ -425,7 +434,7 @@ function StudentLayoutInner({ children }) {
                             className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
                             style={{ color: 'var(--st-text-secondary)' }}
                         >
-                            <span className="material-symbols-outlined">campaign</span>
+                            <span className="material-symbols-outlined text-[28px]">campaign</span>
                             {unreadNotices > 0 && (
                                 <span
                                     className="absolute -top-1 -right-1 min-w-[16px] h-[16px] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"

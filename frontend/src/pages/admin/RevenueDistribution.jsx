@@ -13,8 +13,32 @@ const MONTHS = [
     "July", "August", "September", "October", "November", "December",
 ];
 
+const groupPayments = (payments) => {
+    if (!payments) return [];
+    const grouped = {};
+    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    payments.forEach(p => {
+        const key = p.student_id || p.student_name;
+        if (!grouped[key]) {
+            grouped[key] = {
+                student_name: p.student_name,
+                amount: 0,
+                billingCycles: []
+            };
+        }
+        grouped[key].amount += (p.amount || 0);
+        const cycle = p.month ? `${MONTHS_SHORT[p.month - 1]} ${p.year}` : "N/A";
+        grouped[key].billingCycles.push(cycle);
+    });
+
+    return Object.values(grouped);
+};
+
 function DistributionContent() {
-    const { month: defaultMonth, year: defaultYear } = getPreviousMonth();
+    const now = new Date();
+    const defaultMonth = now.getMonth() + 1;
+    const defaultYear = now.getFullYear();
 
     const [month, setMonth] = useState(defaultMonth);
     const [year, setYear] = useState(defaultYear);
@@ -56,9 +80,10 @@ function DistributionContent() {
 
         text += `👨‍🎓👩‍🎓 Student Payments:\n`;
         text += `────────────────\n`;
-        if (dist.payments && dist.payments.length > 0) {
-            dist.payments.forEach((p, idx) => {
-                text += `${idx + 1}. ${p.student_name}: ₹${(p.amount || 0).toLocaleString("en-IN")}\n`;
+        const grouped = groupPayments(dist.payments);
+        if (grouped.length > 0) {
+            grouped.forEach((p, idx) => {
+                text += `${idx + 1}. ${p.student_name} (${p.billingCycles.join(", ")}): ₹${p.amount.toLocaleString("en-IN")}\n`;
             });
         } else {
             text += `No payments\n`;
@@ -94,10 +119,10 @@ function DistributionContent() {
             return;
         }
 
-        const studentRows = (dist.payments || []).map((p, idx) => `
+        const studentRows = groupPayments(dist.payments || []).map((p, idx) => `
             <tr>
                 <td style="text-align: center;">${idx + 1}</td>
-                <td>${p.student_name}</td>
+                <td>${p.student_name} <span style="font-size: 11px; color: #64748b; margin-left: 8px;">(${p.billingCycles.join(", ")})</span></td>
                 <td style="text-align: right;">₹${(p.amount || 0).toLocaleString("en-IN")}</td>
             </tr>
         `).join("");
@@ -569,7 +594,7 @@ function DistributionContent() {
                                                             <div className="text-left flex-1 min-w-0">
                                                                 <p className="text-[#f0f0fd] font-bold text-sm md:text-lg tracking-wide truncate" style={{ fontFamily: "'Manrope', sans-serif" }}>{formattedDate}</p>
                                                                 <p className="text-[#aaaab7] text-[11px] md:text-xs font-medium tracking-wide mt-0.5 md:mt-1 flex items-center gap-1.5 md:gap-2 flex-wrap">
-                                                                    <span>{dist.payments_count} payment(s)</span>
+                                                                    <span>{dist.payments ? groupPayments(dist.payments).length : 0} student payment(s)</span>
                                                                     {dist.settled && (
                                                                         <>
                                                                             <span className="w-1 h-1 rounded-full bg-[#4af8e3]/50"></span>
@@ -601,7 +626,7 @@ function DistributionContent() {
                                                                 </div>
                                                             ) : (
                                                                 <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleSettle(dist.date, dist.payments_count); }}
+                                                                    onClick={(e) => { e.stopPropagation(); handleSettle(dist.date, dist.payments ? groupPayments(dist.payments).length : 0); }}
                                                                     disabled={settleLoading === dist.date}
                                                                     className="px-3 md:px-4 py-1.5 md:py-2 rounded-xl bg-[#ff9dac]/10 border border-[#ff9dac]/30 text-[#ff9dac] text-[10px] md:text-xs font-bold tracking-widest uppercase hover:bg-[#ff9dac]/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1 md:gap-1.5 group"
                                                                     title="Lock this date's distribution permanently (irreversible)"
@@ -621,43 +646,24 @@ function DistributionContent() {
                                                                 {dist.settled && <span className="text-[#4af8e3] lowercase font-semibold text-[10px] bg-[#4af8e3]/10 px-2 py-0.5 rounded-full border border-[#4af8e3]/20 ml-2 shadow-[0_0_8px_rgba(74,248,227,0.2)]">frozen</span>}
                                                             </p>
 
-                                                            {/* Mobile view */}
-                                                            <div className="space-y-3 md:hidden">
-                                                                {dist.payments && dist.payments.map((p, idx) => (
-                                                                    <div key={p.id || idx} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-[#464752]/30">
-                                                                        <div className="flex items-center gap-3 min-w-0">
-                                                                            <div className="w-7 h-7 rounded-lg bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/20 flex items-center justify-center text-[11px] font-bold shrink-0">
-                                                                                {idx + 1}
-                                                                            </div>
-                                                                            <p className="text-[#f0f0fd] text-sm truncate font-medium">{p.student_name}</p>
-                                                                        </div>
-                                                                        <p className="text-[#4af8e3] text-sm font-bold whitespace-nowrap ml-2">
-                                                                            ₹{(p.amount || 0).toLocaleString()}
-                                                                        </p>
-                                                                    </div>
-                                                                ))}
-                                                                {(!dist.payments || dist.payments.length === 0) && (
-                                                                    <p className="text-[#aaaab7] text-sm py-3 text-center bg-black/10 rounded-xl border border-[#464752]/20">No payment details available.</p>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Desktop table */}
-                                                            <div className="hidden md:block rounded-xl overflow-hidden border border-[#464752]/30">
-                                                                <table className="w-full">
+                                                            <div className="rounded-2xl overflow-hidden border border-[#464752]/30 bg-black/20">
+                                                                <table className="w-full text-left text-sm">
                                                                     <thead className="bg-[#0c0e17]/80">
                                                                         <tr className="border-b border-[#464752]/30">
-                                                                            <th className="px-4 py-3 text-left text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest w-12 text-center">#</th>
-                                                                            <th className="px-4 py-3 text-left text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest">Student</th>
+                                                                            <th className="px-4 py-3 text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest">Student</th>
+                                                                            <th className="px-4 py-3 text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest text-center">Billing Cycle</th>
                                                                             <th className="px-4 py-3 text-right text-[11px] font-bold text-[#aaaab7] uppercase tracking-widest">Amount</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody>
-                                                                        {dist.payments && dist.payments.map((p, idx) => (
-                                                                            <tr key={p.id || idx} className="border-b border-[#464752]/20 last:border-0 hover:bg-[#222532]/40 transition-colors bg-black/10">
-                                                                                <td className="px-4 py-3.5 text-xs text-[#aaaab7] font-semibold text-center">{idx + 1}</td>
+                                                                    <tbody className="divide-y divide-[#464752]/20">
+                                                                        {dist.payments && groupPayments(dist.payments).map((p, idx) => (
+                                                                            <tr key={idx} className="hover:bg-[#222532]/40 transition-colors">
                                                                                 <td className="px-4 py-3.5 text-sm text-[#f0f0fd] font-medium">{p.student_name}</td>
-                                                                                <td className="px-4 py-3.5 text-sm text-[#4af8e3] font-bold text-right tracking-wide">
-                                                                                    ₹{(p.amount || 0).toLocaleString()}
+                                                                                <td className="px-4 py-3.5 text-xs text-[#aaaab7] font-semibold text-center">
+                                                                                    {p.billingCycles.join(", ")}
+                                                                                </td>
+                                                                                <td className="px-4 py-3.5 text-sm text-[#4af8e3] font-bold text-right">
+                                                                                    ₹{p.amount.toLocaleString()}
                                                                                 </td>
                                                                             </tr>
                                                                         ))}
@@ -801,7 +807,7 @@ function DistributionContent() {
                             Settle distribution for <span className="text-[#f0f0fd] font-semibold">{confirmModal.date}</span>?
                         </p>
                         <p className="text-[#aaaab7] text-sm text-center leading-relaxed mb-2">
-                            This will freeze <span className="text-[#4af8e3] font-semibold">{confirmModal.paymentsCount} payment(s)</span> and teacher shares permanently.
+                            This will freeze <span className="text-[#4af8e3] font-semibold">{confirmModal.paymentsCount} student payment(s)</span> and teacher shares permanently.
                         </p>
                         <div className="flex items-center gap-2 justify-center mb-5 mt-4">
                             <span className="material-symbols-outlined text-[14px] text-[#ff9dac]/70">info</span>
