@@ -30,6 +30,8 @@ import TeacherDistribution from "@/pages/teacher/TeacherDistribution";
 import TeacherSettings from "@/pages/teacher/TeacherSettings";
 import TeacherNotes from "@/pages/teacher/TeacherNotes";
 import StudentNotes from "@/pages/student/StudentNotes";
+import TeacherNotices from "@/pages/teacher/TeacherNotices";
+import StudentNotices from "@/pages/student/StudentNotices";
 import NotificationsPage from "@/pages/NotificationsPage";
 import AboutPage from "@/pages/AboutPage";
 import FeedbackPage from "@/pages/FeedbackPage";
@@ -183,11 +185,13 @@ export default function App() {
                                 <Route path="/student/payments" element={<StudentPayments />} />
                                 <Route path="/student/leaderboard" element={<StudentLeaderboard />} />
                                 <Route path="/student/notes" element={<StudentNotes />} />
+                                <Route path="/student/notices" element={<StudentNotices />} />
                                 <Route path="/student/settings" element={<StudentSettings />} />
                                 <Route path="/teacher" element={<TeacherDashboard />} />
                                 <Route path="/teacher/payments" element={<TeacherPayments />} />
                                 <Route path="/teacher/distribution" element={<TeacherDistribution />} />
                                 <Route path="/teacher/notes" element={<TeacherNotes />} />
+                                <Route path="/teacher/notices" element={<TeacherNotices />} />
                                 <Route path="/teacher/settings" element={<TeacherSettings />} />
                                 <Route path="/notifications" element={<NotificationsPage />} />
                                 <Route path="/about" element={<AboutPage />} />

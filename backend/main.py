@@ -15,7 +15,7 @@ import asyncio
 
 from config import HOST, PORT, CRON_SECRET
 from config import CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
-from routers import auth, student, teacher, admin, notes
+from routers import auth, student, teacher, admin, notes, notices
 
 
 # ──────────────────────────────────────────────
@@ -53,6 +53,7 @@ app.include_router(student.router)
 app.include_router(teacher.router)
 app.include_router(admin.router)
 app.include_router(notes.router)
+app.include_router(notices.router)
 
 # ──────────────────────────────────────────────
 # HEALTH / PING

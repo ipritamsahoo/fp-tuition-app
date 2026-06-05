@@ -477,3 +477,129 @@ export function TeacherDistributionPageSkeleton() {
         </div>
     );
 }
+
+export function TeacherNoticesSkeleton() {
+    const baseBg = 'rgba(255,255,255,0.05)';
+    const pulseBg = 'rgba(255,255,255,0.1)';
+
+    const noticeCardStyles = [
+        { width1: "w-[40%]", width2: "w-[85%]", width3: "w-[60%]" },
+        { width1: "w-[30%]", width2: "w-[90%]", width3: "w-[40%]" },
+        { width1: "w-[35%]", width2: "w-[75%]", width3: "w-[50%]" },
+    ];
+
+    return (
+        <div className="space-y-4 animate-pulse">
+            {noticeCardStyles.map((style, i) => (
+                <div
+                    key={i}
+                    className="p-5 rounded-[24px] border border-white/[0.07] flex flex-col gap-3"
+                    style={{ background: "rgba(28, 31, 43, 0.6)", backdropFilter: "blur(20px)" }}
+                >
+                    {/* Header: Publisher Name and Metadata */}
+                    <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-grow">
+                            <div className={`h-[12px] rounded-md ${style.width1}`} style={{ backgroundColor: pulseBg }} />
+                            <div className="h-[8px] rounded-md w-[80px] mt-1.5" style={{ backgroundColor: baseBg }} />
+                        </div>
+                    </div>
+
+                    {/* Content body */}
+                    <div className="space-y-2 mt-2">
+                        <div className={`h-[10px] rounded-md ${style.width2}`} style={{ backgroundColor: baseBg }} />
+                        <div className={`h-[10px] rounded-md ${style.width3}`} style={{ backgroundColor: baseBg }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+export function TeacherNoticesPageSkeleton() {
+    const baseBg = 'rgba(255,255,255,0.05)';
+    const pulseBg = 'rgba(255,255,255,0.1)';
+
+    return (
+        <div className="space-y-6 animate-pulse">
+            {/* Title Header Skeleton */}
+            <div className="flex flex-col gap-4 mt-4">
+                <div className="h-8 bg-white/5 rounded-lg w-[200px]" style={{ backgroundColor: pulseBg }} />
+                
+                {/* Batch Selector Placeholder */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 w-full">
+                    <div className="md:col-span-5 w-full">
+                        <div className="h-[46px] bg-white/5 border border-white/5 rounded-2xl w-full" style={{ backgroundColor: baseBg }} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Layout Grid Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                
+                {/* Left side: Upload Form Skeleton */}
+                <div className="md:col-span-5">
+                    <div className="rounded-[28px] border border-white/[0.07] p-5 space-y-4"
+                         style={{ background: "rgba(28, 31, 43, 0.6)", backdropFilter: "blur(20px)" }}>
+                        <div className="h-6 bg-white/5 rounded-md w-1/2" style={{ backgroundColor: pulseBg }} />
+                        
+                        <div className="space-y-3">
+                            {/* Textarea Placeholder */}
+                            <div className="h-24 md:h-40 bg-white/[0.02] border border-white/5 rounded-2xl w-full" style={{ backgroundColor: baseBg }} />
+
+                            {/* Submit Button Placeholder */}
+                            <div className="flex justify-end pt-3 border-t border-white/5">
+                                <div className="h-8 bg-white/5 rounded-xl w-24" style={{ backgroundColor: pulseBg }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right side: Notices Feed Skeleton */}
+                <div className="md:col-span-7">
+                    <TeacherNoticesSkeleton />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function StudentNoticesSkeleton() {
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+
+    const baseBg = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)';
+    const pulseBg = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)';
+
+    const cardStyles = [
+        { meta: "w-[40%]", content1: "w-[85%]", content2: "w-[50%]" },
+        { meta: "w-[30%]", content1: "w-[90%]", content2: "w-[70%]" },
+        { meta: "w-[35%]", content1: "w-[80%]", content2: "w-[60%]" },
+    ];
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
+            <div className="space-y-4">
+                {cardStyles.map((style, i) => (
+                    <div
+                        key={i}
+                        className="p-5 flex flex-col gap-4 rounded-[24px] border border-white/[0.07]"
+                        style={{
+                            background: "var(--st-card-bg, rgba(28, 31, 43, 0.6))",
+                            backdropFilter: "blur(20px)",
+                            WebkitBackdropFilter: "blur(20px)"
+                        }}
+                    >
+                        <div className="w-full space-y-2">
+                            <div className="h-[12px] rounded-md" style={{ width: style.meta.replace("w-[", "").replace("]", ""), backgroundColor: pulseBg }} />
+                            <div className="h-[8px] rounded-md w-[80px] mt-1.5" style={{ backgroundColor: baseBg }} />
+                        </div>
+                        <div className="space-y-2 mt-1">
+                            <div className="h-[10px] rounded-md" style={{ width: style.content1.replace("w-[", "").replace("]", ""), backgroundColor: baseBg }} />
+                            <div className="h-[10px] rounded-md" style={{ width: style.content2.replace("w-[", "").replace("]", ""), backgroundColor: baseBg }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
