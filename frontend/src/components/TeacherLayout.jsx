@@ -17,6 +17,14 @@ const teacherNav = [
     { label: "Payments", href: "/teacher/payments", icon: "payments" },
     { label: "Distribution", href: "/teacher/distribution", icon: "account_tree" },
     { label: "Notes", href: "/teacher/notes", icon: "edit_document" },
+    { label: "Notices", href: "/teacher/notices", icon: "campaign" },
+    { label: "Settings", href: "/teacher/settings", icon: "settings" },
+];
+const teacherBottomNav = [
+    { label: "Dashboard", href: "/teacher", icon: "dashboard" },
+    { label: "Payments", href: "/teacher/payments", icon: "payments" },
+    { label: "Distribution", href: "/teacher/distribution", icon: "account_tree" },
+    { label: "Notes", href: "/teacher/notes", icon: "edit_document" },
     { label: "Settings", href: "/teacher/settings", icon: "settings" },
 ];
 
@@ -28,7 +36,7 @@ export default function TeacherLayout({ children }) {
     const [notifOpen, setNotifOpen] = useState(false);
 
     // ── Bottom nav: kinetic sliding indicator ──
-    const activeIdx = teacherNav.findIndex(item => pathname === item.href);
+    const activeIdx = teacherBottomNav.findIndex(item => pathname === item.href);
 
     // Retrieve previous active index from sessionStorage to animate across page mounts
     const savedPrevIdx = sessionStorage.getItem("prevActiveIdx_teacher");
@@ -71,7 +79,7 @@ export default function TeacherLayout({ children }) {
                     const eased = easeOutBack(raw);
                     const pos = from + (to - from) * eased;
 
-                    teacherNav.forEach((_, i) => {
+                    teacherBottomNav.forEach((_, i) => {
                         const el = iconRefs.current[i];
                         if (!el) return;
                         const prox = Math.max(0, 1 - Math.abs(pos - i) * 1.4);
@@ -145,6 +153,12 @@ export default function TeacherLayout({ children }) {
                     </div>
                     <div className="flex items-center gap-4">
                         <button
+                            onClick={() => navigate("/teacher/notices")}
+                            className="relative flex items-center justify-center text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer"
+                        >
+                            <span className="material-symbols-outlined">campaign</span>
+                        </button>
+                        <button
                             onClick={() => navigate("/notifications")}
                             className="relative flex items-center justify-center text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer"
                         >
@@ -167,18 +181,30 @@ export default function TeacherLayout({ children }) {
 
             {/* ── Mobile Header (Sub-Pages) ── */}
             {isSubPageMobile && (
-                <header className="md:hidden fixed top-0 w-full bg-[#0c0e17]/90 backdrop-blur-3xl flex items-center px-4 h-16 z-50 border-b border-white/5 animate-fade-in-down shadow-xl" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                <header
+                    className={`md:hidden fixed top-0 w-full flex items-center px-4 h-16 z-50 ${pathname === "/teacher/notices" ? "" : "animate-fade-in-down"}`}
+                    style={{
+                        background: 'rgba(17, 20, 39, 0.7)',
+                        borderBottom: '1px solid rgba(42, 48, 85, 0.5)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
+                        transform: "translateZ(0)", isolation: "isolate"
+                    }}
+                >
                     <button
                         onClick={() => navigate(-1)}
                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-[#aaaab7] active:scale-90 transition-all mr-3"
                     >
-                        <span className="material-symbols-outlined">arrow_back_ios_new</span>
+                        <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
                         <h1 className="text-lg font-bold text-white tracking-tight leading-none" style={{ fontFamily: "'Manrope', sans-serif" }}>
                             {getSubPageTitle()}
                         </h1>
                     </div>
+                    <div className="flex-grow" />
+
                 </header>
             )}
 
@@ -274,15 +300,15 @@ export default function TeacherLayout({ children }) {
                         <div
                             className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
                             style={{
-                                width: `${100 / teacherNav.length}%`,
-                                left: `${indicatorIdx * (100 / teacherNav.length)}%`,
+                                width: `${100 / teacherBottomNav.length}%`,
+                                left: `${indicatorIdx * (100 / teacherBottomNav.length)}%`,
                                 transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                             }}
                         >
                             <div className="w-12 h-12 rounded-full bg-[#3b82f6] shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
                         </div>
                     )}
-                    {teacherNav.map((item, i) => {
+                    {teacherBottomNav.map((item, i) => {
                         const isActive = i === indicatorIdx;
                         return (
                             <Link

@@ -7,6 +7,7 @@ import { StudentThemeProvider, useStudentTheme } from "@/context/StudentThemeCon
 import ProfilePicture from "./ProfilePicture";
 import NotificationPanel from "./NotificationPanel";
 import ProfilePicUpload from "./ProfilePicUpload";
+import { api } from "@/lib/api";
 
 // ── Springy easeOutBack solver for bottom bar indicators ──
 const easeOutBack = (x) => {
@@ -15,6 +16,14 @@ const easeOutBack = (x) => {
     return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 };
 const studentNav = [
+    { label: "Dashboard", href: "/student", icon: "dashboard" },
+    { label: "Payments", href: "/student/payments", icon: "payments" },
+    { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
+    { label: "Notes", href: "/student/notes", icon: "edit_document" },
+    { label: "Notices", href: "/student/notices", icon: "campaign" },
+    { label: "Settings", href: "/student/settings", icon: "settings" },
+];
+const studentBottomNav = [
     { label: "Dashboard", href: "/student", icon: "dashboard" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
@@ -179,6 +188,39 @@ function StudentLayoutInner({ children }) {
     const { user } = useAuth();
     const { theme } = useStudentTheme();
     const [notifOpen, setNotifOpen] = useState(false);
+    const [unreadNotices, setUnreadNotices] = useState(0);
+
+    useEffect(() => {
+        if (!user || user.role !== "student") return;
+
+        let active = true;
+        const fetchUnreadNotices = async () => {
+            try {
+                const res = await api.get("/api/notices/unread-count");
+                if (active) {
+                    setUnreadNotices(res.unread_count || 0);
+                }
+            } catch (err) {
+                console.error("Failed to fetch unread notices count", err);
+            }
+        };
+
+        // Only fetch unread count when landing on the student dashboard (/student)
+        if (pathname === "/student") {
+            fetchUnreadNotices();
+        }
+
+        // Listen for a custom notices-read event to update instantly (e.g. when student reads notices)
+        const handleNoticesRead = () => {
+            fetchUnreadNotices();
+        };
+        window.addEventListener("notices-read", handleNoticesRead);
+
+        return () => {
+            active = false;
+            window.removeEventListener("notices-read", handleNoticesRead);
+        };
+    }, [user, pathname]);
 
     const isDashboard = pathname === "/student";
     const bounceRef = useScrollBounce(false);
@@ -190,7 +232,7 @@ function StudentLayoutInner({ children }) {
     const isLight2 = isLight; // alias for use in portal
 
     // ── Bottom nav: kinetic sliding indicator ──
-    const activeIdx = studentNav.findIndex(item => pathname === item.href);
+    const activeIdx = studentBottomNav.findIndex(item => pathname === item.href);
 
     // Retrieve previous active index from sessionStorage to animate across page mounts
     const savedPrevIdx = sessionStorage.getItem("prevActiveIdx_student");
@@ -233,7 +275,7 @@ function StudentLayoutInner({ children }) {
                     const eased = easeOutBack(raw);
                     const pos = from + (to - from) * eased;
 
-                    studentNav.forEach((_, i) => {
+                    studentBottomNav.forEach((_, i) => {
                         const el = iconRefs.current[i];
                         if (!el) return;
                         const prox = Math.max(0, 1 - Math.abs(pos - i) * 1.4);
@@ -379,6 +421,25 @@ function StudentLayoutInner({ children }) {
                     </div>
                     <div className="flex items-center gap-4">
                         <button
+                            onClick={() => navigate("/student/notices")}
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            style={{ color: 'var(--st-text-secondary)' }}
+                        >
+                            <span className="material-symbols-outlined">campaign</span>
+                            {unreadNotices > 0 && (
+                                <span
+                                    className="absolute -top-1 -right-1 min-w-[16px] h-[16px] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"
+                                    style={{
+                                        backgroundColor: '#ff6e84',
+                                        borderWidth: 1,
+                                        borderColor: isLight ? '#eef2ff' : '#0c0e17',
+                                    }}
+                                >
+                                    {unreadNotices > 9 ? "9+" : unreadNotices}
+                                </span>
+                            )}
+                        </button>
+                        <button
                             onClick={() => navigate("/notifications")}
                             className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
                             style={{ color: 'var(--st-text-secondary)' }}
@@ -410,10 +471,13 @@ function StudentLayoutInner({ children }) {
             {/* ── Mobile Header (Sub-Pages) ── */}
             {isSubPageMobile && (
                 <header
-                    className="md:hidden fixed top-0 w-full backdrop-blur-3xl flex items-center px-4 h-16 z-50 animate-fade-in-down shadow-xl"
+                    className={`md:hidden fixed top-0 w-full flex items-center px-4 h-16 z-50 ${pathname === "/student/notices" ? "" : "animate-fade-in-down"}`}
                     style={{
-                        backgroundColor: isLight ? 'rgba(238,242,255,0.9)' : 'rgba(12,14,23,0.9)',
-                        borderBottom: `1px solid var(--st-divider)`,
+                        background: 'var(--st-nav-bg)',
+                        borderBottom: `1px solid var(--st-nav-border)`,
+                        boxShadow: 'var(--st-nav-shadow)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
                         transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
@@ -425,7 +489,7 @@ function StudentLayoutInner({ children }) {
                             color: 'var(--st-text-secondary)',
                         }}
                     >
-                        <span className="material-symbols-outlined">arrow_back_ios_new</span>
+                        <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
                         <h1
@@ -435,6 +499,8 @@ function StudentLayoutInner({ children }) {
                             {getSubPageTitle()}
                         </h1>
                     </div>
+                    <div className="flex-grow" />
+
                 </header>
             )}
 
@@ -494,7 +560,7 @@ function StudentLayoutInner({ children }) {
                             <Link
                                 key={item.href}
                                 to={item.href}
-                                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group"
+                                className="flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group"
                                 style={{
                                     backgroundColor: isActive ? (isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)') : 'transparent',
                                     color: isActive ? activeColor : 'var(--st-text-secondary)',
@@ -502,8 +568,13 @@ function StudentLayoutInner({ children }) {
                                     boxShadow: isActive ? `0 0 20px ${isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)'}` : 'none',
                                 }}
                             >
-                                <span className={`material-symbols-outlined text-[22px] transition-transform group-hover:scale-110 ${isActive ? "material-symbols-filled" : ""}`}>{item.icon}</span>
-                                <span style={{ fontFamily: "'Manrope', sans-serif" }}>{item.label}</span>
+                                <div className="flex items-center gap-3">
+                                    <span className={`material-symbols-outlined text-[22px] transition-transform group-hover:scale-110 ${isActive ? "material-symbols-filled" : ""}`}>{item.icon}</span>
+                                    <span style={{ fontFamily: "'Manrope', sans-serif" }}>{item.label}</span>
+                                </div>
+                                {item.href === "/student/notices" && unreadNotices > 0 && (
+                                    <span className="w-2.5 h-2.5 bg-[#ff6e84] rounded-full shadow-[0_0_8px_rgba(255,110,132,0.6)] animate-pulse" />
+                                )}
                             </Link>
                         );
                     })}
@@ -594,8 +665,8 @@ function StudentLayoutInner({ children }) {
                         <div
                             className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
                             style={{
-                                width: `${100 / studentNav.length}%`,
-                                left: `${indicatorIdx * (100 / studentNav.length)}%`,
+                                width: `${100 / studentBottomNav.length}%`,
+                                left: `${indicatorIdx * (100 / studentBottomNav.length)}%`,
                                 transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                             }}
                         >
@@ -608,7 +679,7 @@ function StudentLayoutInner({ children }) {
                             />
                         </div>
                     )}
-                    {studentNav.map((item, i) => {
+                    {studentBottomNav.map((item, i) => {
                         const isActive = i === indicatorIdx;
                         return (
                             <Link
@@ -619,18 +690,20 @@ function StudentLayoutInner({ children }) {
                                 }}
                                 className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
                             >
-                                <span
-                                    ref={el => iconRefs.current[i] = el}
-                                    className="material-symbols-outlined text-[22px]"
-                                    style={{
-                                        color: isActive ? '#ffffff' : 'var(--st-nav-icon-inactive)',
-                                        transform: isActive ? 'scale(1.14)' : 'scale(1)',
-                                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                                        willChange: 'transform, color',
-                                    }}
-                                >
-                                    {item.icon}
-                                </span>
+                                <div className="relative flex items-center justify-center">
+                                    <span
+                                        ref={el => iconRefs.current[i] = el}
+                                        className="material-symbols-outlined text-[22px]"
+                                        style={{
+                                            color: isActive ? '#ffffff' : 'var(--st-nav-icon-inactive)',
+                                            transform: isActive ? 'scale(1.14)' : 'scale(1)',
+                                            fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                                            willChange: 'transform, color',
+                                        }}
+                                    >
+                                        {item.icon}
+                                    </span>
+                                </div>
                             </Link>
                         );
                     })}
