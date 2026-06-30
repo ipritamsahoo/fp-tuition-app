@@ -8,6 +8,7 @@ export default function WelcomePage() {
     const [isInstalled, setIsInstalled] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [stage, setStage] = useState(0);
+    const [isExiting, setIsExiting] = useState(false);
     // stage 0: only spotlight visible
     // stage 1+: words appear one by one (1=Welcome, 2=to, 3=Future, 4=Point)
     // stage 5: subtitle
@@ -15,13 +16,19 @@ export default function WelcomePage() {
     // stage 7: get started button
 
     useEffect(() => {
-        // Check if already running as installed PWA
+        // Check if already running as installed PWA (standalone mode)
         const isStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
             window.navigator.standalone;
-        if (isStandalone) setIsInstalled(true);
+
+        // Also check localStorage — set when appinstalled event fires
+        const wasInstalled = localStorage.getItem("pwa-installed") === "true";
+
+        if (isStandalone || wasInstalled) setIsInstalled(true);
 
         const handleBeforeInstall = (e) => {
+            // Don't show install button if user already installed once
+            if (localStorage.getItem("pwa-installed") === "true") return;
             e.preventDefault();
             setDeferredPrompt(e);
         };
@@ -29,6 +36,7 @@ export default function WelcomePage() {
         const handleAppInstalled = () => {
             setDeferredPrompt(null);
             setIsInstalled(true);
+            localStorage.setItem("pwa-installed", "true");
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstall);
@@ -89,6 +97,13 @@ export default function WelcomePage() {
         }
     };
 
+    const handleGetStarted = () => {
+        setIsExiting(true);
+        setTimeout(() => {
+            navigate("/login", { state: { fromWelcome: true } });
+        }, 600);
+    };
+
     const wordClass = (minStage) =>
         `inline-block transition-all duration-500 ease-out ${stage >= minStage
             ? "opacity-100 translate-y-0 scale-100"
@@ -102,7 +117,9 @@ export default function WelcomePage() {
         }`;
 
     return (
-        <div className="min-h-[100dvh] flex flex-col items-center relative overflow-hidden select-none">
+        <div className={`min-h-[100dvh] flex flex-col items-center relative overflow-hidden select-none transition-all duration-600 ease-in-out ${
+            isExiting ? "opacity-0 scale-95 -translate-y-6 filter blur-md" : "opacity-100 scale-100 translate-y-0 filter blur-0"
+        }`}>
             {/* ── Background layers ── */}
             <div className="absolute inset-0 bg-[#0a0a12]" />
 
@@ -156,8 +173,8 @@ export default function WelcomePage() {
 
             {/* ── Buttons ── */}
             <div className="relative z-10 w-full px-6 sm:px-8 pb-8 sm:pb-12 flex flex-col gap-3 max-w-md mx-auto flex-shrink-0" style={{ paddingBottom: `max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))` }}>
-                {/* Install button */}
-                {!isInstalled && (
+                {/* Install button — only shown when browser has a native install prompt ready */}
+                {!isInstalled && deferredPrompt && (
                     <button
                         onClick={handleInstall}
                         className={`w-full py-3.5 sm:py-4 rounded-full bg-white text-[#0a0a12] font-semibold text-sm sm:text-base
@@ -170,7 +187,7 @@ export default function WelcomePage() {
 
                 {/* Get Started */}
                 <button
-                    onClick={() => navigate("/login")}
+                    onClick={handleGetStarted}
                     className={`w-full py-3.5 sm:py-4 rounded-full bg-transparent border border-white/25 text-white font-semibold text-sm sm:text-base
                         hover:bg-white/[0.05] hover:border-white/40
                         active:scale-[0.98] cursor-pointer ${btnClass(7)}`}

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import logoSrc from "@/assets/logo.png";
+import illustrationSrc from "@/assets/login.png";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -11,12 +12,34 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const fromWelcome = location.state?.fromWelcome;
+    const [isEntering, setIsEntering] = useState(fromWelcome ? true : false);
+    const [isBtnHovered, setIsBtnHovered] = useState(false);
+
+    useEffect(() => {
+        if (fromWelcome) {
+            const timer = setTimeout(() => {
+                setIsEntering(false);
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [fromWelcome]);
+
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => {
+                setError("");
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
 
     const friendlyError = (err) => {
         const code = err?.code || "";
         const msg = err?.message || "";
         if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || msg.includes("INVALID_LOGIN_CREDENTIALS"))
-            return "Invalid username or password. Please try again.";
+            return "Invalid username/mobile or password. Please try again.";
         if (code === "auth/too-many-requests")
             return "Too many failed attempts. Please try again later.";
         if (code === "auth/user-disabled")
@@ -44,92 +67,137 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden px-4 py-6" style={{ paddingBottom: `max(1.5rem, env(safe-area-inset-bottom))` }}>
-            {/* Animated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a12] via-[#0d1025]/50 to-[#0a0a12]" />
-            <div className="absolute top-1/4 -left-20 sm:-left-32 w-64 sm:w-96 h-64 sm:h-96 bg-[#3861fb]/15 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-1/4 -right-20 sm:-right-32 w-64 sm:w-96 h-64 sm:h-96 bg-[#f5c542]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        <div 
+            className="h-[100dvh] bg-[#0c0a21] text-white flex flex-col md:flex-row relative overflow-hidden select-none"
+            style={{ 
+                paddingBottom: `env(safe-area-inset-bottom)`
+            }}
+        >
+            {/* Left Study Illustration (Desktop) / Top (Mobile) */}
+            <div 
+                className={`relative w-full h-[44dvh] sm:h-[48dvh] md:h-full md:w-[50vw] lg:w-[60vw] flex-shrink-0 overflow-hidden ${
+                    isEntering ? "opacity-0 scale-105 filter blur-lg" : "opacity-100 scale-100 filter blur-0"
+                }`}
+                style={{
+                    transition: "opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms cubic-bezier(0.16, 1, 0.3, 1)"
+                }}
+            >
+                <img 
+                    src={illustrationSrc} 
+                    alt="Study Scene" 
+                    className="w-full h-full object-cover object-center"
+                />
+                {/* Vignette / Edge Shadow Overlay to dim image edges */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0c0a21]/15 via-transparent to-[#0c0a21]/20 pointer-events-none z-10" />
+                
+                {/* Mobile-only bottom fade gradient (softer & lower height) */}
+                <div className="absolute inset-x-0 bottom-0 h-[30%] bg-gradient-to-t from-[#0c0a21] via-[#0c0a21]/75 to-transparent md:hidden pointer-events-none z-10" />
+                
+                {/* Desktop-only right fade gradient (wider & smoother) */}
+                <div className="hidden md:block absolute inset-y-0 right-0 w-48 bg-gradient-to-r from-transparent via-[#0c0a21]/50 to-[#0c0a21] pointer-events-none z-10" />
+                
+                {/* Background glows */}
+                <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#7c3aed]/15 rounded-full blur-[80px] pointer-events-none" />
+            </div>
 
-            {/* Login card */}
-            <div className="relative z-10 w-full max-w-md animate-fade-in-up">
-                <div className="glass-card rounded-2xl p-6 sm:p-8 shadow-2xl shadow-[#3861fb]/10">
-                    {/* Logo */}
-                    <div className="flex flex-col items-center mb-6 sm:mb-8">
-                        <img src={logoSrc} alt="FP Finance Logo" className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl shadow-lg shadow-[#3861fb]/30 mb-3 sm:mb-4 object-cover" />
-                        <h1 className="text-2xl font-bold text-white">FP Finance</h1>
-                        <p className="text-[#8a8f98] text-sm mt-1">Sign in to your account</p>
+            <div 
+                className={`w-full max-w-[420px] mx-auto px-7 flex flex-col justify-center flex-1 md:max-w-none md:w-[50vw] lg:w-[40vw] md:px-10 lg:px-12 xl:px-16 py-4 md:py-12 overflow-visible ${
+                    isEntering ? "opacity-0 translate-y-6 filter blur-lg" : "opacity-100 translate-y-0 filter blur-0"
+                }`}
+                style={{
+                    transition: "opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms cubic-bezier(0.16, 1, 0.3, 1)"
+                }}
+            >
+                <div className="w-full max-w-[400px] mx-auto mt-[-40px] md:mt-0">
+                    {/* Header */}
+                    <div className="mb-2 md:mb-4">
+                        <div className="flex items-center gap-4 mb-3">
+                            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden shadow-lg shadow-[#3861fb]/20 flex-shrink-0">
+                                <img 
+                                    src={logoSrc} 
+                                    alt="FP Finance Logo" 
+                                    className="w-full h-full object-cover scale-[1.25]" 
+                                />
+                            </div>
+                            <h1 
+                                className="text-[32px] md:text-[38px] font-bold italic text-white tracking-wide"
+                                style={{ fontFamily: "'Poppins', sans-serif" }}
+                            >
+                                <span style={{ fontFamily: "'Playball', cursive", fontStyle: "normal", fontSize: "1.25em", marginRight: "0.15em" }}>FP</span> Finance
+                            </h1>
+                        </div>
+                        <p className="text-slate-300 text-[17px] font-light">Please Sign in to continue.</p>
                     </div>
 
-                    {/* Error */}
-                    {error && (
-                        <div className="mb-6 p-4 rounded-2xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-[13px] font-medium flex items-center gap-3 animate-fade-in-scale">
-                            <span className="material-symbols-outlined text-[20px] text-[#ff6e84]">error</span>
-                            <span className="flex-1">{error}</span>
-                        </div>
-                    )}
+                    {/* Error display - reserved space to prevent layout shifts */}
+                    <div className="h-6 mb-2 flex items-center px-1 text-[#ff6e84] text-[14px] font-medium">
+                        {error && (
+                            <div className="flex items-center gap-2 animate-fade-in-scale">
+                                <span className="material-symbols-outlined text-[18px]">error</span>
+                                <span>{error}</span>
+                            </div>
+                        )}
+                    </div>
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                        <div>
-                            <label className="block text-[#c0c4cc] text-sm font-medium mb-1.5">Username or Mobile</label>
+                    {/* Form fields */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {/* Username Input Container */}
+                        <div className="relative flex items-center w-full h-[60px] bg-[#0a0a15]/80 border border-[#1d1d36] rounded-[22px] px-5 transition-all duration-300 focus-within:border-[#7c3aed]/50 focus-within:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
+                            <span className="material-symbols-outlined text-[#8a8f98] mr-3.5 text-[22px] select-none">person</span>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
-                                placeholder="e.g. ramdey or 9876543210"
-                                className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#0f1320]/60 border border-[#1a1f2e]/50 text-white placeholder-[#4a4f5a] focus:outline-none focus:ring-2 focus:ring-[#3861fb]/50 focus:border-[#3861fb]/50 transition-all"
+                                placeholder="Username or mobile"
+                                className="w-full h-full bg-transparent border-0 outline-none text-white placeholder-[#505466] text-[15px] focus:ring-0 focus:outline-none"
                             />
                         </div>
-                        <div>
-                            <label className="block text-[#c0c4cc] text-sm font-medium mb-1.5">Password</label>
-                            <div className="relative flex items-center">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    placeholder="••••••••"
-                                    className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 pr-12 rounded-xl bg-[#0f1320]/60 border border-[#1a1f2e]/50 text-white placeholder-[#4a4f5a] focus:outline-none focus:ring-2 focus:ring-[#3861fb]/50 focus:border-[#3861fb]/50 transition-all font-mono"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 text-[#4a4f5a] hover:text-[#c0c4cc] transition-colors flex items-center justify-center cursor-pointer p-1"
-                                >
-                                    {showPassword ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                                        </svg>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-2.5 sm:py-3 rounded-xl bg-[#3861fb]/20 backdrop-blur-md border border-white/10 text-white font-semibold
-                hover:bg-[#3861fb]/30 hover:border-white/20 transition-all duration-300 shadow-[0_8px_32px_rgba(56,97,251,0.2)]
-                disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative overflow-hidden group"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2 relative z-10">
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Signing in...
+
+                        {/* Password Input Container */}
+                        <div className="relative flex items-center w-full h-[60px] bg-[#0a0a15]/80 border border-[#1d1d36] rounded-[22px] px-5 transition-all duration-300 focus-within:border-[#7c3aed]/50 focus-within:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
+                            <span className="material-symbols-outlined text-[#8a8f98] mr-3.5 text-[22px] select-none">lock</span>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="Password"
+                                className="w-full h-full bg-transparent border-0 outline-none text-white placeholder-[#505466] text-[15px] focus:ring-0 focus:outline-none font-sans"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="text-[#8a8f98] hover:text-white transition-colors cursor-pointer flex items-center justify-center p-1"
+                            >
+                                <span className="material-symbols-outlined text-[22px] select-none">
+                                    {showPassword ? "visibility" : "visibility_off"}
                                 </span>
-                            ) : (
-                                <span className="relative z-10">Sign In</span>
-                            )}
-                        </button>
+                            </button>
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="pt-1">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                onMouseEnter={() => setIsBtnHovered(true)}
+                                onMouseLeave={() => setIsBtnHovered(false)}
+                                className="w-full h-[52px] rounded-[22px] border border-white/40 text-white font-semibold text-[18px] shadow-[0_8px_32px_rgba(58,87,246,0.2)] hover:border-white/70 active:scale-[0.98] transition-all relative flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                style={{
+                                    background: isBtnHovered 
+                                        ? 'linear-gradient(90deg, rgba(138, 36, 227, 0.65) 0%, rgba(138, 36, 227, 0.65) 8%, rgba(0, 145, 255, 0.65) 92%, rgba(0, 145, 255, 0.65) 100%)' 
+                                        : 'linear-gradient(90deg, rgba(138, 36, 227, 0.5) 0%, rgba(138, 36, 227, 0.5) 8%, rgba(0, 145, 255, 0.5) 92%, rgba(0, 145, 255, 0.5) 100%)'
+                                }}
+                            >
+                                {loading ? (
+                                    <span>Signing in...</span>
+                                ) : (
+                                    <span>Sign In</span>
+                                )}
+                            </button>
+                        </div>
                     </form>
-
-
                 </div>
             </div>
         </div>
