@@ -28,6 +28,7 @@ function ReportExportContent() {
     const [batchId, setBatchId] = useState(cachedBatches?.length > 0 ? cachedBatches[0].id : "");
     const [year, setYear] = useState(prevYear);
     const [selectedMonths, setSelectedMonths] = useState([prevMonth]);
+    const [reportType, setReportType] = useState("student"); // "student" or "teacher"
     const [loading, setLoading] = useState(!cachedBatches);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState("");
@@ -107,7 +108,7 @@ function ReportExportContent() {
             }
 
             const monthsParam = selectedMonths.join(",");
-            const url = `${API_BASE}/api/admin/report-export?batch_id=${batchId}&year=${year}&months=${monthsParam}`;
+            const url = `${API_BASE}/api/admin/report-export?batch_id=${batchId}&year=${year}&months=${monthsParam}&report_type=${reportType}`;
 
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -122,12 +123,17 @@ function ReportExportContent() {
             const blob = await res.blob();
             const blobUrl = URL.createObjectURL(blob);
 
-            // Extract filename from Content-Disposition header
-            const disposition = res.headers.get("Content-Disposition");
-            let filename = "report.pdf";
-            if (disposition) {
-                const match = disposition.match(/filename=(.+)/);
-                if (match) filename = match[1].replace(/"/g, "");
+            // Reconstruct filename locally to bypass browser CORS Content-Disposition blocks
+            const batchName = batches.find((b) => b.id === batchId)?.batch_name || "Batch";
+            const monthLabels = selectedMonths.map((m) => MONTHS[m - 1]);
+            const monthStr = monthLabels.join("-");
+            const safeBatch = batchName.replace(/\s+/g, "_");
+
+            let filename = "";
+            if (reportType === "teacher") {
+                filename = `${monthStr}_${year}_${safeBatch}_collection_and_distribution.pdf`;
+            } else {
+                filename = `${monthStr}_${year}_${safeBatch}_student_payments_report.pdf`;
             }
 
             const a = document.createElement("a");
@@ -138,9 +144,9 @@ function ReportExportContent() {
             document.body.removeChild(a);
             URL.revokeObjectURL(blobUrl);
 
-            const batchName = batches.find((b) => b.id === batchId)?.batch_name || "Batch";
             const monthNames = selectedMonths.map((m) => MONTHS[m - 1]).join(", ");
-            setSuccess(`Report exported: ${batchName} — ${monthNames} ${year}`);
+            const reportName = reportType === "teacher" ? "Teacher Report" : "Student Report";
+            setSuccess(`${reportName} exported: ${batchName} — ${monthNames} ${year}`);
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setError(err.message || "Failed to export report.");
@@ -335,7 +341,7 @@ function ReportExportContent() {
             {/* TAB: PDF REPORTS */}
             {activeTab === "pdf" && (
                 <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                         {/* Step 1: Select Batch */}
                         <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
                             <h3 className="text-[#f0f0fd] font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -364,6 +370,33 @@ function ReportExportContent() {
                                     options={yearOptions}
                                     className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4af8e3]/50 transition-colors"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Step 3: Select Report Type */}
+                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
+                            <h3 className="text-[#f0f0fd] font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                Report Type
+                            </h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setReportType("student")}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border
+                                        ${reportType === "student"
+                                            ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/50 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
+                                            : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:border-[#464752]"}`}
+                                >
+                                    Student Payments
+                                </button>
+                                <button
+                                    onClick={() => setReportType("teacher")}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border
+                                        ${reportType === "teacher"
+                                            ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/50 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
+                                            : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:border-[#464752]"}`}
+                                >
+                                    Collection & Distribution
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -406,16 +439,7 @@ function ReportExportContent() {
                             })}
                         </div>
 
-                        {selectedMonths.length > 0 && (
-                            <div className="mt-5 flex flex-wrap gap-2 pt-5 border-t border-[#464752]/30">
-                                <span className="text-xs text-[#aaaab7] w-full mb-1 font-bold tracking-widest uppercase">Selected:</span>
-                                {selectedMonths.map((m) => (
-                                    <span key={m} className="px-3 py-1 rounded-lg bg-[#4af8e3]/10 border border-[#4af8e3]/30 text-[#4af8e3] text-[11px] font-bold tracking-widest uppercase">
-                                        {MONTHS[m - 1]}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+
                     </div>
 
                     {/* Export Button */}
@@ -432,7 +456,7 @@ function ReportExportContent() {
                             ) : (
                                 <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">picture_as_pdf</span>
                             )}
-                            {exporting ? "Generating PDF..." : "Export PDF Report"}
+                            {exporting ? "Generating PDF..." : "Export Report"}
                         </button>
                     </div>
                 </div>
