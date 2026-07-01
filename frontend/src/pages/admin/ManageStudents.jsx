@@ -8,6 +8,7 @@ import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
+import { useAdminTheme } from "@/context/AdminThemeContext";
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",
@@ -15,6 +16,8 @@ const MONTHS = [
 ];
 
 function StudentsContent() {
+    const { theme } = useAdminTheme();
+    const isLight = theme === "light";
     const cacheKeyBatches = "admin_batches";
     const cachedBatches = getCache(cacheKeyBatches);
 
@@ -297,23 +300,32 @@ function StudentsContent() {
         <div className="space-y-6">
 
             {/* ── Tab control ─────────────────────────────────────────── */}
-            <div className="flex items-center gap-1 p-1 bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-2xl w-fit">
+            <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
+                 style={{
+                     backgroundColor: 'var(--ad-card-bg)',
+                     borderColor: 'var(--ad-divider)'
+                 }}
+            >
                 <button
                     onClick={() => setActiveTab("list")}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2
-                        ${activeTab === "list"
-                            ? "bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                            : "text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 border border-transparent"}`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                    style={{
+                        backgroundColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                        color: activeTab === "list" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                        borderColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                    }}
                 >
                     <span className="material-symbols-outlined text-[16px]">group</span>
                     View Students
                 </button>
                 <button
                     onClick={() => setActiveTab("add")}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2
-                        ${activeTab === "add"
-                            ? "bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                            : "text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 border border-transparent"}`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                    style={{
+                        backgroundColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                        color: activeTab === "add" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                        borderColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                    }}
                 >
                     <span className="material-symbols-outlined text-[16px]">person_add</span>
                     Add Student
@@ -322,17 +334,29 @@ function StudentsContent() {
 
             {/* ── Messages ────────────────────────────────────────────── */}
             {error && !editingStudent && !overrideStudent && !statusModalStudent && (
-                <div className="p-4 rounded-xl bg-[#171924]/80 backdrop-blur-[20px] border border-[#ff6e84]/30 shadow-lg text-[#ff9dac] text-sm flex items-center gap-3">
+                <div className="p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
+                     style={{
+                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                         borderColor: 'rgba(255, 110, 132, 0.3)',
+                         color: isLight ? '#ef4444' : '#ff9dac'
+                     }}
+                >
                     <span className="material-symbols-outlined text-[#ff6e84]">error</span>
-                    <span className="flex-1">{error}</span>
-                    <button onClick={() => setError("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
+                    <span className="flex-1 font-medium">{error}</span>
+                    <button onClick={() => setError("")} className="ml-2 hover:text-[#ff6e84] transition-colors cursor-pointer">✕</button>
                 </div>
             )}
             {success && (
-                <div className="p-4 rounded-xl bg-[#171924]/80 backdrop-blur-[20px] border border-[#4af8e3]/30 shadow-lg text-[#dcfff8] text-sm flex items-center gap-3">
+                <div className="p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
+                     style={{
+                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                         borderColor: 'rgba(74, 248, 227, 0.3)',
+                         color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
+                     }}
+                >
                     <span className="material-symbols-outlined text-[#4af8e3]">check_circle</span>
-                    <span className="flex-1">{success}</span>
-                    <button onClick={() => setSuccess("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
+                    <span className="flex-1 font-medium">{success}</span>
+                    <button onClick={() => setSuccess("")} className="ml-2 hover:text-[#4af8e3] transition-colors cursor-pointer">✕</button>
                 </div>
             )}
 
@@ -349,7 +373,12 @@ function StudentsContent() {
                                 onChange={(e) => setSelectedListBatch(e.target.value)}
                                 options={batches}
                                 placeholder="Select Batch"
-                                className="w-full h-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                                className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                style={{
+                                    backgroundColor: 'var(--ad-input-bg)',
+                                    borderColor: 'var(--ad-input-border)',
+                                    color: 'var(--ad-text-primary)'
+                                }}
                             />
                         </div>
                     </div>
@@ -359,32 +388,48 @@ function StudentsContent() {
 
                     {/* Empty state — no batch selected or no data */}
                     {!listLoading && !hasLoaded && (
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4 text-center">
-                            <span className="material-symbols-outlined text-5xl text-[#464752]">group</span>
-                            <p className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</p>
-                            <p className="text-[#aaaab7] text-sm">Please select a batch to view its students.</p>
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4 text-center"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--ad-text-secondary)' }}>group</span>
+                            <p className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>Select Batch</p>
+                            <p className="text-sm" style={{ color: 'var(--ad-text-secondary)' }}>Please select a batch to view its students.</p>
                         </div>
                     )}
 
                     {!listLoading && hasLoaded && students.length === 0 && (
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center">
-                            <span className="material-symbols-outlined text-4xl text-[#464752]">person_off</span>
-                            <p className="text-[#aaaab7] font-medium">No students found in this batch.</p>
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-4xl" style={{ color: 'var(--ad-text-secondary)' }}>person_off</span>
+                            <p className="font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No students found in this batch.</p>
                         </div>
                     )}
 
                     {/* ── Mobile: Card layout ───────────────────────────── */}
                     {!listLoading && hasLoaded && students.length > 0 && (
                         <>
-                            <div className="mb-4 md:hidden px-2 text-[#aaaab7] text-xs font-bold uppercase tracking-widest">
+                            <div className="mb-4 md:hidden px-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
                                 {students.length} student{students.length !== 1 ? "s" : ""} · {batches.find(b => b.id === selectedListBatch)?.batch_name || ""}
                             </div>
                             <div className="space-y-4 md:hidden">
                                 {students.map((s) => (
-                                    <div key={s.uid || s.id} className={`bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-2xl p-5 transition-all ${s.is_disabled ? "opacity-60 grayscale-[0.3]" : ""}`}>
+                                    <div key={s.uid || s.id} 
+                                         className={`backdrop-blur-[20px] border rounded-2xl p-5 transition-all ${s.is_disabled ? "opacity-60 grayscale-[0.3]" : ""}`}
+                                         style={{
+                                             backgroundColor: 'var(--ad-card-bg)',
+                                             borderColor: 'var(--ad-card-border)'
+                                         }}
+                                    >
                                         <div className="flex flex-col gap-4">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-[#f0f0fd] font-bold text-lg truncate tracking-wide" style={{ fontFamily: "'Manrope', sans-serif" }}>{s.name}</p>
+                                                <p className="font-bold text-lg truncate tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>{s.name}</p>
                                                 {s.is_disabled && (
                                                     <span className="px-2 py-0.5 rounded-lg bg-[#ff6e84]/10 text-[#ff6e84] text-[10px] font-black uppercase tracking-tighter border border-[#ff6e84]/30 shadow-[0_0_10px_rgba(255,110,132,0.2)]">Disabled</span>
                                                 )}
@@ -394,19 +439,33 @@ function StudentsContent() {
                                                     <span className="px-3 py-1 rounded-full bg-[#f5c542]/10 text-[#f5c542] text-[11px] border border-[#f5c542]/30 font-bold uppercase tracking-widest whitespace-nowrap">₹{s.custom_fee}/mo</span>
                                                 )}
                                             </div>
-                                            <div className="flex gap-2 justify-end w-full border-t border-[#464752]/30 pt-4">
-                                                <button onClick={() => setDevicesStudent(s)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#aaaab7] hover:bg-[#4af8e3]/10 hover:border-[#4af8e3]/30 hover:text-[#4af8e3] transition-all cursor-pointer flex-1 flex justify-center">
+                                            <div className="flex gap-2 justify-end w-full border-t pt-4" style={{ borderColor: 'var(--ad-divider)' }}>
+                                                <button onClick={() => setDevicesStudent(s)} 
+                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                >
                                                     <span className="material-symbols-outlined text-[20px]">devices</span>
                                                 </button>
-                                                <button onClick={() => startOverride(s)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#aaaab7] hover:bg-[#f5c542]/10 hover:border-[#f5c542]/30 hover:text-[#f5c542] transition-all cursor-pointer flex-1 flex justify-center">
+                                                <button onClick={() => startOverride(s)} 
+                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                >
                                                     <span className="material-symbols-outlined text-[20px]">payments</span>
                                                 </button>
-                                                <button onClick={() => startEdit(s)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[#aaaab7] hover:bg-[#c799ff]/10 hover:border-[#c799ff]/30 hover:text-[#c799ff] transition-all cursor-pointer flex-1 flex justify-center">
+                                                <button onClick={() => startEdit(s)} 
+                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                >
                                                     <span className="material-symbols-outlined text-[20px]">edit</span>
                                                 </button>
                                                 <button onClick={() => handleToggleStatus(s)} disabled={togglingStatus === (s.uid || s.id)}
-                                                    className={`p-2.5 rounded-xl border transition-all disabled:opacity-50 cursor-pointer flex-1 flex justify-center
-                                                    ${s.is_disabled ? "bg-[#4af8e3]/5 border-[#4af8e3]/10 text-[#4af8e3]/60 hover:bg-[#4af8e3]/10 hover:border-[#4af8e3]/30 hover:text-[#4af8e3]" : "bg-white/5 border-white/10 text-[#aaaab7] hover:bg-[#ff6e84]/10 hover:border-[#ff6e84]/30 hover:text-[#ff6e84]"}`}>
+                                                    className="p-2.5 rounded-xl border transition-all disabled:opacity-50 cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                    style={{ 
+                                                        backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)', 
+                                                        borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)', 
+                                                        color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)' 
+                                                    }}
+                                                >
                                                     {togglingStatus === (s.uid || s.id)
                                                         ? <span className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin" />
                                                         : <span className="material-symbols-outlined text-[20px]">{s.is_disabled ? "person_check" : "person_off"}</span>}
@@ -418,26 +477,31 @@ function StudentsContent() {
                             </div>
 
                             {/* ── Desktop: Table layout ──────────────────── */}
-                            <div className="hidden md:block bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] overflow-hidden shadow-lg">
-                                <div className="px-6 py-4 border-b border-[#464752]/30 flex items-center justify-between">
-                                    <span className="text-[#aaaab7] text-xs font-bold uppercase tracking-widest">
+                            <div className="hidden md:block backdrop-blur-[20px] border rounded-[2rem] overflow-hidden shadow-lg"
+                                 style={{
+                                     backgroundColor: 'var(--ad-card-bg)',
+                                     borderColor: 'var(--ad-card-border)'
+                                 }}
+                            >
+                                <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--ad-divider)' }}>
+                                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
                                         {students.length} student{students.length !== 1 ? "s" : ""} · {batches.find(b => b.id === selectedListBatch)?.batch_name || ""}
                                     </span>
                                 </div>
                                 <div className="overflow-x-auto custom-scrollbar">
                                     <table className="w-full">
-                                        <thead className="bg-[#222532]/50 border-b border-[#464752]/50">
+                                        <thead style={{ backgroundColor: 'var(--ad-surface)', borderBottom: '1px solid var(--ad-divider)' }}>
                                             <tr>
-                                                <th className="px-6 py-4 text-left text-xs font-bold text-[#aaaab7] uppercase tracking-widest whitespace-nowrap">Student</th>
-                                                <th className="px-6 py-4 text-left text-xs font-bold text-[#aaaab7] uppercase tracking-widest whitespace-nowrap">Custom Fee</th>
-                                                <th className="px-6 py-4 text-right text-xs font-bold text-[#aaaab7] uppercase tracking-widest whitespace-nowrap">Actions</th>
+                                                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--ad-text-secondary)' }}>Student</th>
+                                                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--ad-text-secondary)' }}>Custom Fee</th>
+                                                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--ad-text-secondary)' }}>Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-[#464752]/30">
+                                        <tbody className="divide-y divide-[var(--ad-divider)]">
                                             {students.map((s) => (
-                                                <tr key={s.uid || s.id} className={`hover:bg-[#222532]/30 transition-colors group ${s.is_disabled ? "opacity-50 grayscale-[0.5]" : ""}`}>
+                                                <tr key={s.uid || s.id} className={`hover:bg-white/[0.01] transition-colors group ${s.is_disabled ? "opacity-50 grayscale-[0.5]" : ""}`}>
                                                     <td className="px-6 py-5 whitespace-nowrap">
-                                                        <p className="text-[#f0f0fd] font-bold tracking-wide flex items-center gap-2">
+                                                        <p className="font-bold tracking-wide flex items-center gap-2" style={{ color: 'var(--ad-text-primary)' }}>
                                                             {s.name}
                                                             {s.is_disabled && (
                                                                 <span className="px-1.5 py-0.5 rounded bg-[#ff6e84]/10 text-[#ff6e84] text-[9px] font-black uppercase tracking-tighter border border-[#ff6e84]/20">OFF</span>
@@ -448,26 +512,40 @@ function StudentsContent() {
                                                         {s.custom_fee != null ? (
                                                             <span className="px-3 py-1 rounded-full bg-[#f5c542]/10 text-[#f5c542] text-[11px] border border-[#f5c542]/30 font-bold uppercase tracking-widest whitespace-nowrap">₹{s.custom_fee}</span>
                                                         ) : (
-                                                            <span className="text-[#aaaab7] text-xs font-bold tracking-widest uppercase">—</span>
+                                                            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--ad-text-secondary)' }}>—</span>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-5 whitespace-nowrap">
                                                         <div className="flex justify-end gap-2">
-                                                            <button onClick={() => setDevicesStudent(s)} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#aaaab7] hover:text-[#4af8e3] hover:bg-[#4af8e3]/10 hover:border-[#4af8e3]/30 transition-all cursor-pointer flex items-center gap-2">
+                                                            <button onClick={() => setDevicesStudent(s)} 
+                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            >
                                                                 <span className="material-symbols-outlined text-[16px]">devices</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Devices</span>
                                                             </button>
-                                                            <button onClick={() => startOverride(s)} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#aaaab7] hover:text-[#f5c542] hover:bg-[#f5c542]/10 hover:border-[#f5c542]/30 transition-all cursor-pointer flex items-center gap-2">
+                                                            <button onClick={() => startOverride(s)} 
+                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            >
                                                                 <span className="material-symbols-outlined text-[16px]">payments</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Fee</span>
                                                             </button>
-                                                            <button onClick={() => startEdit(s)} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#aaaab7] hover:text-[#c799ff] hover:bg-[#c799ff]/10 hover:border-[#c799ff]/30 transition-all cursor-pointer flex items-center gap-2">
+                                                            <button onClick={() => startEdit(s)} 
+                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            >
                                                                 <span className="material-symbols-outlined text-[16px]">edit</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Edit</span>
                                                             </button>
                                                             <button onClick={() => handleToggleStatus(s)} disabled={togglingStatus === (s.uid || s.id)}
-                                                                className={`px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2
-                                                                ${s.is_disabled ? "bg-[#4af8e3]/5 border-[#4af8e3]/10 text-[#4af8e3]/60 hover:text-[#4af8e3] hover:bg-[#4af8e3]/10 hover:border-[#4af8e3]/30" : "bg-white/5 border-white/10 text-[#aaaab7] hover:text-[#ff6e84] hover:bg-[#ff6e84]/10 hover:border-[#ff6e84]/30"}`}>
+                                                                className="px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                style={{ 
+                                                                    backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)', 
+                                                                    borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)', 
+                                                                    color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)' 
+                                                                }}
+                                                            >
                                                                 {togglingStatus === (s.uid || s.id)
                                                                     ? <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
                                                                     : <span className="material-symbols-outlined text-[16px]">{s.is_disabled ? "person_check" : "person_off"}</span>}
@@ -493,10 +571,20 @@ function StudentsContent() {
             {activeTab === "add" && (
                 <form
                     onSubmit={handleSubmit}
-                    className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 sm:p-8 transition-colors hover:bg-[#171924]/80"
+                    className="backdrop-blur-[20px] border rounded-[2rem] p-6 sm:p-8 shadow-lg"
+                    style={{
+                        backgroundColor: 'var(--ad-card-bg)',
+                        borderColor: 'var(--ad-card-border)'
+                    }}
                 >
-                    <h3 className="text-[#f0f0fd] font-bold mb-6 text-lg flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                        <span className="w-8 h-8 rounded-xl bg-[#c799ff]/10 border border-[#c799ff]/30 flex items-center justify-center text-sm font-extrabold text-[#c799ff] shadow-[0_0_10px_rgba(199,153,255,0.2)]">
+                    <h3 className="font-bold mb-6 text-lg flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-extrabold shadow-sm border"
+                              style={{
+                                  backgroundColor: 'var(--ad-accent-bg)',
+                                  borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                                  color: 'var(--ad-accent)'
+                              }}
+                        >
                             <span className="material-symbols-outlined text-[16px]">person_add</span>
                         </span>
                         New Student
@@ -507,7 +595,12 @@ function StudentsContent() {
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors placeholder:text-[#aaaab7]/70"
+                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
                         />
                         <input
                             placeholder="Username or Mobile"
@@ -515,7 +608,12 @@ function StudentsContent() {
                             value={form.username}
                             onChange={(e) => setForm({ ...form, username: e.target.value })}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors placeholder:text-[#aaaab7]/70"
+                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
                         />
                         <input
                             placeholder="Password"
@@ -524,24 +622,38 @@ function StudentsContent() {
                             onChange={(e) => setForm({ ...form, password: e.target.value })}
                             required
                             minLength={6}
-                            className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors placeholder:text-[#aaaab7]/70"
+                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
                         />
                         <ModernSelect
                             value={form.batch_id}
                             onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
                             options={batches}
                             placeholder="Select Batch"
-                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={formLoading}
-                        className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 text-sm font-bold uppercase tracking-widest
-                        hover:bg-[#c799ff]/20 hover:border-[#c799ff]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(199,153,255,0.15)] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3"
+                        className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 border hover:opacity-85"
+                        style={{
+                            backgroundColor: 'var(--ad-accent-bg)',
+                            borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                            color: 'var(--ad-accent)'
+                        }}
                     >
                         {formLoading ? (
-                            <span className="w-5 h-5 rounded-full border-2 border-[#c799ff]/30 border-t-[#c799ff] animate-spin" />
+                            <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
                         ) : (
                             <span className="material-symbols-outlined text-[18px]">add_circle</span>
                         )}
@@ -557,75 +669,120 @@ function StudentsContent() {
             {/* Edit Student Modal */}
             {editingStudent && createPortal(
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <form onSubmit={handleEditSubmit} className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#737580]/20 shadow-2xl relative animate-fade-in-up m-auto">
+                    <form onSubmit={handleEditSubmit} 
+                          className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
+                          style={{
+                              backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                              borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(80px) saturate(2.5)',
+                              WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                          }}
+                    >
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-[#f0f0fd] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                                <span className="material-symbols-outlined text-[#c799ff]">edit</span>
+                            <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--ad-primary)' }}>edit</span>
                                 Edit Student
                             </h3>
-                            <button type="button" onClick={cancelEdit} className="text-[#aaaab7] hover:text-[#ff6e84] transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
+                            <button type="button" onClick={cancelEdit} 
+                                    className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                            >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
                         {error && (
-                            <div className="mb-6 p-4 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-sm flex items-center gap-3">
+                            <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
+                                 style={{
+                                     backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                     borderColor: 'rgba(255, 110, 132, 0.3)',
+                                     color: isLight ? '#ef4444' : '#ff9dac'
+                                 }}
+                            >
                                 <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                 <span className="flex-1 font-medium">{error}</span>
                             </div>
                         )}
                         <div className="space-y-5 mb-8">
                             <div>
-                                <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Full Name</label>
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Full Name</label>
                                 <input
                                     placeholder="Full Name"
                                     value={editForm.name}
                                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Username or Mobile</label>
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Username or Mobile</label>
                                 <input
                                     placeholder="Username or Mobile"
                                     type="text"
                                     value={editForm.username}
                                     onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">New Password (Optional)</label>
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>New Password (Optional)</label>
                                 <input
                                     placeholder="Leave blank to keep current"
                                     type="password"
                                     value={editForm.password}
                                     onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                                     minLength={editForm.password ? 6 : undefined}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Batch</label>
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Batch</label>
                                 <ModernSelect
                                     value={editForm.batch_id}
                                     onChange={(e) => setEditForm({ ...editForm, batch_id: e.target.value })}
                                     options={batches}
                                     placeholder="Select Batch"
-                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#c799ff]/50 transition-colors"
+                                    className="w-full flex items-cols-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                         </div>
-                        <div className="flex justify-end gap-4 pt-6 border-t border-[#464752]/30">
-                            <button type="button" onClick={cancelEdit} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 transition-all cursor-pointer">
+                        <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
+                            <button type="button" onClick={cancelEdit} 
+                                    className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                    style={{ color: 'var(--ad-text-secondary)' }}
+                            >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={editLoading}
-                                className="px-6 py-3 rounded-xl bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 text-sm font-bold uppercase tracking-widest hover:bg-[#c799ff]/20 hover:border-[#c799ff]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(199,153,255,0.15)] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 border hover:opacity-85"
+                                style={{
+                                    backgroundColor: 'var(--ad-accent-bg)',
+                                    borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                                    color: 'var(--ad-accent)'
+                                }}
                             >
                                 {editLoading ? (
-                                    <span className="w-5 h-5 rounded-full border-2 border-[#c799ff]/30 border-t-[#c799ff] animate-spin" />
+                                    <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
                                 ) : (
                                     <span className="material-symbols-outlined text-[18px]">save</span>
                                 )}
@@ -640,79 +797,129 @@ function StudentsContent() {
             {/* Fee Override Modal */}
             {overrideStudent && createPortal(
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <form onSubmit={handleOverrideSubmit} className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border border-[#f5c542]/20 shadow-2xl relative animate-fade-in-up m-auto">
+                    <form onSubmit={handleOverrideSubmit} 
+                          className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
+                          style={{
+                              backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                              borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(80px) saturate(2.5)',
+                              WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                          }}
+                    >
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-[#f0f0fd] font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                            <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 <span className="material-symbols-outlined text-[#f5c542]">payments</span>
                                 Override: {overrideStudent.name}
                             </h3>
-                            <button type="button" onClick={cancelOverride} className="text-[#aaaab7] hover:text-[#ff6e84] transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
+                            <button type="button" onClick={cancelOverride} 
+                                    className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                            >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
                         {error && (
-                            <div className="mb-6 p-4 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-sm flex items-center gap-3">
+                            <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
+                                 style={{
+                                     backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                     borderColor: 'rgba(255, 110, 132, 0.3)',
+                                     color: isLight ? '#ef4444' : '#ff9dac'
+                                 }}
+                            >
                                 <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                 <span className="flex-1 font-medium">{error}</span>
                             </div>
                         )}
                         <div className="flex gap-3 mb-6">
                             <button type="button" onClick={() => setOverrideType("permanent")}
-                                className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all duration-300 cursor-pointer
-                                ${overrideType === "permanent" ? "bg-[#c799ff]/10 border-[#c799ff]/50 text-[#c799ff] shadow-[0_0_15px_rgba(199,153,255,0.2)]" : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:bg-[#222532]/80"}`}>
+                                className="flex-1 px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all duration-300 cursor-pointer"
+                                style={{
+                                    backgroundColor: overrideType === "permanent" ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'var(--ad-icon-bg)',
+                                    borderColor: overrideType === "permanent" ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'var(--ad-input-border)',
+                                    color: overrideType === "permanent" ? (isLight ? '#0d9488' : '#c799ff') : 'var(--ad-text-secondary)'
+                                }}
+                            >
                                 All-Time
                             </button>
                             <button type="button" onClick={() => setOverrideType("monthly")}
-                                className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all duration-300 cursor-pointer
-                                ${overrideType === "monthly" ? "bg-[#4af8e3]/10 border-[#4af8e3]/50 text-[#4af8e3] shadow-[0_0_15px_rgba(74,248,227,0.2)]" : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:bg-[#222532]/80"}`}>
+                                className="flex-1 px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all duration-300 cursor-pointer"
+                                style={{
+                                    backgroundColor: overrideType === "monthly" ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)') : 'var(--ad-icon-bg)',
+                                    borderColor: overrideType === "monthly" ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(74, 248, 227, 0.25)') : 'var(--ad-input-border)',
+                                    color: overrideType === "monthly" ? (isLight ? '#0d9488' : '#4af8e3') : 'var(--ad-text-secondary)'
+                                }}
+                            >
                                 Specific Month
                             </button>
                         </div>
                         <div className="space-y-5 mb-8">
                             <div>
-                                <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Custom Fee (₹)</label>
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Custom Fee (₹)</label>
                                 <input
                                     type="number"
                                     value={overrideAmount}
                                     onChange={(e) => setOverrideAmount(e.target.value)}
                                     placeholder="Leave blank to reset"
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#f5c542]/50 transition-colors placeholder:text-[#aaaab7]/50"
+                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                             {overrideType === "monthly" && (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Month</label>
+                                        <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Month</label>
                                         <ModernSelect
                                             value={overrideMonth}
                                             onChange={(e) => setOverrideMonth(Number(e.target.value))}
                                             options={MONTHS.map((m, i) => ({ value: i + 1, label: m }))}
-                                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#f5c542]/50 transition-colors"
+                                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                            style={{
+                                                backgroundColor: 'var(--ad-input-bg)',
+                                                borderColor: 'var(--ad-input-border)',
+                                                color: 'var(--ad-text-primary)'
+                                            }}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[#aaaab7] text-[13px] font-bold tracking-wide uppercase mb-2">Year</label>
+                                        <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Year</label>
                                         <ModernSelect
                                             value={overrideYear}
                                             onChange={(e) => setOverrideYear(Number(e.target.value))}
                                             options={getYearOptions()}
-                                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#f5c542]/50 transition-colors"
+                                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                            style={{
+                                                backgroundColor: 'var(--ad-input-bg)',
+                                                borderColor: 'var(--ad-input-border)',
+                                                color: 'var(--ad-text-primary)'
+                                            }}
                                         />
                                     </div>
                                 </div>
                             )}
                         </div>
-                        <div className="flex justify-end gap-4 pt-6 border-t border-[#464752]/30">
-                            <button type="button" onClick={cancelOverride} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 transition-all cursor-pointer">
+                        <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
+                            <button type="button" onClick={cancelOverride} 
+                                    className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                    style={{ color: 'var(--ad-text-secondary)' }}
+                            >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={overrideLoading}
-                                className="px-6 py-3 rounded-xl bg-[#f5c542]/10 text-[#f5c542] border border-[#f5c542]/30 text-sm font-bold uppercase tracking-widest hover:bg-[#f5c542]/20 hover:border-[#f5c542]/50 transition-all duration-300 shadow-[0_4px_15px_rgba(245,197,66,0.15)] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                className="px-6 py-3 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 hover:opacity-85"
+                                style={{
+                                    backgroundColor: isLight ? 'rgba(217, 119, 6, 0.08)' : 'rgba(245, 197, 66, 0.1)',
+                                    borderColor: isLight ? 'rgba(217, 119, 6, 0.25)' : 'rgba(245, 197, 66, 0.3)',
+                                    color: isLight ? '#d97706' : '#f5c542'
+                                }}
                             >
                                 {overrideLoading ? (
-                                    <span className="w-5 h-5 rounded-full border-2 border-[#f5c542]/30 border-t-[#f5c542] animate-spin" />
+                                    <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: isLight ? '#d97706' : '#f5c542', borderTopColor: 'transparent' }} />
                                 ) : (
                                     <span className="material-symbols-outlined text-[18px]">save</span>
                                 )}
@@ -731,26 +938,55 @@ function StudentsContent() {
                 const targetText = `I CONFIRM TO ${actionText} ${statusModalStudent.name.toUpperCase()}`;
                 return createPortal(
                     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                        <div className={`bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-lg border ${isDisabling ? "border-[#ff6e84]/30 shadow-[0_0_40px_rgba(255,110,132,0.15)]" : "border-[#4af8e3]/30 shadow-[0_0_40px_rgba(74,248,227,0.15)]"} relative animate-fade-in-up m-auto`}>
+                        <div className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
+                             style={{
+                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                                 borderColor: isDisabling 
+                                     ? (isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 110, 132, 0.3)')
+                                     : (isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)'),
+                                 backdropFilter: 'blur(80px) saturate(2.5)',
+                                 WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                             }}
+                        >
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className={`${isDisabling ? "text-[#ff6e84]" : "text-[#4af8e3]"} font-bold text-xl flex items-center gap-2`} style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                <h3 className="font-bold text-xl flex items-center gap-2" 
+                                    style={{ 
+                                        fontFamily: "'Manrope', sans-serif",
+                                        color: isDisabling ? (isLight ? '#ef4444' : '#ff6e84') : (isLight ? '#0d9488' : '#4af8e3')
+                                    }}
+                                >
                                     <span className="material-symbols-outlined">{isDisabling ? "person_off" : "person_check"}</span>
                                     {isDisabling ? "Disable Student" : "Enable Student"}
                                 </h3>
-                                <button onClick={() => setStatusModalStudent(null)} className="text-[#aaaab7] hover:text-white transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
+                                <button onClick={() => setStatusModalStudent(null)} 
+                                        className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                                >
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
                             </div>
                             {error && (
-                                <div className="mb-6 p-4 rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/30 text-[#ff9dac] text-sm flex items-center gap-3">
+                                <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
+                                     style={{
+                                         backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                         borderColor: 'rgba(255, 110, 132, 0.3)',
+                                         color: isLight ? '#ef4444' : '#ff9dac'
+                                     }}
+                                >
                                     <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                     <span className="flex-1 font-medium">{error}</span>
                                 </div>
                             )}
-                            <div className="space-y-4 mb-6 text-[#aaaab7]">
-                                <p className="text-base text-[#f0f0fd] font-medium">Are you sure you want to {actionText} <span className="font-bold text-white">{statusModalStudent.name}</span>?</p>
+                            <div className="space-y-4 mb-6" style={{ color: 'var(--ad-text-secondary)' }}>
+                                <p className="text-base font-medium" style={{ color: 'var(--ad-text-primary)' }}>Are you sure you want to {actionText} <span className="font-bold" style={{ color: 'var(--ad-text-primary)' }}>{statusModalStudent.name}</span>?</p>
                                 {isDisabling ? (
-                                    <div className="bg-[#ff6e84]/10 border border-[#ff6e84]/20 p-4 rounded-xl text-sm leading-relaxed text-[#ff9dac]">
+                                    <div className="border p-4 rounded-xl text-sm leading-relaxed"
+                                         style={{
+                                             backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                                             borderColor: 'rgba(239, 68, 68, 0.15)',
+                                             color: isLight ? '#ef4444' : '#ff9dac'
+                                         }}
+                                    >
                                         <p className="font-bold mb-1">If you disable this student:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
                                             <li>They will be logged out of all devices immediately.</li>
@@ -759,7 +995,13 @@ function StudentsContent() {
                                         </ul>
                                     </div>
                                 ) : (
-                                    <div className="bg-[#4af8e3]/10 border border-[#4af8e3]/20 p-4 rounded-xl text-sm leading-relaxed text-[#dcfff8]">
+                                    <div className="border p-4 rounded-xl text-sm leading-relaxed"
+                                         style={{
+                                             backgroundColor: 'rgba(13, 148, 136, 0.05)',
+                                             borderColor: 'rgba(13, 148, 136, 0.15)',
+                                             color: isLight ? '#0d9488' : '#dcfff8'
+                                         }}
+                                    >
                                         <p className="font-bold mb-1">If you enable this student:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
                                             <li>They will be able to log in to their account again.</li>
@@ -770,26 +1012,39 @@ function StudentsContent() {
                                 )}
                                 <div>
                                     <label className="block text-[13px] font-bold tracking-wide uppercase mb-2">
-                                        Please type <span className={`${isDisabling ? "text-[#ff6e84]" : "text-[#4af8e3]"} select-all`}>{targetText}</span> to verify
+                                        Please type <span className="select-all" style={{ color: isDisabling ? (isLight ? '#ef4444' : '#ff6e84') : (isLight ? '#0d9488' : '#4af8e3') }}>{targetText}</span> to verify
                                     </label>
                                     <input
                                         type="text"
                                         value={statusConfirmText}
                                         onChange={(e) => setStatusConfirmText(e.target.value.toUpperCase())}
-                                        className={`w-full px-4 py-3.5 rounded-xl bg-[#222532]/50 border border-[#464752]/50 ${isDisabling ? "hover:border-[#ff6e84]/50 focus:border-[#ff6e84] focus:ring-[#ff6e84]" : "hover:border-[#4af8e3]/50 focus:border-[#4af8e3] focus:ring-[#4af8e3]"} text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-1 transition-colors`}
+                                        className="w-full px-4 py-3.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-1 transition-colors"
+                                        style={{
+                                            backgroundColor: 'var(--ad-input-bg)',
+                                            borderColor: 'var(--ad-input-border)',
+                                            color: 'var(--ad-text-primary)'
+                                        }}
                                         placeholder={targetText}
                                         autoComplete="off"
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-4 pt-6 border-t border-[#464752]/30">
-                                <button onClick={() => setStatusModalStudent(null)} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 transition-all cursor-pointer">
+                            <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
+                                <button onClick={() => setStatusModalStudent(null)} 
+                                        className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={confirmStatusToggle}
                                     disabled={statusConfirmText !== targetText}
-                                    className={`px-6 py-3 rounded-xl ${isDisabling ? "bg-[#ff6e84]/10 text-[#ff6e84] border-[#ff6e84]/30 hover:bg-[#ff6e84]/20 hover:border-[#ff6e84]/50 shadow-[0_4px_15px_rgba(255,110,132,0.15)]" : "bg-[#4af8e3]/10 text-[#4af8e3] border-[#4af8e3]/30 hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 shadow-[0_4px_15px_rgba(74,248,227,0.15)]"} border text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2`}
+                                    className="px-6 py-3 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                    style={{
+                                        backgroundColor: isDisabling ? 'rgba(239, 68, 68, 0.08)' : 'rgba(13, 148, 136, 0.08)',
+                                        borderColor: isDisabling ? 'rgba(239, 68, 68, 0.25)' : 'rgba(13, 148, 136, 0.25)',
+                                        color: isDisabling ? '#ef4444' : '#0d9488'
+                                    }}
                                 >
                                     <span className="material-symbols-outlined text-[18px]">{isDisabling ? "person_off" : "person_check"}</span>
                                     {isDisabling ? "Disable" : "Enable"}

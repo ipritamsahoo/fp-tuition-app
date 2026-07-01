@@ -1,11 +1,41 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
-export default function ModernSelect({ icon, value, onChange, options, placeholder = "Select...", className = "", theme }) {
+export default function ModernSelect({ icon, value, onChange, options, placeholder = "Select...", className = "", style = {}, theme }) {
     const [isOpen, setIsOpen] = useState(false);
     const buttonRef = useRef(null);
     const dropdownRef = useRef(null);
     const [dropdownPos, setDropdownPos] = useState({ top: "auto", bottom: "auto", left: 0, width: 0 });
+
+    // Try to auto-detect if the page is currently in light theme
+    const [isLightTheme, setIsLightTheme] = useState(theme === "light");
+
+    useEffect(() => {
+        if (theme) {
+            setIsLightTheme(theme === "light");
+            return;
+        }
+
+        const checkTheme = () => {
+            const currentTheme = document.body.getAttribute("data-theme") || document.documentElement.getAttribute("data-theme");
+            setIsLightTheme(currentTheme === "light");
+        };
+
+        checkTheme();
+
+        // Listen for admin/teacher theme switches
+        window.addEventListener("fp-admin-theme-change", checkTheme);
+        
+        // Also observe data-theme mutations on body in case it changes
+        const observer = new MutationObserver(checkTheme);
+        observer.observe(document.body, { attributes: true, attributeFilter: ["data-theme"] });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+        return () => {
+            window.removeEventListener("fp-admin-theme-change", checkTheme);
+            observer.disconnect();
+        };
+    }, [theme]);
 
     // Find the current selected option to show its label
     const selectedOption = options.find(opt => {
@@ -75,7 +105,6 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
 
         document.addEventListener("mousedown", handleClickOutside);
         document.addEventListener("touchstart", handleClickOutside);
-        // Removed scroll listener to prevent menu from closing when scrolling options
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
@@ -86,7 +115,7 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
     const dropdown = isOpen ? createPortal(
         <div
             ref={dropdownRef}
-            data-theme={theme}
+            data-theme={isLightTheme ? "light" : "dark"}
             className="modern-select-dropdown"
             style={{
                 position: "fixed",
@@ -99,10 +128,10 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
         >
             <div
                 style={{
-                    background: theme === 'light' ? 'rgba(255, 255, 255, 0.45)' : 'var(--st-surface-high, #1a1c28)',
-                    border: `1px solid ${theme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'var(--st-nav-border, rgba(255, 255, 255, 0.12))'}`,
+                    background: isLightTheme ? 'rgba(255, 255, 255, 0.45)' : 'var(--st-surface-high, #1a1c28)',
+                    border: `1px solid ${isLightTheme ? 'rgba(255, 255, 255, 0.6)' : 'var(--st-nav-border, rgba(255, 255, 255, 0.12))'}`,
                     borderRadius: "20px",
-                    boxShadow: theme === 'light' 
+                    boxShadow: isLightTheme 
                         ? "0 20px 60px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)" 
                         : "0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
                     overflow: "hidden",
@@ -141,7 +170,7 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
                                     fontWeight: isSelected ? 800 : 600,
                                     color: isSelected ? "var(--st-primary, #c799ff)" : "var(--st-text-primary, #f0f0fd)",
                                     backgroundColor: isSelected 
-                                        ? (theme === 'light' ? "rgba(124, 58, 237, 0.18)" : "rgba(199, 153, 255, 0.15)")
+                                        ? (isLightTheme ? "rgba(124, 58, 237, 0.18)" : "rgba(199, 153, 255, 0.15)")
                                         : "transparent",
                                     cursor: "pointer",
                                     display: "flex",
@@ -150,7 +179,7 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
                                     transition: "all 0.15s ease",
                                     userSelect: "none",
                                 }}
-                                className={isSelected ? "" : (theme === 'light' ? "hover:bg-black/5" : "hover:bg-white/5")}
+                                className={isSelected ? "" : (isLightTheme ? "hover:bg-black/5" : "hover:bg-white/5")}
                             >
                                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "12px" }}>
                                     {label}
@@ -177,11 +206,12 @@ export default function ModernSelect({ icon, value, onChange, options, placehold
                 onClick={handleToggle}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium cursor-pointer transition-all min-w-[120px] ${className}`}
                 style={{
-                    background: theme === 'light' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)',
-                    borderColor: theme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.1)',
+                    background: isLightTheme ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)',
+                    borderColor: isLightTheme ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.1)',
                     color: 'var(--st-text-primary)',
                     backdropFilter: 'blur(16px)',
                     WebkitBackdropFilter: 'blur(16px)',
+                    ...style
                 }}
             >
                 {icon && <span className="material-symbols-outlined text-base" style={{ color: 'var(--st-text-secondary)' }}>{icon}</span>}

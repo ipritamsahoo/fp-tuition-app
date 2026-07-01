@@ -155,11 +155,16 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
                 <button
                     id="app-lock-setting-btn"
                     onClick={handleOpenModal}
-                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group cursor-pointer border border-transparent hover:border-[#3b82f6]/30"
+                    className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--accent-color)]/30"
+                    style={{ 
+                        backgroundColor: isLight ? 'var(--ad-hover-bg)' : 'rgba(255, 255, 255, 0.05)',
+                        '--accent-color': accentColor
+                    }}
                 >
                     <div className="flex items-center gap-3 text-left">
                         <div
-                            className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors bg-black/20 group-hover:bg-[#3b82f6]/20"
+                            className="w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-300"
+                            style={{ backgroundColor: `${accentColor}20` }}
                         >
                             <span
                                 className="material-symbols-outlined text-[18px]"
@@ -171,7 +176,7 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
                                 fingerprint
                             </span>
                         </div>
-                        <span className="text-sm font-medium text-[#f0f0fd]">Biometric Lock</span>
+                        <span className="text-sm font-medium" style={{ color: isLight ? 'var(--ad-text-primary)' : '#f0f0fd' }}>Biometric Lock</span>
                     </div>
 
                     {/* Status badge + chevron */}

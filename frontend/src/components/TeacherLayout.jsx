@@ -3,6 +3,7 @@ import logoSrc from "@/assets/logo.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useNotifications } from "@/context/NotificationContext";
 import { useAuth } from "@/context/AuthContext";
+import { TeacherThemeProvider, useTeacherTheme } from "@/context/TeacherThemeContext";
 import ProfilePicture from "./ProfilePicture";
 import NotificationPanel from "./NotificationPanel";
 
@@ -28,12 +29,15 @@ const teacherBottomNav = [
     { label: "Settings", href: "/teacher/settings", icon: "settings" },
 ];
 
-export default function TeacherLayout({ children }) {
+function TeacherLayoutInner({ children }) {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const { unreadCount } = useNotifications();
     const { user } = useAuth();
+    const { theme } = useTeacherTheme();
     const [notifOpen, setNotifOpen] = useState(false);
+
+    const isLight = theme === "light";
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = teacherBottomNav.findIndex(item => pathname === item.href);
@@ -83,7 +87,7 @@ export default function TeacherLayout({ children }) {
                         const el = iconRefs.current[i];
                         if (!el) return;
                         const prox = Math.max(0, 1 - Math.abs(pos - i) * 1.4);
-                        el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'rgba(59,89,152,0.5)';
+                        el.style.color = prox > 0.25 ? `rgba(255,255,255,${Math.min(prox * 1.5, 1)})` : 'var(--tt-nav-icon-inactive)';
                         el.style.transform = `scale(${1 + 0.14 * prox})`;
                         el.style.fontVariationSettings = prox > 0.4 ? "'FILL' 1" : "'FILL' 0";
                     });
@@ -99,7 +103,7 @@ export default function TeacherLayout({ children }) {
                                 el.style.transform = 'scale(1.14)';
                                 el.style.fontVariationSettings = "'FILL' 1";
                             } else {
-                                el.style.color = 'rgba(59,89,152,0.5)';
+                                el.style.color = 'var(--tt-nav-icon-inactive)';
                                 el.style.transform = 'scale(1)';
                                 el.style.fontVariationSettings = "'FILL' 0";
                             }
@@ -115,7 +119,7 @@ export default function TeacherLayout({ children }) {
             };
         }
         prevIdxRef.current = to;
-    }, [activeIdx]);
+    }, [activeIdx, isLight]);
 
     const isSubPageMobile = pathname !== "/teacher" &&
         pathname !== "/teacher/payments" &&
@@ -132,39 +136,114 @@ export default function TeacherLayout({ children }) {
     };
 
     return (
-        <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0c0e17] text-[#f0f0fd] relative isolate" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div 
+            data-theme={theme}
+            className="min-h-[100dvh] w-full overflow-x-hidden relative isolate" 
+            style={{ 
+                fontFamily: "'Inter', sans-serif",
+                backgroundColor: 'var(--tt-page-bg)',
+                color: 'var(--tt-text-primary)'
+            }}
+        >
             {/* ── Ambient Backgrounds ── */}
-            <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none" style={{ transform: "translateZ(0)" }}>
-                <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-[radial-gradient(circle,rgba(59,130,246,0.15)_0%,transparent_70%)] blur-[100px]" style={{ transform: "translateZ(0)", willChange: "transform" }} />
-                <div className="absolute -bottom-[10%] -right-[10%] w-[70%] h-[70%] bg-[radial-gradient(circle,rgba(59,130,246,0.1)_0%,transparent_70%)] blur-[100px]" style={{ transform: "translateZ(0)", willChange: "transform" }} />
+            <div className="teacher-ambient-bg fixed inset-0 z-0 overflow-hidden pointer-events-none" style={{ transform: "translateZ(0)" }}>
+                {/* Blue blob — top-left */}
+                <div
+                    className="ambient-blob-1 absolute -top-[10%] -left-[10%] w-[65%] h-[65%] blur-[100px]"
+                    style={{
+                        background: isLight
+                            ? 'radial-gradient(circle, rgba(99,165,255,0.55) 0%, rgba(147,197,253,0.20) 50%, transparent 70%)'
+                            : 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)',
+                        transform: "translateZ(0)", willChange: "transform"
+                    }}
+                />
+                {/* Purple/other blob — bottom-right */}
+                <div
+                    className="ambient-blob-2 absolute -bottom-[10%] -right-[10%] w-[70%] h-[70%] blur-[100px]"
+                    style={{
+                        background: isLight
+                            ? 'radial-gradient(circle, rgba(167,139,250,0.45) 0%, rgba(196,181,253,0.15) 50%, transparent 70%)'
+                            : 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)',
+                        transform: "translateZ(0)", willChange: "transform"
+                    }}
+                />
+                {isLight && (
+                    <>
+                        {/* Pink/rose blob — center-right for warmth */}
+                        <div
+                            className="absolute top-[25%] right-[5%] w-[55%] h-[55%] blur-[120px]"
+                            style={{
+                                background: 'radial-gradient(circle, rgba(251,146,173,0.30) 0%, rgba(253,164,186,0.10) 50%, transparent 70%)',
+                                transform: "translateZ(0)"
+                            }}
+                        />
+                        {/* Cyan blob — center-left for depth */}
+                        <div
+                            className="absolute top-[50%] -left-[5%] w-[45%] h-[45%] blur-[110px]"
+                            style={{
+                                background: 'radial-gradient(circle, rgba(103,232,249,0.25) 0%, transparent 70%)',
+                                transform: "translateZ(0)"
+                            }}
+                        />
+                    </>
+                )}
             </div>
 
             {/* ── Mobile TopAppBar (Main Pages) ── */}
             {!isSubPageMobile && !isSettings && (
                 <header
-                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-5 h-14 bg-[#111427]/70 backdrop-blur-2xl border border-[#2a3055]/50 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] animate-fade-in overflow-hidden rounded-[28px]"
-                    style={{ transform: "translateZ(0)", isolation: "isolate" }}
+                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-5 h-14 backdrop-blur-2xl animate-fade-in overflow-hidden rounded-[28px]"
+                    style={{ 
+                        background: 'var(--tt-nav-bg)',
+                        border: '1px solid var(--tt-nav-border)',
+                        boxShadow: 'var(--tt-nav-shadow)',
+                        transform: "translateZ(0)", 
+                        isolation: "isolate" 
+                    }}
                 >
                     <div className="flex items-center gap-3" onClick={() => navigate("/teacher")}>
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-[#3b82f6]/40 bg-[#0c0e17] shadow-lg shadow-[#3b82f6]/20 flex items-center justify-center">
+                        <div 
+                            className="w-10 h-10 rounded-full overflow-hidden shadow-lg flex items-center justify-center"
+                            style={{
+                                borderWidth: 1,
+                                borderStyle: 'solid',
+                                borderColor: 'var(--tt-logo-border)',
+                                backgroundColor: isLight ? '#f0f4ff' : '#0c0e17',
+                                boxShadow: `0 4px 12px var(--tt-logo-shadow)`,
+                            }}
+                        >
                             <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
-                        <h1 className="text-xl font-bold tracking-tighter text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>FP Finance</h1>
+                        <h1 
+                            className="text-xl font-bold tracking-tighter" 
+                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
+                        >
+                            FP Finance
+                        </h1>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate("/teacher/notices")}
-                            className="relative flex items-center justify-center text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            style={{ color: 'var(--tt-text-secondary)' }}
                         >
                             <span className="material-symbols-outlined">campaign</span>
                         </button>
                         <button
                             onClick={() => navigate("/notifications")}
-                            className="relative flex items-center justify-center text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            style={{ color: 'var(--tt-text-secondary)' }}
                         >
                             <span className="material-symbols-outlined">notifications</span>
                             {unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-[#ff6e84] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border border-[#0c0e17] animate-pulse">
+                                <span 
+                                    className="absolute -top-1 -right-1 min-w-[16px] h-[16px] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"
+                                    style={{
+                                        backgroundColor: '#ff6e84',
+                                        borderWidth: 1,
+                                        borderColor: isLight ? '#eef2ff' : '#0c0e17',
+                                    }}
+                                >
                                     {unreadCount > 9 ? "9+" : unreadCount}
                                 </span>
                             )}
@@ -184,9 +263,9 @@ export default function TeacherLayout({ children }) {
                 <header
                     className={`md:hidden fixed top-0 w-full flex items-center px-4 h-16 z-50 ${pathname === "/teacher/notices" ? "" : "animate-fade-in-down"}`}
                     style={{
-                        background: 'rgba(17, 20, 39, 0.7)',
-                        borderBottom: '1px solid rgba(42, 48, 85, 0.5)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                        background: 'var(--tt-nav-bg)',
+                        borderBottom: '1px solid var(--tt-nav-border)',
+                        boxShadow: 'var(--tt-nav-shadow)',
                         backdropFilter: 'blur(28px) saturate(1.8)',
                         WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
                         transform: "translateZ(0)", isolation: "isolate"
@@ -194,12 +273,19 @@ export default function TeacherLayout({ children }) {
                 >
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-[#aaaab7] active:scale-90 transition-all mr-3"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl active:scale-90 transition-all mr-3"
+                        style={{
+                            backgroundColor: 'var(--tt-icon-bg)',
+                            color: 'var(--tt-text-secondary)',
+                        }}
                     >
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
-                        <h1 className="text-lg font-bold text-white tracking-tight leading-none" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        <h1 
+                            className="text-lg font-bold tracking-tight leading-none" 
+                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
+                        >
                             {getSubPageTitle()}
                         </h1>
                     </div>
@@ -210,19 +296,50 @@ export default function TeacherLayout({ children }) {
 
             {/* ── Desktop Sidebar ── */}
             <aside
-                className="hidden md:flex fixed top-0 left-0 h-full z-40 w-64 flex-col bg-[#0c0e17]/95 backdrop-blur-[40px] border-r border-white/5 shadow-[20px_0_40px_rgba(0,0,0,0.3)]"
-                style={{ transform: "translateZ(0)", isolation: "isolate" }}
+                className="hidden md:flex fixed top-0 left-0 h-full z-40 w-64 flex-col"
+                style={{ 
+                    backgroundColor: 'var(--tt-sidebar-bg)',
+                    borderRight: `1px solid var(--tt-divider)`,
+                    boxShadow: isLight
+                        ? '4px 0 24px rgba(0,0,0,0.05), inset -1px 0 0 rgba(255,255,255,0.5)'
+                        : '20px 0 40px rgba(0,0,0,0.3)',
+                    backdropFilter: 'blur(32px) saturate(1.8)',
+                    WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
+                    transform: "translateZ(0)", isolation: "isolate"
+                }}
             >
                 {/* Logo Section */}
-                <div className="p-6 border-b border-white/5 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="p-6 relative overflow-hidden group" style={{ borderBottom: `1px solid var(--tt-divider)` }}>
+                    <div 
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
+                        style={{ background: `linear-gradient(to bottom right, ${isLight ? 'rgba(13,148,136,0.05)' : 'rgba(59,130,246,0.05)'}, transparent)` }}
+                    />
                     <div className="relative z-10 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border border-[#3b82f6]/40 bg-[#0c0e17] shadow-lg shadow-[#3b82f6]/20 group-hover:scale-110 transition-transform duration-300 flex items-center justify-center">
+                        <div 
+                            className="w-12 h-12 rounded-full overflow-hidden shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center"
+                            style={{
+                                borderWidth: 1,
+                                borderStyle: 'solid',
+                                borderColor: 'var(--tt-logo-border)',
+                                backgroundColor: isLight ? '#f0f4ff' : '#0c0e17',
+                                boxShadow: `0 4px 12px var(--tt-logo-shadow)`,
+                            }}
+                        >
                             <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <h1 className="text-sm font-extrabold text-white tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>FP Finance</h1>
-                            <p className="text-[#aaaab7] text-[11px] font-medium uppercase tracking-widest opacity-70">Future Point</p>
+                            <h1 
+                                className="text-sm font-extrabold tracking-tight" 
+                                style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
+                            >
+                                FP Finance
+                            </h1>
+                            <p 
+                                className="text-[11px] font-medium uppercase tracking-widest opacity-70"
+                                style={{ color: 'var(--tt-text-secondary)' }}
+                            >
+                                Future Point
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -231,15 +348,18 @@ export default function TeacherLayout({ children }) {
                 <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto custom-scrollbar">
                     {teacherNav.map((item) => {
                         const isActive = pathname === item.href;
+                        const activeColor = isLight ? '#0d9488' : '#3b82f6';
                         return (
                             <Link
                                 key={item.href}
                                 to={item.href}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group
-                                    ${isActive
-                                        ? "bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]"
-                                        : "text-[#aaaab7] hover:text-white hover:bg-white/5"
-                                    }`}
+                                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group"
+                                style={{
+                                    backgroundColor: isActive ? 'var(--tt-blue-bg)' : 'transparent',
+                                    color: isActive ? activeColor : 'var(--tt-text-secondary)',
+                                    border: isActive ? `1px solid ${isLight ? 'rgba(13,148,136,0.2)' : 'rgba(59,130,246,0.2)'}` : '1px solid transparent',
+                                    boxShadow: isActive ? `0 0 20px ${isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)'}` : 'none',
+                                }}
                             >
                                 <span className={`material-symbols-outlined text-[22px] transition-transform group-hover:scale-110 ${isActive ? "material-symbols-filled" : ""}`}>
                                     {item.icon}
@@ -258,12 +378,30 @@ export default function TeacherLayout({ children }) {
                 <div className="relative">
                     <button
                         onClick={() => setNotifOpen(true)}
-                        className="relative text-[#aaaab7] hover:text-white transition-all active:scale-95 duration-200 cursor-pointer w-10 h-10 flex items-center justify-center rounded-full bg-[#171924]/60 backdrop-blur-md border border-[#464752]/50 hover:border-[#3b82f6]/50 shadow-lg"
-                        style={{ transform: "translateZ(0)", isolation: "isolate" }}
+                        className="relative transition-all active:scale-95 duration-200 cursor-pointer w-10 h-10 flex items-center justify-center rounded-full shadow-lg"
+                        style={{ 
+                            color: 'var(--tt-text-secondary)',
+                            backgroundColor: isLight ? 'rgba(255,255,255,0.40)' : 'rgba(23,25,36,0.6)',
+                            border: isLight ? '1px solid rgba(255,255,255,0.55)' : '1px solid rgba(70,71,82,0.5)',
+                            backdropFilter: 'blur(24px) saturate(1.6)',
+                            WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+                            boxShadow: isLight
+                                ? '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6)'
+                                : '0 4px 12px rgba(0,0,0,0.3)',
+                            transform: "translateZ(0)", isolation: "isolate" 
+                        }}
                     >
                         <span className="material-symbols-outlined text-[24px]">notifications</span>
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-[#ff6e84] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 shadow-[0_0_10px_rgba(255,110,132,0.4)] animate-pulse border border-[#0c0e17]">
+                            <span 
+                                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"
+                                style={{
+                                    backgroundColor: '#ff6e84',
+                                    boxShadow: '0 0 10px rgba(255,110,132,0.4)',
+                                    borderWidth: 1,
+                                    borderColor: isLight ? '#eef2ff' : '#0c0e17',
+                                }}
+                            >
                                 {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                         )}
@@ -293,8 +431,15 @@ export default function TeacherLayout({ children }) {
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
                 <nav
-                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate bg-[#111427]/70 backdrop-blur-2xl border border-[#2a3055]/50 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] flex items-center"
-                    style={{ transform: "translateZ(0)", isolation: "isolate" }}
+                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate flex items-center"
+                    style={{ 
+                        background: 'var(--tt-nav-bg)',
+                        border: '1px solid var(--tt-nav-border)',
+                        boxShadow: 'var(--tt-nav-shadow)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
+                        transform: "translateZ(0)", isolation: "isolate" 
+                    }}
                 >
                     {activeIdx >= 0 && (
                         <div
@@ -305,7 +450,13 @@ export default function TeacherLayout({ children }) {
                                 transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                             }}
                         >
-                            <div className="w-12 h-12 rounded-full bg-[#3b82f6] shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
+                            <div 
+                                className="w-12 h-12 rounded-full" 
+                                style={{
+                                    backgroundColor: 'var(--tt-nav-indicator)',
+                                    boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                                }}
+                            />
                         </div>
                     )}
                     {teacherBottomNav.map((item, i) => {
@@ -323,7 +474,7 @@ export default function TeacherLayout({ children }) {
                                     ref={el => iconRefs.current[i] = el}
                                     className="material-symbols-outlined text-[22px]"
                                     style={{
-                                        color: isActive ? '#ffffff' : 'rgba(59,89,152,0.5)',
+                                        color: isActive ? '#ffffff' : 'var(--tt-nav-icon-inactive)',
                                         transform: isActive ? 'scale(1.14)' : 'scale(1)',
                                         fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
                                         willChange: 'transform, color',
@@ -346,11 +497,11 @@ export default function TeacherLayout({ children }) {
                     background: transparent;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: rgba(59,130,246,0.1);
+                    background: ${isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)'};
                     border-radius: 10px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: rgba(59,130,246,0.3);
+                    background: ${isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)'};
                 }
                 @keyframes fade-in-down {
                     from { transform: translateY(-20px); opacity: 0; }
@@ -363,3 +514,12 @@ export default function TeacherLayout({ children }) {
         </div>
     );
 }
+
+export default function TeacherLayout({ children }) {
+    return (
+        <TeacherThemeProvider>
+            <TeacherLayoutInner>{children}</TeacherLayoutInner>
+        </TeacherThemeProvider>
+    );
+}
+

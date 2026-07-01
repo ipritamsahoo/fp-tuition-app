@@ -10,7 +10,9 @@ export default function AboutPage() {
 
     const [theme, setTheme] = useState(() => {
         try {
-            return localStorage.getItem("fp_student_theme_v2") || "dark";
+            const isTeacherPath = window.location.pathname.startsWith("/teacher");
+            const key = isTeacherPath ? "fp_teacher_theme_v2" : "fp_student_theme_v2";
+            return localStorage.getItem(key) || "dark";
         } catch {
             return "dark";
         }
@@ -26,6 +28,13 @@ export default function AboutPage() {
                 } catch {
                     setTheme("dark");
                 }
+            } else if (user.role === "teacher") {
+                try {
+                    const saved = localStorage.getItem("fp_teacher_theme_v2") || "dark";
+                    setTheme(saved);
+                } catch {
+                    setTheme("dark");
+                }
             } else {
                 setTheme("dark");
             }
@@ -34,12 +43,15 @@ export default function AboutPage() {
 
     const isLight = theme === "light";
     const accentColor = isLight ? "#0d9488" : "#3b82f6";
+    
+    const isTeacher = user?.role === "teacher";
+    const prefix = isTeacher ? "--tt-" : "--st-";
 
     return (
         <div
             data-theme={theme}
             className="min-h-[100dvh] flex flex-col md:items-center md:justify-center"
-            style={{ backgroundColor: "var(--st-surface)" }}
+            style={{ backgroundColor: `var(${prefix}surface)` }}
         >
             {/* ── Ambient background blobs ── */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -47,7 +59,9 @@ export default function AboutPage() {
                     className="absolute -top-[10%] -left-[10%] w-[65%] h-[65%] blur-[100px]"
                     style={{
                         background: isLight
-                            ? "radial-gradient(circle, rgba(99,165,255,0.55) 0%, rgba(147,197,253,0.20) 50%, transparent 70%)"
+                            ? (isTeacher 
+                                ? "radial-gradient(circle, rgba(99,165,255,0.50) 0%, rgba(147,197,253,0.20) 50%, transparent 70%)"
+                                : "radial-gradient(circle, rgba(99,165,255,0.55) 0%, rgba(147,197,253,0.20) 50%, transparent 70%)")
                             : "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)",
                     }}
                 />
@@ -55,7 +69,9 @@ export default function AboutPage() {
                     className="absolute -bottom-[10%] -right-[10%] w-[70%] h-[70%] blur-[100px]"
                     style={{
                         background: isLight
-                            ? "radial-gradient(circle, rgba(167,139,250,0.45) 0%, rgba(196,181,253,0.15) 50%, transparent 70%)"
+                            ? (isTeacher
+                                ? "radial-gradient(circle, rgba(167,139,250,0.40) 0%, rgba(196,181,253,0.15) 50%, transparent 70%)"
+                                : "radial-gradient(circle, rgba(167,139,250,0.45) 0%, rgba(196,181,253,0.15) 50%, transparent 70%)")
                             : "radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)",
                     }}
                 />
@@ -90,18 +106,18 @@ export default function AboutPage() {
                     <div className="flex items-center px-4 h-16 gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all active:scale-90 cursor-pointer"
+                            className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all active:scale-90 cursor-pointer border"
                             style={{ 
                                 backgroundColor: isLight ? "rgba(255, 255, 255, 0.4)" : "rgba(255, 255, 255, 0.05)",
-                                border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.1)"}`,
-                                color: "var(--st-text-primary)" 
+                                borderColor: isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.1)",
+                                color: `var(${prefix}text-primary)` 
                             }}
                         >
                             <span className="material-symbols-outlined">arrow_back</span>
                         </button>
                         <h1
                             className="font-extrabold text-xl tracking-tight"
-                            style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}
+                            style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}
                         >
                             About
                         </h1>
@@ -112,6 +128,7 @@ export default function AboutPage() {
                     <AboutContent 
                         isLight={isLight} 
                         accentColor={accentColor} 
+                        prefix={prefix}
                         onFeedbackClick={() => {
                             if (window.innerWidth < 768) {
                                 navigate("/feedback");
@@ -125,10 +142,10 @@ export default function AboutPage() {
 
             {/* ══ DESKTOP layout (centered card, same as modal) ══ */}
             <div
-                className="hidden md:flex flex-col relative z-10 w-full max-w-sm rounded-[32px] p-8 shadow-2xl gap-5 animate-modal-in"
+                className="hidden md:flex flex-col relative z-10 w-full max-w-sm rounded-[32px] p-8 shadow-2xl gap-5 border animate-modal-in"
                 style={{
                     backgroundColor: isLight ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.02)",
-                    border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.05)"}`,
+                    borderColor: isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.05)",
                     backdropFilter: "blur(64px) saturate(2.2)",
                     WebkitBackdropFilter: "blur(64px) saturate(2.2)",
                     transform: "translateZ(0)",
@@ -139,14 +156,14 @@ export default function AboutPage() {
                 <div className="flex justify-between items-center">
                     <h1
                         className="font-extrabold text-xl tracking-tight"
-                        style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}
+                        style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}
                     >
                         About
                     </h1>
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-                        style={{ backgroundColor: "var(--st-icon-bg)", color: "var(--st-text-muted)" }}
+                        className="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer border"
+                        style={{ backgroundColor: `var(${prefix}icon-bg)`, borderColor: `var(${prefix}input-border)`, color: `var(${prefix}text-muted)` }}
                     >
                         <span className="material-symbols-outlined text-sm">close</span>
                     </button>
@@ -154,6 +171,7 @@ export default function AboutPage() {
                 <AboutContent 
                     isLight={isLight} 
                     accentColor={accentColor} 
+                    prefix={prefix}
                     onFeedbackClick={() => {
                         if (window.innerWidth < 768) {
                             navigate("/feedback");

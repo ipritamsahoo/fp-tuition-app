@@ -15,12 +15,27 @@ export default function PwaUpdateBanner({ show, mode = "update", currentVersion,
         }
     });
 
+    const [teacherTheme, setTeacherTheme] = useState(() => {
+        try {
+            return localStorage.getItem("fp_teacher_theme_v2") || "light";
+        } catch {
+            return "light";
+        }
+    });
+
     useEffect(() => {
-        const handleThemeChange = (e) => {
+        const handleStudentThemeChange = (e) => {
             setStudentTheme(e.detail);
         };
-        window.addEventListener("fp-student-theme-change", handleThemeChange);
-        return () => window.removeEventListener("fp-student-theme-change", handleThemeChange);
+        const handleTeacherThemeChange = (e) => {
+            setTeacherTheme(e.detail);
+        };
+        window.addEventListener("fp-student-theme-change", handleStudentThemeChange);
+        window.addEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+        return () => {
+            window.removeEventListener("fp-student-theme-change", handleStudentThemeChange);
+            window.removeEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+        };
     }, []);
 
     if (!show) return null;
@@ -34,11 +49,21 @@ export default function PwaUpdateBanner({ show, mode = "update", currentVersion,
 
     const isUpdateMode = mode === "update";
 
-    // Determine if we are inside the student section or a student-specific page
+    // Determine if we are inside the student or teacher sections
     const isStudentSection = location.pathname.startsWith("/student") ||
         (user?.role === "student" && ["/notifications", "/about", "/feedback"].includes(location.pathname));
 
-    const resolvedTheme = isStudentSection ? studentTheme : "dark";
+    const isTeacherSection = location.pathname.startsWith("/teacher") ||
+        (user?.role === "teacher" && ["/notifications", "/about", "/feedback"].includes(location.pathname));
+
+    let resolvedTheme = "dark";
+    if (isStudentSection) {
+        resolvedTheme = studentTheme;
+    } else if (isTeacherSection) {
+        resolvedTheme = teacherTheme;
+    } else {
+        resolvedTheme = "dark";
+    }
 
     return (
         <div data-theme={resolvedTheme} className="fixed inset-0 z-[10000] flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in pwa-overlay">
@@ -201,7 +226,8 @@ export default function PwaUpdateBanner({ show, mode = "update", currentVersion,
                     color: #0d9488 !important;
                 }
 
-            ` }} />
+            `
+            }} />
         </div>
     );
 }
