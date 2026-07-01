@@ -451,6 +451,7 @@ select option {
 
 /* Dark theme (default) */
 .student-theme,
+.teacher-theme,
 [data-theme="dark"] {
     --st-surface: #0c0e17;
     --st-surface-container: #171924;
@@ -499,6 +500,88 @@ select option {
     --st-sidebar-bg: rgba(12, 14, 23, 0.95);
     --st-logo-border: rgba(59, 130, 246, 0.4);
     --st-logo-shadow: rgba(59, 130, 246, 0.2);
+
+    /* ── Teacher Theme Custom Properties (Dark) ── */
+    --tt-surface: #0c0e17;
+    --tt-surface-container: #171924;
+    --tt-surface-high: #1c1f2b;
+    --tt-primary: #3b82f6;
+    --tt-primary-dim: #2563eb;
+    --tt-secondary: #4af8e3;
+    --tt-secondary-dim: #33e9d5;
+    --tt-error: #ff6e84;
+    --tt-tertiary: #ff9dac;
+    --tt-on-surface: #f0f0fd;
+    --tt-on-surface-variant: #aaaab7;
+    --tt-outline: #737580;
+
+    --tt-page-bg: #0c0e17;
+    --tt-text-primary: #f0f0fd;
+    --tt-text-secondary: #aaaab7;
+    --tt-text-muted: #737580;
+    --tt-accent: #3b82f6;
+    --tt-accent-dark: #1d4ed8;
+    --tt-accent-bg: rgba(59, 130, 246, 0.1);
+    --tt-blue: #3b82f6;
+    --tt-blue-bg: rgba(59, 130, 246, 0.1);
+    --tt-card-bg: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+    --tt-card-border: rgba(255, 255, 255, 0.1);
+    --tt-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --tt-nav-bg: rgba(17, 20, 39, 0.7);
+    --tt-nav-border: rgba(42, 48, 85, 0.5);
+    --tt-nav-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --tt-nav-indicator: #3b82f6;
+    --tt-nav-icon-inactive: rgba(59, 89, 152, 0.5);
+    --tt-divider: rgba(255, 255, 255, 0.05);
+    --tt-input-bg: rgba(255, 255, 255, 0.03);
+    --tt-input-border: rgba(255, 255, 255, 0.1);
+    --tt-hover-bg: rgba(255, 255, 255, 0.05);
+    --tt-icon-bg: rgba(255, 255, 255, 0.05);
+    --tt-progress-bg: rgba(255, 255, 255, 0.05);
+    --tt-sidebar-bg: rgba(12, 14, 23, 0.95);
+    --tt-logo-border: rgba(59, 130, 246, 0.4);
+    --tt-logo-shadow: rgba(59, 130, 246, 0.2);
+
+    /* ── Admin Theme Custom Properties (Dark) ── */
+    --ad-surface: #0c0e17;
+    --ad-surface-container: #171924;
+    --ad-surface-high: #1c1f2b;
+    --ad-primary: #3b82f6;
+    --ad-primary-dim: #2563eb;
+    --ad-secondary: #4af8e3;
+    --ad-secondary-dim: #33e9d5;
+    --ad-error: #ff6e84;
+    --ad-tertiary: #ff9dac;
+    --ad-on-surface: #f0f0fd;
+    --ad-on-surface-variant: #aaaab7;
+    --ad-outline: #737580;
+
+    --ad-page-bg: #0c0e17;
+    --ad-text-primary: #f0f0fd;
+    --ad-text-secondary: #aaaab7;
+    --ad-text-muted: #737580;
+    --ad-accent: #3b82f6;
+    --ad-accent-dark: #1d4ed8;
+    --ad-accent-bg: rgba(59, 130, 246, 0.1);
+    --ad-blue: #3b82f6;
+    --ad-blue-bg: rgba(59, 130, 246, 0.1);
+    --ad-card-bg: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+    --ad-card-border: rgba(255, 255, 255, 0.1);
+    --ad-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --ad-nav-bg: rgba(17, 20, 39, 0.45);
+    --ad-nav-border: rgba(42, 48, 85, 0.5);
+    --ad-nav-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --ad-nav-indicator: #3b82f6;
+    --ad-nav-icon-inactive: rgba(59, 89, 152, 0.5);
+    --ad-divider: rgba(255, 255, 255, 0.05);
+    --ad-input-bg: rgba(255, 255, 255, 0.03);
+    --ad-input-border: rgba(255, 255, 255, 0.1);
+    --ad-hover-bg: rgba(255, 255, 255, 0.05);
+    --ad-icon-bg: rgba(255, 255, 255, 0.05);
+    --ad-progress-bg: rgba(255, 255, 255, 0.05);
+    --ad-sidebar-bg: rgba(12, 14, 23, 0.95);
+    --ad-logo-border: rgba(59, 130, 246, 0.4);
+    --ad-logo-shadow: rgba(59, 130, 246, 0.2);
 }
 
 /* Light theme */
@@ -566,6 +649,107 @@ select option {
     --st-sidebar-bg: rgba(255, 255, 255, 0.5);
     --st-logo-border: rgba(13, 148, 136, 0.4);
     --st-logo-shadow: rgba(13, 148, 136, 0.15);
+
+
+    /* ── Teacher Light Theme Custom Properties ── */
+    --tt-surface: #eef2ff;
+    --tt-surface-container: #f8fafc;
+    --tt-surface-high: #ffffff;
+    --tt-primary: #0d9488;
+    --tt-primary-dim: #0f766e;
+    --tt-secondary: #0d9488;
+    --tt-secondary-dim: #0f766e;
+    --tt-error: #ef4444;
+    --tt-tertiary: #f87171;
+    --tt-on-surface: #1a1a2e;
+    --tt-on-surface-variant: #6b7280;
+    --tt-outline: #9ca3af;
+
+    --tt-page-bg: #eef2ff;
+    --tt-text-primary: #1a1a2e;
+    --tt-text-secondary: #6b7280;
+    --tt-text-muted: #9ca3af;
+    --tt-accent: #0d9488;
+    --tt-accent-dark: #0f766e;
+    --tt-accent-bg: rgba(13, 148, 136, 0.1);
+    --tt-blue: #0d9488;
+    --tt-blue-bg: rgba(13, 148, 136, 0.08);
+
+    --tt-card-bg: rgba(255, 255, 255, 0.45);
+    --tt-card-border: rgba(255, 255, 255, 0.55);
+    --tt-card-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.06),
+        0 2px 8px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+    --tt-nav-bg: rgba(255, 255, 255, 0.42);
+    --tt-nav-border: rgba(255, 255, 255, 0.5);
+    --tt-nav-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.07),
+        0 2px 6px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --tt-nav-indicator: #0d9488;
+    --tt-nav-icon-inactive: rgba(100, 116, 139, 0.5);
+    --tt-divider: rgba(0, 0, 0, 0.06);
+    --tt-input-bg: rgba(255, 255, 255, 0.35);
+    --tt-input-border: rgba(255, 255, 255, 0.5);
+    --tt-hover-bg: rgba(255, 255, 255, 0.25);
+    --tt-icon-bg: rgba(255, 255, 255, 0.35);
+    --tt-progress-bg: rgba(0, 0, 0, 0.06);
+
+    --tt-sidebar-bg: rgba(255, 255, 255, 0.5);
+    --tt-logo-border: rgba(13, 148, 136, 0.4);
+    --tt-logo-shadow: rgba(13, 148, 136, 0.15);
+
+    /* ── Admin Light Theme Custom Properties ── */
+    --ad-surface: #eef2ff;
+    --ad-surface-container: #f8fafc;
+    --ad-surface-high: #ffffff;
+    --ad-primary: #0d9488;
+    --ad-primary-dim: #0f766e;
+    --ad-secondary: #0d9488;
+    --ad-secondary-dim: #0f766e;
+    --ad-error: #ef4444;
+    --ad-tertiary: #f87171;
+    --ad-on-surface: #1a1a2e;
+    --ad-on-surface-variant: #6b7280;
+    --ad-outline: #9ca3af;
+
+    --ad-page-bg: #eef2ff;
+    --ad-text-primary: #1a1a2e;
+    --ad-text-secondary: #6b7280;
+    --ad-text-muted: #9ca3af;
+    --ad-accent: #0d9488;
+    --ad-accent-dark: #0f766e;
+    --ad-accent-bg: rgba(13, 148, 136, 0.1);
+    --ad-blue: #0d9488;
+    --ad-blue-bg: rgba(13, 148, 136, 0.08);
+
+    --ad-card-bg: rgba(255, 255, 255, 0.45);
+    --ad-card-border: rgba(255, 255, 255, 0.55);
+    --ad-card-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.06),
+        0 2px 8px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+    --ad-nav-bg: rgba(255, 255, 255, 0.22);
+    --ad-nav-border: rgba(255, 255, 255, 0.5);
+    --ad-nav-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.07),
+        0 2px 6px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --ad-nav-indicator: #0d9488;
+    --ad-nav-icon-inactive: rgba(100, 116, 139, 0.5);
+    --ad-divider: rgba(0, 0, 0, 0.06);
+    --ad-input-bg: rgba(255, 255, 255, 0.35);
+    --ad-input-border: rgba(255, 255, 255, 0.5);
+    --ad-hover-bg: rgba(255, 255, 255, 0.25);
+    --ad-icon-bg: rgba(255, 255, 255, 0.35);
+    --ad-progress-bg: rgba(0, 0, 0, 0.06);
+
+    --ad-sidebar-bg: rgba(255, 255, 255, 0.5);
+    --ad-logo-border: rgba(13, 148, 136, 0.4);
+    --ad-logo-shadow: rgba(13, 148, 136, 0.15);
 }
 
 /* ═══════════════════════════════════════════════
@@ -818,3 +1002,111 @@ html[data-theme="dark"], body[data-theme="dark"] {
 .select-pay-animate:hover {
     animation-play-state: paused;
 }
+
+/* ════════════════════════════════════════════
+   TEACHER GLASS CARD & AMBIENT BACKGROUNDS
+   ════════════════════════════════════════════ */
+.glass-card-teacher {
+    background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 12px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    isolation: isolate;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    outline: 1px solid transparent;
+}
+
+.glass-card-teacher:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .glass-card-teacher {
+    background: var(--tt-card-bg) !important;
+    border: 1px solid var(--tt-card-border) !important;
+    box-shadow: var(--tt-card-shadow) !important;
+    backdrop-filter: blur(24px) saturate(1.6) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.6) !important;
+}
+
+[data-theme="light"] .glass-card-teacher:hover {
+    background: rgba(255, 255, 255, 0.55) !important;
+    border-color: rgba(255, 255, 255, 0.65) !important;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.07),
+        0 4px 12px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="light"] .teacher-ambient-bg {
+    background: linear-gradient(135deg, #eef2ff 0%, #dbeafe 25%, #ede9fe 50%, #fce7f3 75%, #eef2ff 100%) !important;
+}
+
+[data-theme="light"] .teacher-ambient-bg .ambient-blob-1 {
+    background: radial-gradient(circle, rgba(99, 165, 255, 0.50) 0%, rgba(147, 197, 253, 0.20) 50%, transparent 70%) !important;
+}
+
+[data-theme="light"] .teacher-ambient-bg .ambient-blob-2 {
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.40) 0%, rgba(196, 181, 253, 0.15) 50%, transparent 70%) !important;
+}
+
+/* Admin glass card */
+.glass-card-admin {
+    background: var(--ad-card-bg);
+    border: 1px solid var(--ad-card-border);
+    box-shadow: var(--ad-card-shadow);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    isolation: isolate;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    outline: 1px solid transparent;
+}
+
+.glass-card-admin:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .glass-card-admin {
+    background: var(--ad-card-bg) !important;
+    border: 1px solid var(--ad-card-border) !important;
+    box-shadow: var(--ad-card-shadow) !important;
+    backdrop-filter: blur(24px) saturate(1.6) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.6) !important;
+}
+
+[data-theme="light"] .glass-card-admin:hover {
+    background: rgba(255, 255, 255, 0.55) !important;
+    border-color: rgba(255, 255, 255, 0.65) !important;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.07),
+        0 4px 12px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Admin ambient background */
+[data-theme="light"] .admin-ambient-bg {
+    background: linear-gradient(135deg, #eef2ff 0%, #dbeafe 25%, #ede9fe 50%, #fce7f3 75%, #eef2ff 100%) !important;
+}
+
+[data-theme="light"] .admin-ambient-bg .ambient-blob-1 {
+    background: radial-gradient(circle, rgba(99, 165, 255, 0.50) 0%, rgba(147, 197, 253, 0.20) 50%, transparent 70%) !important;
+}
+
+[data-theme="light"] .admin-ambient-bg .ambient-blob-2 {
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.40) 0%, rgba(196, 181, 253, 0.15) 50%, transparent 70%) !important;
+}
+

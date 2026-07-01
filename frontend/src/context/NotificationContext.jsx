@@ -59,21 +59,46 @@ export function NotificationProvider({ children }) {
 
     // Dynamic states for blocked notification modal and theme syncing
     const [blockedModalOpen, setBlockedModalOpen] = useState(false);
-    const [appTheme, setAppTheme] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("fp_student_theme_v2") || "dark";
-        }
-        return "dark";
-    });
+    const [appTheme, setAppTheme] = useState("dark");
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const handleThemeChange = (e) => {
-            setAppTheme(e.detail);
+        const isAdmin = user?.role === "admin";
+        const isTeacher = user?.role === "teacher";
+        const themeKey = isAdmin
+            ? "fp_admin_theme_v2"
+            : isTeacher
+            ? "fp_teacher_theme_v2"
+            : "fp_student_theme_v2";
+        setAppTheme(localStorage.getItem(themeKey) || "dark");
+    }, [user]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const handleStudentThemeChange = (e) => {
+            if (user?.role !== "teacher" && user?.role !== "admin") {
+                setAppTheme(e.detail);
+            }
         };
-        window.addEventListener("fp-student-theme-change", handleThemeChange);
-        return () => window.removeEventListener("fp-student-theme-change", handleThemeChange);
-    }, []);
+        const handleTeacherThemeChange = (e) => {
+            if (user?.role === "teacher") {
+                setAppTheme(e.detail);
+            }
+        };
+        const handleAdminThemeChange = (e) => {
+            if (user?.role === "admin") {
+                setAppTheme(e.detail);
+            }
+        };
+        window.addEventListener("fp-student-theme-change", handleStudentThemeChange);
+        window.addEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+        window.addEventListener("fp-admin-theme-change", handleAdminThemeChange);
+        return () => {
+            window.removeEventListener("fp-student-theme-change", handleStudentThemeChange);
+            window.removeEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+            window.removeEventListener("fp-admin-theme-change", handleAdminThemeChange);
+        };
+    }, [user]);
 
     // Disable background scrolling when modal is open
     useEffect(() => {
@@ -459,30 +484,36 @@ export function NotificationProvider({ children }) {
                     <style dangerouslySetInnerHTML={{
                         __html: `
                         .pwa-overlay {
-                            background-color: rgba(9, 15, 30, 0.7) !important;
+                            background-color: rgba(0, 0, 0, 0.5) !important;
+                            backdrop-filter: blur(16px) saturate(1.5);
+                            -webkit-backdrop-filter: blur(16px) saturate(1.5);
                         }
                         [data-theme="light"].pwa-overlay {
-                            background-color: rgba(226, 232, 240, 0.6) !important;
+                            background-color: rgba(255, 255, 255, 0.2) !important;
                         }
                         .pwa-modal-card {
-                            background-color: rgba(15, 23, 42, 0.92) !important;
+                            background-color: rgba(255, 255, 255, 0.01) !important;
+                            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                            backdrop-filter: blur(80px) saturate(2.5) !important;
+                            -webkit-backdrop-filter: blur(80px) saturate(2.5) !important;
+                            box-shadow: 0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255, 255, 255, 0.05) !important;
                         }
                         .pwa-modal-card:hover {
-                            background: rgba(15, 23, 42, 0.92) !important;
-                            border-color: rgba(255, 255, 255, 0.1) !important;
-                            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+                            background-color: rgba(255, 255, 255, 0.01) !important;
+                            border-color: rgba(255, 255, 255, 0.15) !important;
+                            box-shadow: 0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255, 255, 255, 0.05) !important;
                             transform: none !important;
                             transition: none !important;
                         }
                         [data-theme="light"] .pwa-modal-card {
-                            background-color: rgba(255, 255, 255, 0.98) !important;
-                            border-color: rgba(0, 0, 0, 0.08) !important;
-                            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+                            background-color: rgba(255, 255, 255, 0.1) !important;
+                            border: 1px solid rgba(255, 255, 255, 0.8) !important;
+                            box-shadow: 0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255, 255, 255, 0.6) !important;
                         }
                         [data-theme="light"] .pwa-modal-card:hover {
-                            background: rgba(255, 255, 255, 0.98) !important;
-                            border-color: rgba(0, 0, 0, 0.08) !important;
-                            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+                            background-color: rgba(255, 255, 255, 0.1) !important;
+                            border-color: rgba(255, 255, 255, 0.8) !important;
+                            box-shadow: 0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255, 255, 255, 0.6) !important;
                             transform: none !important;
                             transition: none !important;
                         }

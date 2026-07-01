@@ -3,12 +3,12 @@ import logoSrc from "@/assets/logo.png";
 
 /**
  * Shared About content — used in both AboutPage (mobile full-page)
- * and StudentSettings desktop modal.
+ * and StudentSettings/TeacherSettings desktop modal.
  * Uses responsive classes: default (mobile) is more spacious, 
  * md: (desktop screen/modal) is more compact to fit without scroll.
  * Maximum Glassmorphism for Dark Mode: Ultra-transparent + Ultra-blur.
  */
-export default function AboutContent({ isLight, accentColor, onFeedbackClick }) {
+export default function AboutContent({ isLight, accentColor, onFeedbackClick, prefix = "--st-" }) {
     const { user } = useAuth();
 
     return (
@@ -32,17 +32,18 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
                     alt="FP Finance Logo"
                     className="w-full h-full object-cover"
                 />
-                
+
                 {/* Visual Glass Overlay */}
-                <div className="absolute inset-0 pointer-events-none rounded-full" 
-                     style={{ 
-                         background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)" 
-                     }} 
+                <div className="absolute inset-0 pointer-events-none rounded-full"
+                    style={{
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)"
+                    }}
                 />
             </div>
 
             {/* In-component style for the pulse animation */}
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes logo-pulse {
                     0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px ${accentColor}30); }
                     50% { transform: scale(1.05); filter: drop-shadow(0 0 28px ${accentColor}60); }
@@ -53,7 +54,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
             <div className="space-y-2 md:space-y-1.5 animate-slide-up" style={{ animationDelay: "200ms" }}>
                 <h2
                     className="text-4xl md:text-xl font-black tracking-tight"
-                    style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}
+                    style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}
                 >
                     FP Finance
                 </h2>
@@ -82,7 +83,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
                     animationDelay: "300ms"
                 }}
             >
-                <p className="text-sm md:text-xs leading-relaxed text-left" style={{ color: "var(--st-text-secondary)" }}>
+                <p className="text-sm md:text-xs leading-relaxed text-left" style={{ color: `var(${prefix}text-secondary)` }}>
                     The simplest way to pay, track, and manage your educational fees in one place. Stay updated with instant status alerts and keep your payment records organized effortlessly.
                 </p>
             </div>
@@ -98,30 +99,30 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
                     animationDelay: "400ms"
                 }}
             >
-                <p className="text-[11px] md:text-[9px] uppercase tracking-widest font-extrabold mb-5 md:mb-3" style={{ color: "var(--st-text-muted)" }}>
+                <p className="text-[11px] md:text-[9px] uppercase tracking-widest font-extrabold mb-5 md:mb-3" style={{ color: `var(${prefix}text-muted)` }}>
                     Developed By
                 </p>
                 <div className="flex flex-col gap-5 md:gap-2.5">
                     <div className="flex items-center gap-4 md:gap-3">
-                        <img 
-                            src="/suman.png" 
-                            alt="Suman Maji" 
+                        <img
+                            src="/suman.png"
+                            alt="Suman Maji"
                             className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10"
                         />
                         <div>
-                            <p className="font-extrabold text-lg md:text-sm" style={{ color: "var(--st-text-primary)" }}>Suman Maji</p>
-                            <p className="text-xs md:text-[10px]" style={{ color: "var(--st-text-muted)" }}>Co-Developer • COSH 2023–2027</p>
+                            <p className="font-extrabold text-lg md:text-sm" style={{ color: `var(${prefix}text-primary)` }}>Suman Maji</p>
+                            <p className="text-xs md:text-[10px]" style={{ color: `var(${prefix}text-muted)` }}>Co-Developer • COSH 2023–2027</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 md:gap-3">
-                        <img 
-                            src="/pritam.png" 
-                            alt="Pritam Sahoo" 
+                        <img
+                            src="/pritam.png"
+                            alt="Pritam Sahoo"
                             className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10"
                         />
                         <div>
-                            <p className="font-extrabold text-lg md:text-sm" style={{ color: "var(--st-text-primary)" }}>Pritam Sahoo</p>
-                            <p className="text-xs md:text-[10px]" style={{ color: "var(--st-text-muted)" }}>Co-Developer • COSH 2023–2027</p>
+                            <p className="font-extrabold text-lg md:text-sm" style={{ color: `var(${prefix}text-primary)` }}>Pritam Sahoo</p>
+                            <p className="text-xs md:text-[10px]" style={{ color: `var(${prefix}text-muted)` }}>Co-Developer • COSH 2023–2027</p>
                         </div>
                     </div>
                 </div>
@@ -147,8 +148,8 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick }) 
             </button>
 
             {/* Copyright */}
-            <p className="text-[10px] md:text-[9px] uppercase tracking-[0.3em] font-bold animate-fade-in pt-2" style={{ color: "var(--st-text-muted)", animationDelay: "600ms" }}>
-                <span className="text-base leading-none inline-block align-middle mr-1">©</span> {new Date().getFullYear()} FP Finance. All rights reserved.
+            <p className="text-[10px] md:text-[9px] uppercase tracking-[0.3em] font-bold animate-fade-in pt-2" style={{ color: `var(${prefix}text-muted)`, animationDelay: "600ms" }}>
+                © {new Date().getFullYear()} FP Finance. All rights reserved.
             </p>
         </div>
     );

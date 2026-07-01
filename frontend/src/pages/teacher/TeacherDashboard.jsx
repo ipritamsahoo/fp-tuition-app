@@ -7,6 +7,7 @@ import AnimatedGreeting from "@/components/AnimatedGreeting";
 import CachedAvatar from "@/components/CachedAvatar";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useTeacherTheme } from "@/context/TeacherThemeContext";
 import { db } from "@/lib/firebase";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -18,11 +19,14 @@ const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "Jul
 
 // ── Status Badge ──
 function StatusBadge({ status }) {
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
+
     const config = {
         Paid: {
-            bg: "bg-[#4af8e3]/10",
-            text: "text-[#4af8e3]",
-            ring: "ring-[#4af8e3]/30",
+            bg: isLight ? "bg-[#0d9488]/10" : "bg-[#4af8e3]/10",
+            text: isLight ? "text-[#0d9488]" : "text-[#4af8e3]",
+            ring: isLight ? "ring-[#0d9488]/30" : "ring-[#4af8e3]/30",
             label: "PAID",
         },
         Pending_Verification: {
@@ -52,16 +56,15 @@ function StatusBadge({ status }) {
     );
 }
 
-// ── Student Initial Avatar ──
-// Removed in favor of CachedAvatar
-
 // ── Glass Card Component ──
 function GlassCard({ children, className = "", style = {} }) {
     return (
         <div
-            className={`rounded-[28px] border border-white/[0.07] ${className}`}
+            className={`rounded-[28px] border ${className}`}
             style={{
-                background: "rgba(28, 31, 43, 0.6)",
+                background: "var(--tt-card-bg, rgba(28, 31, 43, 0.6))",
+                borderColor: "var(--tt-card-border, rgba(255, 255, 255, 0.07))",
+                boxShadow: "var(--tt-card-shadow)",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
                 ...style,
@@ -72,14 +75,14 @@ function GlassCard({ children, className = "", style = {} }) {
     );
 }
 
-
-
 // Global fetch lock to prevent StrictMode or concurrent duplicate calls
 let GLOBAL_FETCHING_BATCHES = false;
 
 // ── Main Content ──
 function TeacherDashboardContent() {
     const { user } = useAuth();
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
 
     useEffect(() => {
         document.documentElement.classList.add("allow-overscroll");
@@ -121,14 +124,13 @@ function TeacherDashboardContent() {
         try {
             const data = await api.get("/api/teacher/batches");
             setBatches(data);
-            // Initially do not auto-select batch
         } catch (err) {
             // Handled globally
         } finally {
             GLOBAL_FETCHING_BATCHES = false;
             setBatchesLoading(false);
         }
-    }, []); // Empty dependencies for stability
+    }, []);
 
     const fetchPayments = useCallback(async () => {
         if (!selectedBatch) return;
@@ -140,64 +142,27 @@ function TeacherDashboardContent() {
             if (filterMonth) url += `&month=${filterMonth}`;
             const response = await api.get(url);
             
-            // Handle the new response structure { summary, records }
             const data = response.data || response;
             if (data.summary) {
                 setCounts(data.summary);
                 setPayments(data.records || []);
             } else {
-                // Fallback for old API just in case (though we just updated it)
                 setPayments(data);
-                setCounts({
-                    total_students: data.length,
-                    paid_count: data.filter(p => p.status === "Paid").length,
-                    unpaid_sum: data.filter(p => p.status !== "Paid").length
-                });
             }
         } catch (err) {
             if (!isSystemicError(err.message)) {
-                setError(err.message || "Failed to fetch payments");
+                setError(err.message || "Failed to fetch payments.");
             }
         } finally {
             setLoading(false);
         }
     }, [selectedBatch, filterMonth, filterYear]);
 
-    // Initial fetch for batches only — NO automatic payment fetch anymore
     useEffect(() => {
-        if (user?.uid) {
-            fetchBatches();
-        }
-        const handleOnline = () => {
-            if (user?.uid) fetchBatches();
-        };
-        window.addEventListener("online", handleOnline);
-        return () => window.removeEventListener("online", handleOnline);
-    }, [user?.uid, fetchBatches]);
+        fetchBatches();
+    }, [fetchBatches]);
 
-    // Track if the user has explicitly clicked View at least once for current filters
-
-    // Disable body scroll when warning modal is open
     useEffect(() => {
-        if (warningModalData) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [warningModalData]);
-
-    // Automatically fetch payments when selected filters change
-    useEffect(() => {
-        if (!selectedBatch) {
-            setPayments([]);
-            setHasLoaded(false);
-            setCounts({ total_students: 0, paid_count: 0, unpaid_count: 0 });
-            return;
-        }
-
         const runFetch = async () => {
             setHasLoaded(false);
             await fetchPayments();
@@ -207,7 +172,6 @@ function TeacherDashboardContent() {
     }, [selectedBatch, filterMonth, filterYear, fetchPayments]);
 
     // ── Granular Real-Time Listener ──
-    // Tracks active specific query visually without heavy network refetches
     useEffect(() => {
         if (!selectedBatch || !hasLoaded) return;
         
@@ -233,26 +197,22 @@ function TeacherDashboardContent() {
             }
             
             if (changedDocs.length === 0) return;
-
-            // Read from paymentsRef (always latest)
+            
             const currentPayments = paymentsRef.current;
             const updatedPayments = [...currentPayments];
             let changed = false;
             let paidDelta = 0;
 
             for (const mod of changedDocs) {
-                // Match by ID, OR by student_id to catch "virtual" Unpaid rows that don't have a real Firestore ID yet
                 const idx = updatedPayments.findIndex(p => p.id === mod.id || p.student_id === mod.student_id);
                 if (idx !== -1) {
                     const oldStatus = updatedPayments[idx].status;
                     const newStatus = mod.status;
                     if (oldStatus !== newStatus) {
                         if (newStatus === "Paid") {
-                            // Remove from teacher list instantly — payment is done!
                             updatedPayments.splice(idx, 1);
                             paidDelta += 1;
                         } else {
-                            // Update status in-place (e.g. Unpaid → Pending)
                             updatedPayments[idx] = { ...updatedPayments[idx], status: newStatus, mode: mod.mode };
                         }
                         changed = true;
@@ -262,11 +222,9 @@ function TeacherDashboardContent() {
 
             if (!changed) return;
 
-            // unpaid_count: count directly from array (most reliable — no delta math)
             const newUnpaidCount = updatedPayments.filter(p => p.status === "Unpaid").length;
 
             setPayments(updatedPayments);
-
             setCounts(c => ({
                 ...c,
                 unpaid_count: newUnpaidCount,
@@ -278,75 +236,49 @@ function TeacherDashboardContent() {
     }, [selectedBatch, filterMonth, filterYear, hasLoaded]);
 
     const handlePreOfflineClick = async (payment) => {
-        setOfflineLoading(payment.id);
+        setError("");
+        try {
+            const data = await api.get(`/api/teacher/student-dues/${payment.student_id}`);
+            if (data.length > 1) {
+                setWarningConfirmText("");
+                // Pre-select only the due matching the currently viewed month/year
+                const matchingDue = data.find(d => d.month === filterMonth && d.year === filterYear);
+                setSelectedDueIds(matchingDue ? [matchingDue.id] : [data[0].id]);
+                setWarningModalData({ payment, dues: data });
+            } else {
+                handleBatchOfflineRequests(payment.student_id, [payment]);
+            }
+        } catch (err) {
+            setError(err.message || "Verification check failed.");
+        }
+    };
+
+    const handleBatchOfflineRequests = async (studentId, paymentsArray) => {
+        const paymentIds = paymentsArray.map(p => p.id);
+        const firstPaymentId = paymentIds[0];
+        
+        setOfflineLoading(firstPaymentId);
         setError("");
         
         try {
-            // Fetch all unpaid/rejected dues for the student
-            const dueRecords = await api.get(`/api/teacher/student-dues/${payment.student_id}`);
+            await api.post("/api/payments/offline-batch", {
+                student_id: studentId,
+                payment_ids: paymentIds
+            });
             
-            if (dueRecords.length > 1) {
-                setOfflineLoading(null);
-                setWarningModalData({ payment, dues: dueRecords });
-                const clickedDue = dueRecords.find(d => d.id === payment.id || (d.month === (payment.month || filterMonth) && d.year === (payment.year || filterYear)));
-                setSelectedDueIds(clickedDue ? [clickedDue.id] : [payment.id]);
-                setWarningConfirmText("");
-                return; // Stop here, wait for modal unblock
-            }
+            const currentPayments = paymentsRef.current;
+            const updated = currentPayments.filter(p => !paymentIds.includes(p.id));
+            setPayments(updated);
             
-            // No multiple dues found, proceed directly
-            handleOfflineRequest(payment);
+            const countToSubtract = paymentsArray.filter(p => p.status === "Unpaid").length;
+            setCounts(c => ({
+                ...c,
+                unpaid_count: Math.max(0, (c.unpaid_count || 0) - countToSubtract),
+                paid_count: (c.paid_count || 0) + paymentsArray.length
+            }));
         } catch (err) {
             if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-            setOfflineLoading(null);
-        }
-    };
-
-    const handleOfflineRequest = async (payment) => {
-        setOfflineLoading(payment.id);
-        setError("");
-
-        try {
-            await api.post("/api/teacher/offline-request/batch", {
-                student_id: payment.student_id,
-                batch_name: selectedBatchName,
-                items: [{
-                    month: payment.month || filterMonth,
-                    year: payment.year || filterYear,
-                    amount: payment.amount,
-                }],
-            });
-        } catch (err) {
-            const msg = typeof err.message === "string" ? err.message : JSON.stringify(err.message);
-            if (!isSystemicError(msg)) {
-                setError(msg);
-            }
-        } finally {
-            setOfflineLoading(null);
-        }
-    };
-
-    const handleBatchOfflineRequests = async (studentId, duesToPay) => {
-        const targetPaymentId = warningModalData ? warningModalData.payment.id : null;
-        if (targetPaymentId) setOfflineLoading(targetPaymentId);
-        setError("");
-
-        try {
-            await api.post("/api/teacher/offline-request/batch", {
-                student_id: studentId,
-                batch_name: selectedBatchName,
-                items: duesToPay.map(due => ({
-                    month: due.month,
-                    year: due.year,
-                    amount: due.amount,
-                })),
-            });
-            await fetchPayments();
-        } catch (err) {
-            const msg = typeof err.message === "string" ? err.message : JSON.stringify(err.message);
-            if (!isSystemicError(msg)) {
+                const msg = err.message || "Failed to submit offline request.";
                 setError(msg);
             }
         } finally {
@@ -358,11 +290,9 @@ function TeacherDashboardContent() {
     const { total_students: totalStudents, paid_count: paidCount, unpaid_count: unpaidCount } = counts;
 
     const statusLabel = (s) => (s === "Pending_Verification" ? "Pending" : s || "—");
-    const filteredPayments = payments; // Now filtered on the backend!
+    const filteredPayments = payments; 
 
-    if (batchesLoading) {
-        return <TeacherDashboardSkeleton />;
-    }
+
 
     const selectedBatchName = batches.find(b => b.id === selectedBatch)?.batch_name || "Select Batch";
 
@@ -371,8 +301,8 @@ function TeacherDashboardContent() {
             {/* ── Welcome ── */}
             <div>
                 <h1
-                    className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#f0f0fd]"
-                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                    className="text-2xl md:text-3xl font-extrabold tracking-tight"
+                    style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
                 >
                     <AnimatedGreeting name={user?.name || "Teacher"} />
                 </h1>
@@ -381,8 +311,16 @@ function TeacherDashboardContent() {
             {/* ── Current Filter ── */}
             <section>
                 <div
-                    className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-5 w-full"
-                    style={{ transform: "translateZ(0)", isolation: "isolate", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                    className="rounded-[2rem] p-5 w-full border"
+                    style={{ 
+                        backgroundColor: 'var(--tt-card-bg)', 
+                        borderColor: 'var(--tt-card-border)',
+                        boxShadow: 'var(--tt-card-shadow)',
+                        transform: "translateZ(0)", 
+                        isolation: "isolate", 
+                        backfaceVisibility: "hidden", 
+                        WebkitBackfaceVisibility: "hidden" 
+                    }}
                 >
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
                         {/* Batch - First on mobile */}
@@ -393,6 +331,7 @@ function TeacherDashboardContent() {
                                 placeholder="Select Batch"
                                 onChange={(e) => { setSelectedBatch(e.target.value); setHasLoaded(false); setPayments([]); }}
                                 className="w-full"
+                                theme={theme}
                             />
                         </div>
 
@@ -403,6 +342,7 @@ function TeacherDashboardContent() {
                                 options={MONTH_FULL.map((m, i) => ({ value: i + 1, label: m }))}
                                 onChange={(e) => { setFilterMonth(e.target.value); setHasLoaded(false); setPayments([]); }}
                                 className="w-full"
+                                theme={theme}
                             />
                         </div>
 
@@ -413,6 +353,7 @@ function TeacherDashboardContent() {
                                 options={getYearOptions()}
                                 onChange={(e) => { setFilterYear(parseInt(e.target.value)); setHasLoaded(false); setPayments([]); }}
                                 className="w-full"
+                                theme={theme}
                             />
                         </div>
                     </div>
@@ -425,15 +366,15 @@ function TeacherDashboardContent() {
                 <GlassCard className="col-span-2 md:col-span-1 p-6 relative overflow-hidden group">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-[#aaaab7] font-bold mb-1">
+                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: 'var(--tt-text-secondary)' }}>
                                 Total
                             </p>
-                            <p className="text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                                 {totalStudents}
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-[#3b82f6]/10 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[#3b82f6] text-2xl">group</span>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--tt-accent-bg)' }}>
+                            <span className="material-symbols-outlined text-2xl" style={{ color: 'var(--tt-primary)' }}>group</span>
                         </div>
                     </div>
                 </GlassCard>
@@ -442,15 +383,15 @@ function TeacherDashboardContent() {
                 <GlassCard className="col-span-1 p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-[#4af8e3] font-bold mb-1">
+                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
                                 Paid
                             </p>
-                            <p className="text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                                 {paidCount}
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-[#4af8e3]/10 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[#4af8e3] text-2xl">check_circle</span>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.1)' : 'rgba(74, 248, 227, 0.1)' }}>
+                            <span className="material-symbols-outlined text-2xl" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>check_circle</span>
                         </div>
                     </div>
                 </GlassCard>
@@ -459,15 +400,15 @@ function TeacherDashboardContent() {
                 <GlassCard className="col-span-1 p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-[#ff6e84] font-bold mb-1">
+                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: 'var(--tt-error)' }}>
                                 Unpaid
                             </p>
-                            <p className="text-3xl font-extrabold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                                 {unpaidCount}
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-[#ff6e84]/10 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[#ff6e84] text-2xl">cancel</span>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--tt-error-bg, rgba(239, 68, 68, 0.1))' }}>
+                            <span className="material-symbols-outlined text-2xl" style={{ color: 'var(--tt-error)' }}>cancel</span>
                         </div>
                     </div>
                 </GlassCard>
@@ -475,14 +416,13 @@ function TeacherDashboardContent() {
 
             {/* ── Alerts ── */}
             {error && (
-                <div className="p-4 rounded-2xl bg-[#ff6e84]/10 border border-[#ff6e84]/20 text-[#ff6e84] text-sm flex items-center justify-between">
-                    <span>{error}</span>
-                    <button onClick={() => setError("")} className="ml-2 text-[#ff6e84] hover:text-white cursor-pointer">
+                <div className="p-4 rounded-2xl flex items-center justify-between border" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--tt-error)' }}>
+                    <span className="text-sm font-medium">{error}</span>
+                    <button onClick={() => setError("")} className="ml-2 cursor-pointer transition-opacity hover:opacity-80" style={{ color: 'var(--tt-error)' }}>
                         <span className="material-symbols-outlined text-lg">close</span>
                     </button>
                 </div>
             )}
-
 
             {/* ── Payment Status ── */}
             {loading ? (
@@ -493,30 +433,31 @@ function TeacherDashboardContent() {
                 /* ── Empty State: Not loaded yet ── */
                 <section className="mt-8">
                     <GlassCard className="p-16 flex flex-col items-center justify-center text-center gap-4">
-                        <span className="material-symbols-outlined text-5xl text-[#464752]">payments</span>
-                        <h3 className="text-[#f0f0fd] font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>Select Batch</h3>
-                        <p className="text-[#aaaab7] text-sm max-w-xs">Please select a batch to view its payments and pending actions.</p>
+                        <span className="material-symbols-outlined text-5xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>payments</span>
+                        <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Select Batch</h3>
+                        <p className="text-sm max-w-xs" style={{ color: 'var(--tt-text-secondary)' }}>Please select a batch to view its payments and pending actions.</p>
                     </GlassCard>
                 </section>
             ) : (
-                /* ── SINGLE MONTH — Card Layout ── */
+                /* ── Card Layout ── */
                 <section>
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="font-bold text-lg text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        <h2 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                             Pending Actions
                         </h2>
                     </div>
                     <div className="space-y-3">
                         {filteredPayments.length === 0 ? (
                             <GlassCard className="p-10 text-center">
-                                <span className="material-symbols-outlined text-5xl text-[#3b82f6]/40 mb-3 block">verified</span>
-                                <p className="text-[#f0f0fd] font-bold text-sm">No Pending Actions! 🎉</p>
+                                <span className="material-symbols-outlined text-5xl mb-3 block" style={{ color: 'var(--tt-primary)', opacity: 0.4 }}>verified</span>
+                                <p className="font-bold text-sm" style={{ color: 'var(--tt-text-primary)' }}>No Pending Actions! 🎉</p>
                             </GlassCard>
                         ) : (
-                            filteredPayments.map((p, idx) => (
+                            filteredPayments.map((p) => (
                                 <GlassCard
                                     key={p.id}
-                                    className="p-4 hover:border-[#c799ff]/20 transition-all"
+                                    className="p-4 transition-all hover:bg-white/5"
+                                    style={{ backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.02)', borderColor: 'var(--tt-card-border)' }}
                                 >
                                     <div className="flex items-center gap-4">
                                         {/* Avatar */}
@@ -524,8 +465,8 @@ function TeacherDashboardContent() {
 
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-[#f0f0fd] truncate">{p.student_name}</p>
-                                            <p className="text-xs text-[#aaaab7] mt-0.5">₹{p.amount}</p>
+                                            <p className="font-bold truncate" style={{ color: 'var(--tt-text-primary)' }}>{p.student_name}</p>
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--tt-text-secondary)' }}>₹{p.amount}</p>
                                         </div>
 
                                         {/* Status */}
@@ -537,11 +478,18 @@ function TeacherDashboardContent() {
                                         <button
                                             onClick={() => handlePreOfflineClick(p)}
                                             disabled={offlineLoading === p.id}
-                                            className="w-full mt-3 py-3 rounded-2xl bg-gradient-to-r from-[#4af8e3]/10 to-[#c799ff]/10 border border-[#4af8e3]/20 text-[#4af8e3] text-xs font-bold uppercase tracking-wider hover:from-[#4af8e3]/20 hover:to-[#c799ff]/20 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                                            className="w-full mt-3 py-3 rounded-2xl border text-xs font-bold uppercase tracking-wider active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                                            style={{
+                                                background: isLight 
+                                                    ? 'linear-gradient(to right, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.15))'
+                                                    : 'linear-gradient(to right, rgba(74, 248, 227, 0.1), rgba(59, 130, 246, 0.1))',
+                                                borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.2)',
+                                                color: isLight ? '#0d9488' : '#4af8e3'
+                                            }}
                                         >
                                             {offlineLoading === p.id ? (
                                                 <span className="flex items-center justify-center gap-2">
-                                                    <div className="w-4 h-4 border-2 border-[#4af8e3]/30 border-t-[#4af8e3] rounded-full animate-spin" />
+                                                    <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)', borderTopColor: isLight ? '#0d9488' : '#4af8e3' }} />
                                                     Submitting...
                                                 </span>
                                             ) : (
@@ -565,26 +513,31 @@ function TeacherDashboardContent() {
                     return (
                         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setWarningModalData(null)} style={{ touchAction: "none" }}>
                             <div 
-                                className="bg-[#0c0e17]/95 backdrop-blur-3xl rounded-[32px] p-6 sm:p-8 w-full max-w-md border border-amber-400/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative animate-modal-in"
+                                className="rounded-[32px] p-6 sm:p-8 w-full max-w-md border animate-modal-in"
                                 onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    backgroundColor: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(12, 14, 23, 0.95)',
+                                    borderColor: isLight ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.2)',
+                                    boxShadow: isLight ? '0 20px 50px rgba(0,0,0,0.05)' : '0 20px 50px rgba(0,0,0,0.5)'
+                                }}
                             >
                                 <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-amber-400 font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                    <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#b45309' : '#fbbf24' }}>
                                         <span className="material-symbols-outlined">warning</span>
                                         Multiple Dues Found!
                                     </h3>
-                                    <button onClick={() => setWarningModalData(null)} className="text-[#aaaab7] hover:text-white transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center">
+                                    <button onClick={() => setWarningModalData(null)} className="transition-colors cursor-pointer p-2 rounded-full hover:bg-white/5 flex items-center justify-center" style={{ color: 'var(--tt-text-secondary)' }}>
                                         <span className="material-symbols-outlined">close</span>
                                     </button>
                                 </div>
                                 
-                                <div className="space-y-4 mb-6 text-[#aaaab7]">
-                                    <p className="text-sm text-[#f0f0fd] font-medium leading-relaxed">
-                                        <span className="font-bold text-white">{payment.student_name}</span> has {dues.length} unpaid dues. 
+                                <div className="space-y-4 mb-6" style={{ color: 'var(--tt-text-secondary)' }}>
+                                    <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--tt-text-primary)' }}>
+                                        <span className="font-bold" style={{ color: 'var(--tt-text-primary)' }}>{payment.student_name}</span> has {dues.length} unpaid dues. 
                                     </p>
                                     
-                                    <div className="bg-amber-400/5 border border-amber-400/10 p-4 rounded-2xl text-[13px] leading-relaxed text-amber-200/80">
-                                        <p className="font-bold mb-3 text-amber-400/90 tracking-wide uppercase text-[11px]">Select Months to Mark Paid:</p>
+                                    <div className="border p-4 rounded-2xl text-[13px] leading-relaxed" style={{ backgroundColor: isLight ? 'rgba(217, 119, 6, 0.05)' : 'rgba(251, 191, 36, 0.05)', borderColor: isLight ? 'rgba(217, 119, 6, 0.15)' : 'rgba(251, 191, 36, 0.1)' }}>
+                                        <p className="font-bold mb-3 tracking-wide uppercase text-[11px]" style={{ color: isLight ? '#b45309' : '#fbbf24' }}>Select Months to Mark Paid:</p>
                                         <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1">
                                             {dues.map(d => {
                                                 const isChecked = selectedDueIds.includes(d.id);
@@ -593,9 +546,12 @@ function TeacherDashboardContent() {
                                                         key={d.id} 
                                                         className={`flex items-center gap-3 cursor-pointer select-none py-2 px-3 rounded-xl transition-all border ${
                                                             isChecked 
-                                                                ? 'bg-[#4af8e3]/10 text-[#4af8e3] font-bold border-[#4af8e3]/20 shadow-[0_2px_10px_rgba(74,248,227,0.05)]' 
-                                                                : 'text-[#aaaab7] hover:text-white border-transparent bg-white/[0.01]'
+                                                                ? (isLight 
+                                                                    ? 'bg-[#0d9488]/15 text-[#0d9488] font-bold border-[#0d9488]/30 shadow-[0_2px_10px_rgba(13,148,136,0.05)]' 
+                                                                    : 'bg-[#4af8e3]/10 text-[#4af8e3] font-bold border-[#4af8e3]/20 shadow-[0_2px_10px_rgba(74,248,227,0.05)]') 
+                                                                : 'border-transparent bg-white/[0.01]'
                                                         }`}
+                                                        style={{ color: isChecked ? '' : 'var(--tt-text-secondary)' }}
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -607,7 +563,8 @@ function TeacherDashboardContent() {
                                                                     setSelectedDueIds([...selectedDueIds, d.id]);
                                                                 }
                                                             }}
-                                                            className="w-4 h-4 rounded border-white/10 text-[#4af8e3] bg-white/5 focus:ring-[#4af8e3] focus:ring-offset-0 focus:outline-none accent-[#4af8e3] cursor-pointer"
+                                                            className="w-4 h-4 rounded focus:ring-offset-0 focus:outline-none cursor-pointer"
+                                                            style={{ accentColor: isLight ? '#0d9488' : '#4af8e3' }}
                                                         />
                                                         <span className="font-medium">
                                                             {MONTH_FULL[d.month - 1]} {d.year} (₹{d.amount})
@@ -617,19 +574,20 @@ function TeacherDashboardContent() {
                                             })}
                                         </div>
                                     </div>
-                                    <p className="text-xs font-medium text-amber-400/70 italic leading-snug">
+                                    <p className="text-xs font-medium italic leading-snug" style={{ color: isLight ? '#b45309' : '#fbbf24' }}>
                                         Are you sure you want to exceptionally mark the selected months as Paid (Offline)?
                                     </p>
     
                                     <div className="mt-4">
-                                        <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
-                                            Type <span className="text-amber-400 font-black select-all cursor-pointer">{targetText}</span>
+                                        <label className="block text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--tt-text-secondary)' }}>
+                                            Type <span className="font-black select-all cursor-pointer" style={{ color: isLight ? '#b45309' : '#fbbf24' }}>{targetText}</span>
                                         </label>
                                         <input
                                             type="text"
                                             value={warningConfirmText}
                                             onChange={(e) => setWarningConfirmText(e.target.value)}
-                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#4af8e3]/30 focus:border-[#4af8e3]/50 focus:ring-[#4af8e3] text-[#f0f0fd] text-sm font-medium focus:outline-none transition-all placeholder:text-[#464752]"
+                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.03] border focus:ring-offset-0 text-sm font-medium focus:outline-none transition-all"
+                                            style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
                                             placeholder={targetText}
                                             autoComplete="off"
                                         />
@@ -637,7 +595,7 @@ function TeacherDashboardContent() {
                                 </div>
     
                                 <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8">
-                                    <button onClick={() => setWarningModalData(null)} className="w-full sm:flex-1 py-3.5 rounded-2xl text-xs font-bold uppercase tracking-widest text-[#aaaab7] bg-white/5 hover:bg-white/10 transition-all cursor-pointer">
+                                    <button onClick={() => setWarningModalData(null)} className="w-full sm:flex-1 py-3.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all cursor-pointer" style={{ backgroundColor: 'var(--tt-hover-bg)', color: 'var(--tt-text-secondary)' }}>
                                         Cancel
                                     </button>
                                     <button
@@ -649,7 +607,8 @@ function TeacherDashboardContent() {
                                             }
                                         }}
                                         disabled={warningConfirmText !== targetText || selectedDueIds.length === 0}
-                                        className="w-full sm:flex-[1.5] py-3.5 rounded-2xl bg-[#4af8e3] text-[#0c0e17] shadow-[0_8px_20px_rgba(74,248,227,0.2)] text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2"
+                                        className="w-full sm:flex-[1.5] py-3.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:scale-100 cursor-pointer flex items-center justify-center gap-2"
+                                        style={{ backgroundColor: isLight ? '#0d9488' : '#4af8e3', color: isLight ? '#ffffff' : '#0c0e17', boxShadow: isLight ? '0 8px 20px rgba(13,148,136,0.2)' : '0 8px 20px rgba(74,248,227,0.2)' }}
                                     >
                                         <span className="material-symbols-outlined text-[18px]">verified</span>
                                         Confirm

@@ -6,11 +6,14 @@ import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePicUpload from "@/components/ProfilePicUpload";
 import AppLockSetting from "@/components/AppLockSetting";
 import { useNotifications } from "@/context/NotificationContext";
+import { useAdminTheme } from "@/context/AdminThemeContext";
 
 function AdminProfileContent() {
     const { user, logout } = useAuth();
     const [picModalOpen, setPicModalOpen] = useState(false);
     const { pushEnabled, togglePushNotifications } = useNotifications();
+    const { theme, toggleTheme } = useAdminTheme();
+    const isLight = theme === "light";
 
     // PWA manual update checking states
     const [updateChecking, setUpdateChecking] = useState(false);
@@ -39,9 +42,15 @@ function AdminProfileContent() {
             {toast.show && (
                 <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
                     style={{
-                        backgroundColor: toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(59, 130, 246, 0.15)",
-                        borderColor: toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(59, 130, 246, 0.3)",
-                        color: toast.type === "success" ? "#4af8e3" : "#f0f0fd",
+                        backgroundColor: isLight 
+                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.08)" : "rgba(255, 255, 255, 0.45)")
+                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(30, 41, 59, 0.85)"),
+                        borderColor: isLight
+                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.2)" : "rgba(0, 0, 0, 0.08)")
+                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(255, 255, 255, 0.1)"),
+                        color: isLight
+                            ? (toast.type === "success" ? "#0d9488" : "var(--ad-text-primary)")
+                            : (toast.type === "success" ? "#4af8e3" : "#f0f0fd"),
                     }}
                 >
                     <span className="material-symbols-outlined">
@@ -53,18 +62,23 @@ function AdminProfileContent() {
             )}
             {/* ── Profile Header Card ── */}
             <section className="relative">
-                <div className="bg-[#3b82f6]/10 backdrop-blur-2xl p-8 rounded-[32px] ring-1 ring-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col items-center text-center">
+                <div className="p-8 rounded-[32px] border flex flex-col items-center text-center shadow-lg"
+                     style={{
+                         backgroundColor: 'var(--ad-accent-bg)',
+                         borderColor: 'var(--ad-divider)',
+                     }}
+                >
                     {/* Profile Picture with gradient glow */}
                     <div className="relative mb-4">
-                        <div className="absolute -inset-1 bg-gradient-to-tr from-[#3b82f6] to-[#4af8e3] rounded-full blur-sm opacity-50" />
+                        <div className="absolute -inset-1 bg-gradient-to-tr from-[var(--ad-primary)] to-[#4af8e3] rounded-full blur-sm opacity-50" />
                         <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/20">
                             <ProfilePicture size={96} />
                         </div>
                     </div>
-                    <h2 className="text-2xl font-extrabold tracking-tight text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                    <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                         {user?.name || "Admin User"}
                     </h2>
-                    <p className="text-[#aaaab7] tracking-wider mt-1 text-sm">{user?.email?.replace(/@fp\.com$/, "") || "admin"}</p>
+                    <p className="tracking-wider mt-1 text-sm" style={{ color: 'var(--ad-text-secondary)' }}>{user?.email?.replace(/@fp\.com$/, "") || "admin"}</p>
                 </div>
             </section>
 
@@ -73,43 +87,85 @@ function AdminProfileContent() {
                 {/* Change Profile Photo */}
                 <button
                     onClick={() => setPicModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all group cursor-pointer"
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
-                            <span className="material-symbols-outlined text-[#3b82f6]">photo_camera</span>
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors group-hover:bg-[var(--ad-accent-bg)]"
+                             style={{ backgroundColor: 'var(--ad-icon-bg)', color: 'var(--ad-primary)' }}
+                        >
+                            <span className="material-symbols-outlined">photo_camera</span>
                         </div>
-                        <span className="font-medium text-[#f0f0fd]">Change Profile Photo</span>
+                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>Change Profile Photo</span>
                     </div>
-                    <span className="material-symbols-outlined text-[#737580]">chevron_right</span>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--ad-text-muted)' }}>chevron_right</span>
                 </button>
 
                 {/* App Lock (Biometric) */}
-                <AppLockSetting accentColor="#3b82f6" isLight={false} />
+                <AppLockSetting accentColor={isLight ? "#0d9488" : "#3b82f6"} isLight={isLight} />
 
-                {/* Push Notifications Toggle */}
+                {/* Theme Toggle */}
                 <button
-                    onClick={togglePushNotifications}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                    onClick={toggleTheme}
+                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all cursor-pointer group"
                 >
                     <div className="flex items-center gap-4 text-left">
-                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
-                            <span className="material-symbols-outlined text-[#3b82f6]">notifications</span>
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors group-hover:bg-[var(--ad-accent-bg)]"
+                             style={{ backgroundColor: 'var(--ad-icon-bg)', color: 'var(--ad-primary)' }}
+                        >
+                            <span className="material-symbols-outlined">
+                                {isLight ? 'light_mode' : 'dark_mode'}
+                            </span>
                         </div>
-                        <span className="font-medium text-[#f0f0fd]">Push Notifications</span>
+                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>Theme</span>
                     </div>
                     <div className="flex items-center">
                         {/* Toggle switch */}
                         <div
                             className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
                             style={{
-                                backgroundColor: pushEnabled ? 'rgba(59,130,246,0.3)' : 'rgba(115, 117, 128, 0.3)',
+                                backgroundColor: isLight ? 'rgba(13,148,136,0.3)' : 'rgba(115, 117, 128, 0.3)',
+                            }}
+                        >
+                            <div
+                                className="w-4 h-4 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center"
+                                style={{
+                                    backgroundColor: isLight ? '#0d9488' : '#737580',
+                                    marginLeft: isLight ? 'auto' : '0',
+                                }}
+                            >
+                                <span className="material-symbols-outlined text-[10px] text-white select-none">
+                                    {isLight ? 'light_mode' : 'dark_mode'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+
+                {/* Push Notifications Toggle */}
+                <button
+                    onClick={togglePushNotifications}
+                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center gap-4 text-left">
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors group-hover:bg-[var(--ad-accent-bg)]"
+                             style={{ backgroundColor: 'var(--ad-icon-bg)', color: 'var(--ad-primary)' }}
+                        >
+                            <span className="material-symbols-outlined">notifications</span>
+                        </div>
+                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>Push Notifications</span>
+                    </div>
+                    <div className="flex items-center">
+                        {/* Toggle switch */}
+                        <div
+                            className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                            style={{
+                                backgroundColor: pushEnabled ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)') : 'rgba(115, 117, 128, 0.3)',
                             }}
                         >
                             <div
                                 className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
                                 style={{
-                                    backgroundColor: pushEnabled ? '#3b82f6' : '#737580',
+                                    backgroundColor: pushEnabled ? (isLight ? '#0d9488' : '#3b82f6') : '#737580',
                                     marginLeft: pushEnabled ? 'auto' : '0',
                                 }}
                             />
@@ -121,19 +177,21 @@ function AdminProfileContent() {
                 <button
                     onClick={handleCheckUpdate}
                     disabled={updateChecking}
-                    className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl group-hover:bg-[#3b82f6]/20 transition-colors">
-                            <span className={updateChecking ? "material-symbols-outlined animate-spin text-[#3b82f6]" : "material-symbols-outlined text-[#3b82f6]"}>
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors group-hover:bg-[var(--ad-accent-bg)]"
+                             style={{ backgroundColor: 'var(--ad-icon-bg)', color: 'var(--ad-primary)' }}
+                        >
+                            <span className={updateChecking ? "material-symbols-outlined animate-spin" : "material-symbols-outlined"}>
                                 {updateChecking ? 'autorenew' : 'system_update'}
                             </span>
                         </div>
-                        <span className="font-medium text-[#f0f0fd]">
+                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>
                             {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
                         </span>
                     </div>
-                    <span className="material-symbols-outlined text-[#737580]">chevron_right</span>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--ad-text-muted)' }}>chevron_right</span>
                 </button>
             </section>
 
@@ -141,14 +199,14 @@ function AdminProfileContent() {
             <footer className="mt-12 flex flex-col items-center gap-6">
                 <button
                     onClick={logout}
-                    className="group flex items-center gap-3 px-8 py-3 bg-[#a70138]/20 hover:bg-[#a70138]/30 transition-all rounded-full ring-1 ring-[#ff6e84]/20 active:scale-95 cursor-pointer"
+                    className="group flex items-center gap-3 px-8 py-3 bg-[#a70138]/10 transition-all rounded-full border border-[#ff6e84]/20 active:scale-95 cursor-pointer"
                 >
                     <span className="material-symbols-outlined text-[#ff6e84]">logout</span>
                     <span className="font-bold text-[#ff6e84] tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>Logout</span>
                 </button>
                 <div className="text-center">
                     {/* eslint-disable-next-line no-undef */}
-                    <p className="text-[10px] text-[#aaaab7] uppercase tracking-[0.2em]">FP Finance v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2'}</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: 'var(--ad-text-secondary)' }}>FP Finance v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.2'}</p>
                 </div>
             </footer>
 

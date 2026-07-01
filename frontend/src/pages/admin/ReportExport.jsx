@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
+import { useAdminTheme } from "@/context/AdminThemeContext";
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",
@@ -16,6 +17,8 @@ const MONTHS = [
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 function ReportExportContent() {
+    const { theme } = useAdminTheme();
+    const isLight = theme === "light";
     const { month: prevMonth, year: prevYear } = getPreviousMonth();
     const yearOptions = getYearOptions();
 
@@ -288,32 +291,41 @@ function ReportExportContent() {
         <div className="space-y-6">
             {/* Header - Hidden on mobile as it's in the Sub-Page Header */}
             <div className="mb-6 hidden md:block">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#f0f0fd] tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                     Export & Backup Manager
                 </h1>
-                <p className="text-[#aaaab7] text-sm mt-1 font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>
+                <p className="text-sm mt-1 font-medium" style={{ fontFamily: "'Inter', sans-serif", color: 'var(--ad-text-secondary)' }}>
                     Export PDF Reports or manage Firestore Database Backups
                 </p>
             </div>
 
             {/* Tab control */}
-            <div className="flex items-center gap-1 p-1 bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-2xl w-fit">
+            <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
+                 style={{
+                     backgroundColor: 'var(--ad-card-bg)',
+                     borderColor: 'var(--ad-divider)'
+                 }}
+            >
                 <button
                     onClick={() => setActiveTab("pdf")}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2
-                        ${activeTab === "pdf"
-                            ? "bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                            : "text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 border border-transparent"}`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                    style={{
+                        backgroundColor: activeTab === "pdf" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                        color: activeTab === "pdf" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                        borderColor: activeTab === "pdf" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent'
+                    }}
                 >
                     <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
                     PDF Reports
                 </button>
                 <button
                     onClick={() => setActiveTab("backup")}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2
-                        ${activeTab === "backup"
-                            ? "bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                            : "text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 border border-transparent"}`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                    style={{
+                        backgroundColor: activeTab === "backup" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                        color: activeTab === "backup" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                        borderColor: activeTab === "backup" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent'
+                    }}
                 >
                     <span className="material-symbols-outlined text-[16px]">database</span>
                     Database Backup
@@ -322,19 +334,31 @@ function ReportExportContent() {
 
             {/* Error */}
             {error && (
-                <div className="mb-4 p-4 rounded-xl bg-[#171924]/80 backdrop-blur-[20px] border border-[#ff6e84]/30 shadow-lg text-[#ff9dac] text-sm flex items-center gap-3 animate-fade-in-up">
+                <div className="mb-4 p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3 animate-fade-in-up"
+                     style={{
+                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                         borderColor: 'rgba(255, 110, 132, 0.3)',
+                         color: isLight ? '#ef4444' : '#ff9dac'
+                     }}
+                >
                     <span className="material-symbols-outlined text-[#ff6e84]">error</span>
-                    <span className="flex-1">{error}</span>
-                    <button onClick={() => setError("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
+                    <span className="flex-1 font-medium">{error}</span>
+                    <button onClick={() => setError("")} className="ml-2 hover:text-[#ff6e84] transition-colors cursor-pointer">✕</button>
                 </div>
             )}
 
             {/* Success */}
             {success && (
-                <div className="mb-4 p-4 rounded-xl bg-[#171924]/80 backdrop-blur-[20px] border border-[#4af8e3]/30 shadow-lg text-[#dcfff8] text-sm flex items-center gap-3 animate-fade-in-up">
+                <div className="mb-4 p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3 animate-fade-in-up"
+                     style={{
+                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                         borderColor: 'rgba(74, 248, 227, 0.3)',
+                         color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
+                     }}
+                >
                     <span className="material-symbols-outlined text-[#4af8e3]">check_circle</span>
-                    <span className="flex-1">{success}</span>
-                    <button onClick={() => setSuccess("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
+                    <span className="flex-1 font-medium">{success}</span>
+                    <button onClick={() => setSuccess("")} className="ml-2 hover:text-[#4af8e3] transition-colors cursor-pointer">✕</button>
                 </div>
             )}
 
@@ -342,9 +366,62 @@ function ReportExportContent() {
             {activeTab === "pdf" && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {/* Step 1: Select Batch */}
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
-                            <h3 className="text-[#f0f0fd] font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        {/* Step 1: Select Report Type */}
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-6 shadow-sm"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <h3 className="font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                                Report Type
+                            </h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setReportType("student")}
+                                    className="flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border"
+                                    style={{
+                                        backgroundColor: reportType === "student"
+                                            ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)')
+                                            : 'var(--ad-icon-bg)',
+                                        borderColor: reportType === "student"
+                                            ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(199, 153, 255, 0.25)')
+                                            : 'var(--ad-input-border)',
+                                        color: reportType === "student"
+                                            ? (isLight ? '#0d9488' : '#c799ff')
+                                            : 'var(--ad-text-secondary)'
+                                    }}
+                                >
+                                    Student Payments
+                                </button>
+                                <button
+                                    onClick={() => setReportType("teacher")}
+                                    className="flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border"
+                                    style={{
+                                        backgroundColor: reportType === "teacher"
+                                            ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)')
+                                            : 'var(--ad-icon-bg)',
+                                        borderColor: reportType === "teacher"
+                                            ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(199, 153, 255, 0.25)')
+                                            : 'var(--ad-input-border)',
+                                        color: reportType === "teacher"
+                                            ? (isLight ? '#0d9488' : '#c799ff')
+                                            : 'var(--ad-text-secondary)'
+                                    }}
+                                >
+                                    Collection & Distribution
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Step 2: Select Batch */}
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-6 shadow-sm"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <h3 className="font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 Select Batch
                             </h3>
                             <div className="relative z-20">
@@ -353,14 +430,24 @@ function ReportExportContent() {
                                     onChange={(e) => setBatchId(e.target.value)}
                                     options={[{ id: "", batch_name: "Select Batch" }, ...batches]}
                                     placeholder="Select Batch"
-                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4af8e3]/50 transition-colors"
+                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
                             </div>
                         </div>
 
-                        {/* Step 2: Select Year */}
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
-                            <h3 className="text-[#f0f0fd] font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        {/* Step 3: Select Year */}
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-6 shadow-sm"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <h3 className="font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 Select Year
                             </h3>
                             <div className="relative z-10">
@@ -368,53 +455,41 @@ function ReportExportContent() {
                                     value={year}
                                     onChange={(e) => setYear(Number(e.target.value))}
                                     options={yearOptions}
-                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#222532]/50 border border-[#464752]/50 hover:border-[#464752] text-[#f0f0fd] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4af8e3]/50 transition-colors"
+                                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
                                 />
-                            </div>
-                        </div>
-
-                        {/* Step 3: Select Report Type */}
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
-                            <h3 className="text-[#f0f0fd] font-bold mb-4 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                                Report Type
-                            </h3>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setReportType("student")}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border
-                                        ${reportType === "student"
-                                            ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/50 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                                            : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:border-[#464752]"}`}
-                                >
-                                    Student Payments
-                                </button>
-                                <button
-                                    onClick={() => setReportType("teacher")}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-center border
-                                        ${reportType === "teacher"
-                                            ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/50 shadow-[0_0_15px_rgba(199,153,255,0.15)]"
-                                            : "bg-[#222532]/50 border-[#464752]/50 text-[#aaaab7] hover:border-[#464752]"}`}
-                                >
-                                    Collection & Distribution
-                                </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Step 3: Select Month(s) */}
-                    <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 transition-colors hover:bg-[#171924]/80">
+                    <div className="backdrop-blur-[20px] border rounded-[2rem] p-6 shadow-sm"
+                         style={{
+                             backgroundColor: 'var(--ad-card-bg)',
+                             borderColor: 'var(--ad-card-border)'
+                         }}
+                    >
                         <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-[#f0f0fd] font-bold flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                            <h3 className="font-bold flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 Select Month(s)
                             </h3>
                             <button
                                 onClick={selectAllMonths}
-                                className="text-xs text-[#4af8e3] hover:text-white transition-colors cursor-pointer font-bold uppercase tracking-widest bg-[#4af8e3]/10 px-3 py-1.5 rounded-lg border border-[#4af8e3]/30"
+                                className="text-xs transition-colors cursor-pointer font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg border"
+                                style={{
+                                    backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)',
+                                    borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)',
+                                    color: isLight ? '#0d9488' : '#4af8e3'
+                                }}
                             >
                                 {selectedMonths.length === 12 ? "Deselect All" : "Select All"}
                             </button>
                         </div>
-                        <p className="text-[#aaaab7] text-xs font-medium mb-6">Each month will act as a separate page in the generated PDF</p>
+                        <p className="text-xs font-medium mb-6" style={{ color: 'var(--ad-text-secondary)' }}>Each month will act as a separate page in the generated PDF</p>
 
                         <div className="flex flex-wrap gap-3 mb-4">
                             {MONTHS.map((m, i) => {
@@ -424,11 +499,18 @@ function ReportExportContent() {
                                     <button
                                         key={monthNum}
                                         onClick={() => toggleMonth(monthNum)}
-                                        className={`px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer
-                                            ${isSelected
-                                                ? "bg-[#4af8e3]/10 text-[#4af8e3] border border-[#4af8e3]/50 shadow-[0_4px_15px_rgba(74,248,227,0.15)]"
-                                                : "bg-[#222532]/50 border border-[#464752]/50 text-[#aaaab7] hover:border-[#464752] hover:bg-[#222532]/80"
-                                            }`}
+                                        className="px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer border"
+                                        style={{
+                                            backgroundColor: isSelected
+                                                ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)')
+                                                : 'var(--ad-icon-bg)',
+                                            borderColor: isSelected
+                                                ? (isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)')
+                                                : 'var(--ad-input-border)',
+                                            color: isSelected
+                                                ? (isLight ? '#0d9488' : '#4af8e3')
+                                                : 'var(--ad-text-secondary)'
+                                        }}
                                     >
                                         <div className="flex items-center gap-2">
                                             {isSelected && <span className="material-symbols-outlined text-[16px]">check</span>}
@@ -438,8 +520,6 @@ function ReportExportContent() {
                                 );
                             })}
                         </div>
-
-
                     </div>
 
                     {/* Export Button */}
@@ -447,12 +527,15 @@ function ReportExportContent() {
                         <button
                             onClick={handleExport}
                             disabled={exporting || !batchId || selectedMonths.length === 0}
-                            className="w-full sm:w-auto px-8 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest transition-all duration-300
-                                bg-[#4af8e3]/10 text-[#4af8e3] border border-[#4af8e3]/30 hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 shadow-[0_4px_15px_rgba(74,248,227,0.15)]
-                                disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 group"
+                            className="w-full sm:w-auto px-8 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 group border"
+                            style={{
+                                backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)',
+                                borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)',
+                                color: isLight ? '#0d9488' : '#4af8e3'
+                            }}
                         >
                             {exporting ? (
-                                <span className="w-5 h-5 rounded-full border-2 border-[#4af8e3]/30 border-t-[#4af8e3] animate-spin" />
+                                <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: isLight ? '#0d9488' : '#4af8e3' }} />
                             ) : (
                                 <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">picture_as_pdf</span>
                             )}
@@ -467,18 +550,28 @@ function ReportExportContent() {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Downloader Card */}
-                        <div className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 flex flex-col justify-between transition-colors hover:bg-[#171924]/80">
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-6 flex flex-col justify-between shadow-sm"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
                             <div>
-                                <h3 className="text-[#f0f0fd] font-bold mb-2 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                <h3 className="font-bold mb-2 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                     <span className="material-symbols-outlined text-[#4af8e3]">download</span>
                                     Export JSON Backup
                                 </h3>
-                                <p className="text-[#aaaab7] text-xs font-medium mb-4">
+                                <p className="text-xs font-medium mb-4" style={{ color: 'var(--ad-text-secondary)' }}>
                                     Download a JSON file containing all users, batches, notes, settlements, and payments.
                                 </p>
-                                <div className="mt-4 p-4 rounded-2xl bg-[#222532]/40 border border-[#464752]/30 flex flex-col gap-1 text-[13px]">
-                                    <span className="text-[#aaaab7]">Last Backup Timestamp:</span>
-                                    <span className="text-white font-mono font-bold">
+                                <div className="mt-4 p-4 rounded-2xl border flex flex-col gap-1 text-[13px]"
+                                     style={{
+                                         backgroundColor: 'var(--ad-icon-bg)',
+                                         borderColor: 'var(--ad-input-border)'
+                                     }}
+                                >
+                                    <span style={{ color: 'var(--ad-text-secondary)' }}>Last Backup Timestamp:</span>
+                                    <span className="font-mono font-bold" style={{ color: 'var(--ad-text-primary)' }}>
                                         {fetchingBackupInfo ? "Fetching..." : formatBackupTime(lastBackupTime)}
                                     </span>
                                 </div>
@@ -487,10 +580,15 @@ function ReportExportContent() {
                                 <button
                                     onClick={() => handleDownloadBackup("incremental")}
                                     disabled={downloading}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-[#4af8e3]/10 text-[#4af8e3] border border-[#4af8e3]/30 text-xs font-bold uppercase tracking-widest hover:bg-[#4af8e3]/20 hover:border-[#4af8e3]/50 transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                    className="flex-1 px-5 py-3.5 rounded-xl border text-xs font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)',
+                                        borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)',
+                                        color: isLight ? '#0d9488' : '#4af8e3'
+                                    }}
                                 >
                                     {downloading ? (
-                                        <span className="w-4 h-4 rounded-full border-2 border-[#4af8e3]/30 border-t-[#4af8e3] animate-spin" />
+                                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: isLight ? '#0d9488' : '#4af8e3' }} />
                                     ) : (
                                         <span className="material-symbols-outlined text-[16px]">update</span>
                                     )}
@@ -499,10 +597,15 @@ function ReportExportContent() {
                                 <button
                                     onClick={() => handleDownloadBackup("full")}
                                     disabled={downloading}
-                                    className="flex-1 px-5 py-3.5 rounded-xl bg-[#c799ff]/10 text-[#c799ff] border border-[#c799ff]/30 text-xs font-bold uppercase tracking-widest hover:bg-[#c799ff]/20 hover:border-[#c799ff]/50 transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                    className="flex-1 px-5 py-3.5 rounded-xl border text-xs font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(124, 58, 237, 0.08)' : 'rgba(199, 153, 255, 0.1)',
+                                        borderColor: isLight ? 'rgba(124, 58, 237, 0.3)' : 'rgba(199, 153, 255, 0.3)',
+                                        color: isLight ? '#7c3aed' : '#c799ff'
+                                    }}
                                 >
                                     {downloading ? (
-                                        <span className="w-4 h-4 rounded-full border-2 border-[#c799ff]/30 border-t-[#c799ff] animate-spin" />
+                                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: isLight ? '#7c3aed' : '#c799ff' }} />
                                     ) : (
                                         <span className="material-symbols-outlined text-[16px]">database</span>
                                     )}
@@ -512,17 +615,29 @@ function ReportExportContent() {
                         </div>
 
                         {/* Restorer Card */}
-                        <form onSubmit={handleRestoreSubmit} className="bg-[#171924]/60 backdrop-blur-[20px] border border-[#737580]/10 rounded-[2rem] p-6 flex flex-col justify-between transition-colors hover:bg-[#171924]/80">
+                        <form onSubmit={handleRestoreSubmit} 
+                              className="backdrop-blur-[20px] border rounded-[2rem] p-6 flex flex-col justify-between shadow-sm"
+                              style={{
+                                  backgroundColor: 'var(--ad-card-bg)',
+                                  borderColor: 'var(--ad-card-border)'
+                              }}
+                        >
                             <div>
-                                <h3 className="text-[#f0f0fd] font-bold mb-2 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                <h3 className="font-bold mb-2 flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                     <span className="material-symbols-outlined text-[#ff6e84]">upload</span>
                                     Restore from JSON Backup
                                 </h3>
-                                <p className="text-[#aaaab7] text-xs font-medium mb-4">
+                                <p className="text-xs font-medium mb-4" style={{ color: 'var(--ad-text-secondary)' }}>
                                     Restore database records from a previously downloaded JSON backup file.
                                 </p>
-                                <div className="mt-4 p-4 rounded-2xl bg-[#ff6e84]/5 border border-[#ff6e84]/20 flex items-center gap-3 text-xs text-[#ff9dac]">
-                                    <span className="material-symbols-outlined text-[20px] text-[#ff6e84] shrink-0">warning</span>
+                                <div className="border p-4 rounded-2xl flex items-center gap-3 text-xs font-medium"
+                                     style={{
+                                         backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                                         borderColor: 'rgba(239, 68, 68, 0.15)',
+                                         color: isLight ? '#ef4444' : '#ff9dac'
+                                     }}
+                                >
+                                    <span className="material-symbols-outlined text-[20px] shrink-0" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>warning</span>
                                     <span>
                                         WARNING: Uploading a backup will overwrite matching records in the database.
                                     </span>
@@ -535,15 +650,23 @@ function ReportExportContent() {
                                     accept=".json"
                                     onChange={handleFileChange}
                                     required
-                                    className="w-full text-xs text-[#aaaab7] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:uppercase file:tracking-wider file:bg-white/5 file:text-white hover:file:bg-white/10 file:transition-colors file:cursor-pointer"
+                                    className="w-full text-xs file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border file:text-xs file:font-bold file:uppercase file:tracking-wider file:transition-colors file:cursor-pointer"
+                                    style={{
+                                        color: 'var(--ad-text-secondary)',
+                                    }}
                                 />
                                 <button
                                     type="submit"
                                     disabled={restoring || !selectedFile}
-                                    className="w-full px-5 py-3.5 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] border border-[#ff6e84]/30 text-xs font-bold uppercase tracking-widest hover:bg-[#ff6e84]/20 hover:border-[#ff6e84]/50 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                    className="w-full px-5 py-3.5 rounded-xl border text-xs font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 font-semibold"
+                                    style={{
+                                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                        borderColor: 'rgba(239, 68, 68, 0.25)',
+                                        color: isLight ? '#ef4444' : '#ff6e84'
+                                    }}
                                 >
                                     {restoring ? (
-                                        <span className="w-4 h-4 rounded-full border-2 border-[#ff6e84]/30 border-t-[#ff6e84] animate-spin" />
+                                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: isLight ? '#ef4444' : '#ff6e84' }} />
                                     ) : (
                                         <span className="material-symbols-outlined text-[16px]">restore</span>
                                     )}
@@ -558,25 +681,38 @@ function ReportExportContent() {
             {/* Restore Confirmation Modal */}
             {showRestoreModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-                    <div className="bg-[#13151f]/90 backdrop-blur-[20px] rounded-[2rem] p-6 sm:p-8 w-full max-w-md border border-[#ff6e84]/20 shadow-2xl relative animate-fade-in-up">
-                        <div className="flex items-center gap-3 text-[#ff6e84] mb-4">
+                    <div className="relative w-full max-w-md rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up border"
+                         style={{
+                             backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                             borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
+                             backdropFilter: 'blur(80px) saturate(2.5)',
+                             WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                         }}
+                    >
+                        <div className="flex items-center gap-3 mb-4" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>
                             <span className="material-symbols-outlined text-[32px]">warning</span>
                             <h3 className="font-extrabold text-xl tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>Confirm Restore</h3>
                         </div>
-                        <p className="text-[#aaaab7] text-sm leading-relaxed mb-6">
-                            Are you sure you want to restore the database from <span className="text-white font-bold">{selectedFile?.name}</span>? 
+                        <p className="text-sm leading-relaxed mb-6 font-medium" style={{ color: 'var(--ad-text-secondary)' }}>
+                            Are you sure you want to restore the database from <span className="font-bold" style={{ color: 'var(--ad-text-primary)' }}>{selectedFile?.name}</span>? 
                             This will overwrite existing documents with the same IDs. This action cannot be undone.
                         </p>
-                        <div className="flex justify-end gap-3 border-t border-[#464752]/30 pt-4">
+                        <div className="flex justify-end gap-3 border-t pt-4 font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
                             <button
                                 onClick={() => setShowRestoreModal(false)}
-                                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-[#aaaab7] hover:text-[#f0f0fd] hover:bg-white/5 transition-all cursor-pointer"
+                                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                style={{ color: 'var(--ad-text-secondary)' }}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleConfirmRestore}
-                                className="px-5 py-2.5 rounded-xl bg-[#ff6e84]/15 text-[#ff6e84] border border-[#ff6e84]/30 hover:bg-[#ff6e84]/25 hover:border-[#ff6e84]/50 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer"
+                                className="px-5 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-widest transition-all cursor-pointer font-bold"
+                                style={{
+                                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                                    color: isLight ? '#ef4444' : '#ff6e84'
+                                }}
                             >
                                 Overwrite & Restore
                             </button>

@@ -4,14 +4,17 @@ import TeacherLayout from "@/components/TeacherLayout";
 import ModernSelect from "@/components/ModernSelect";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useTeacherTheme } from "@/context/TeacherThemeContext";
 import { TeacherNoticesPageSkeleton, TeacherNoticesSkeleton } from "@/components/Skeletons";
 
 function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
-            className={`rounded-[24px] border border-white/[0.07] ${className}`}
+            className={`rounded-[24px] border ${className}`}
             style={{
-                background: "rgba(28, 31, 43, 0.6)",
+                background: "var(--tt-card-bg, rgba(28, 31, 43, 0.6))",
+                borderColor: "var(--tt-card-border, rgba(255, 255, 255, 0.07))",
+                boxShadow: "var(--tt-card-shadow)",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
                 ...style,
@@ -24,36 +27,51 @@ function GlassCard({ children, className = "", style = {}, ...props }) {
 }
 
 function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime }) {
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
+
     const [showReaders, setShowReaders] = useState(false);
 
-    // Filter publisher out of the readers list to only count actual student/teacher viewers
     const studentReaders = (notice.readers || []).filter(r => r.uid !== notice.published_by);
     const isOwner = notice.published_by === user.uid;
 
     return (
         <GlassCard 
-            className="p-5 flex flex-col gap-3 relative overflow-hidden group shadow-md hover:border-white/10 hover:bg-white/[0.04] transition-all"
+            className="p-5 flex flex-col gap-3 relative overflow-hidden group shadow-md transition-all hover:bg-white/5"
+            style={{
+                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(28, 31, 43, 0.6)',
+                borderColor: isLight ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.07)',
+            }}
         >
             {/* Accent left line for important notices */}
             {notice.is_important && (
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-[#6366f1] rounded-l-2xl shadow-[0_0_15px_rgba(99,102,241,0.8)]" />
+                <div 
+                    className="absolute top-0 left-0 bottom-0 w-1 rounded-l-2xl" 
+                    style={{ 
+                        backgroundColor: 'var(--tt-primary)', 
+                        boxShadow: isLight ? '0 0 10px rgba(37,99,235,0.4)' : '0 0 15px rgba(99,102,241,0.8)' 
+                    }}
+                />
             )}
 
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <div className="flex items-center flex-wrap gap-2">
-                        <span className="font-extrabold text-[#f0f0fd] text-sm tracking-tight leading-none">
+                        <span className="font-extrabold text-sm tracking-tight leading-none" style={{ color: 'var(--tt-text-primary)' }}>
                             {notice.published_by_name}
                         </span>
                         {notice.is_important && (
-                            <span className="inline-flex items-center gap-1 bg-[#6366f1]/15 text-[#a5b4fc] px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-[#6366f1]/25 shrink-0">
+                            <span 
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0"
+                                style={{ backgroundColor: 'var(--tt-accent-bg)', borderColor: 'var(--tt-logo-border)', color: 'var(--tt-primary)' }}
+                            >
                                 <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>campaign</span>
                                 Important
                             </span>
                         )}
                     </div>
-                    <span className="text-[10px] text-[#aaaab7] mt-1 block">
+                    <span className="text-[10px] mt-1 block" style={{ color: 'var(--tt-text-secondary)' }}>
                         {formatDateTime(notice.created_at)}
                     </span>
                 </div>
@@ -63,7 +81,8 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
                     <button
                         onClick={() => onDelete(notice.id)}
                         disabled={deletingId === notice.id}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-[#ff6e84]/70 hover:text-[#ff6e84] hover:bg-[#ff6e84]/10 transition-all cursor-pointer disabled:opacity-40"
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer disabled:opacity-40"
+                        style={{ color: 'var(--tt-error)', backgroundColor: 'var(--tt-hover-bg)' }}
                         title="Delete Notice"
                     >
                         <span className="material-symbols-outlined text-lg">delete</span>
@@ -72,21 +91,22 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
             </div>
 
             {/* Content Body */}
-            <p className="text-sm text-[#f0f0fd] leading-relaxed whitespace-pre-wrap select-text pl-1">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap select-text pl-1" style={{ color: 'var(--tt-text-primary)' }}>
                 {notice.content}
             </p>
 
             {/* Footer Row */}
             {isOwner && (
-                <div className="flex items-center gap-4 border-t border-white/5 pt-3 mt-1">
+                <div className="flex items-center gap-4 pt-3 mt-1 border-t" style={{ borderTopColor: 'var(--tt-divider)' }}>
                     {/* Seen By Count */}
                     <div 
                         onClick={() => setShowReaders(!showReaders)}
-                        className="text-[10px] text-[#aaaab7] font-semibold flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors select-none"
+                        className="text-[10px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors select-none"
+                        style={{ color: 'var(--tt-text-secondary)' }}
                     >
                         <span className="material-symbols-outlined text-sm">visibility</span>
                         <span>Seen by {studentReaders.length}</span>
-                        <span className={`material-symbols-outlined text-xs transition-transform duration-200 ${showReaders ? "rotate-180" : ""}`}>
+                        <span className="material-symbols-outlined text-xs transition-transform duration-200" style={{ transform: showReaders ? "rotate(180deg)" : "none" }}>
                             expand_more
                         </span>
                     </div>
@@ -95,21 +115,24 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
 
             {/* Readers Dropdown List */}
             {isOwner && showReaders && (
-                <div className="mt-2 rounded-xl bg-black/20 border border-white/5 p-3 space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar animate-fade-in">
+                <div className="mt-2 rounded-xl p-3 space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar animate-fade-in border" style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)' }}>
                     {studentReaders.length === 0 ? (
-                        <p className="text-[10px] text-[#aaaab7]/50 italic">No student acknowledgments yet</p>
+                        <p className="text-[10px] italic" style={{ color: 'var(--tt-text-secondary)', opacity: 0.5 }}>No student acknowledgments yet</p>
                     ) : (
                         studentReaders.map((reader, index) => (
                             <div key={index} className="flex justify-between items-center text-[10px]">
-                                <span className="font-semibold text-white/90 flex items-center gap-1.5">
+                                <span className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--tt-text-primary)' }}>
                                     {reader.name}
                                     {reader.role === "teacher" && (
-                                        <span className="text-[8px] bg-[#6366f1]/15 text-[#a5b4fc] px-1.5 py-0.5 rounded-md font-bold border border-[#6366f1]/25 shrink-0">
+                                        <span 
+                                            className="text-[8px] px-1.5 py-0.5 rounded-md font-bold border shrink-0"
+                                            style={{ backgroundColor: 'var(--tt-accent-bg)', borderColor: 'var(--tt-logo-border)', color: 'var(--tt-primary)' }}
+                                        >
                                             Teacher
                                         </span>
                                     )}
                                 </span>
-                                <span className="text-[#aaaab7]/80">
+                                <span style={{ color: 'var(--tt-text-secondary)', opacity: 0.8 }}>
                                     {formatDateTime(reader.read_at)}
                                 </span>
                             </div>
@@ -123,6 +146,9 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
 
 function TeacherNoticesContent() {
     const { user } = useAuth();
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
+
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
     const [notices, setNotices] = useState([]);
@@ -131,15 +157,12 @@ function TeacherNoticesContent() {
     const [publishing, setPublishing] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
 
-    // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Form inputs
     const [content, setContent] = useState("");
     const [isImportant, setIsImportant] = useState(false);
 
-    // Alerts
     const [alertError, setAlertError] = useState("");
     const [alertSuccess, setAlertSuccess] = useState("");
     const [listError, setListError] = useState("");
@@ -149,7 +172,7 @@ function TeacherNoticesContent() {
             const data = await api.get("/api/teacher/batches");
             setBatches(data);
         } catch (err) {
-            console.error("Failed to load batches", err);
+            // silent
         } finally {
             setBatchesLoading(false);
         }
@@ -160,28 +183,10 @@ function TeacherNoticesContent() {
         setNoticesLoading(true);
         setListError("");
         try {
-            const data = await api.get(`/api/notices/batch/${batchId}?page=${page}&limit=5`);
-            let noticesList = [];
-            if (data && data.notices !== undefined) {
-                noticesList = data.notices || [];
-                setNotices(noticesList);
-                setTotalPages(data.total_pages || 1);
-                setCurrentPage(data.current_page || 1);
-            } else {
-                noticesList = data || [];
-                setNotices(noticesList);
-                setTotalPages(1);
-                setCurrentPage(1);
-            }
-
-            // Automatically trigger read marking for any unread notices published by others in the background
-            const unreadList = noticesList.filter(n => n.published_by !== user?.uid && (!n.read_by || !n.read_by.includes(user?.uid)));
-            if (unreadList.length > 0 && user?.uid) {
-                Promise.all(unreadList.map(notice => 
-                    api.post(`/api/notices/${notice.id}/read`)
-                        .catch(err => console.error(`Failed to mark read notice ${notice.id}`, err))
-                ));
-            }
+            const response = await api.get(`/api/notices/batch/${batchId}?page=${page}&limit=5`);
+            setNotices(response.notices || []);
+            setTotalPages(response.total_pages || 1);
+            setCurrentPage(response.current_page || 1);
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setListError(err.message || "Failed to fetch notices");
@@ -189,55 +194,42 @@ function TeacherNoticesContent() {
         } finally {
             setNoticesLoading(false);
         }
-    }, [user?.uid]);
+    }, []);
 
     useEffect(() => {
-        if (user?.uid) {
-            fetchBatches();
-        }
-    }, [user?.uid, fetchBatches]);
+        fetchBatches();
+    }, [fetchBatches]);
 
     useEffect(() => {
         if (selectedBatch) {
             fetchNotices(selectedBatch, 1);
         } else {
             setNotices([]);
-            setTotalPages(1);
-            setCurrentPage(1);
         }
     }, [selectedBatch, fetchNotices]);
 
     const handlePublish = async (e) => {
         e.preventDefault();
-        if (!selectedBatch) {
-            setAlertError("Please select a batch first.");
-            return;
-        }
-        if (!content.trim()) {
-            setAlertError("Please fill in the notice text.");
-            return;
-        }
+        if (!content.trim() || !selectedBatch) return;
 
         setPublishing(true);
         setAlertError("");
         setAlertSuccess("");
 
         try {
-            await api.post("/api/notices/", {
-                content: content.trim(),
+            await api.post("/api/notices", {
                 batch_id: selectedBatch,
+                content: content.trim(),
                 is_important: isImportant
             });
-            setAlertSuccess("Notice published successfully!");
-            setTimeout(() => {
-                setAlertSuccess("");
-            }, 2000);
+
             setContent("");
             setIsImportant(false);
+            setAlertSuccess("Notice published successfully!");
             fetchNotices(selectedBatch, 1);
         } catch (err) {
             if (!isSystemicError(err.message)) {
-                setAlertError(err.message || "Failed to publish notice.");
+                setAlertError(err.message || "Failed to publish notice");
             }
         } finally {
             setPublishing(false);
@@ -246,16 +238,19 @@ function TeacherNoticesContent() {
 
     const handleDeleteNotice = async (noticeId) => {
         if (!window.confirm("Are you sure you want to delete this notice?")) return;
-
         setDeletingId(noticeId);
         setListError("");
-
         try {
             await api.delete(`/api/notices/${noticeId}`);
-            fetchNotices(selectedBatch, currentPage);
+            setNotices(prev => prev.filter(n => n.id !== noticeId));
+            if (notices.length === 1 && currentPage > 1) {
+                fetchNotices(selectedBatch, currentPage - 1);
+            } else {
+                fetchNotices(selectedBatch, currentPage);
+            }
         } catch (err) {
             if (!isSystemicError(err.message)) {
-                setListError(err.message || "Failed to delete notice.");
+                setListError(err.message || "Failed to delete notice");
             }
         } finally {
             setDeletingId(null);
@@ -263,64 +258,55 @@ function TeacherNoticesContent() {
     };
 
     const handleLikeNotice = async (noticeId) => {
+        // Liked status is not actively used in teacher portals, but endpoint is supported
         try {
-            const res = await api.post(`/api/notices/${noticeId}/like`);
-            setNotices(prev => prev.map(n => n.id === noticeId ? { ...n, likes: res.likes } : n));
+            await api.post(`/api/notices/${noticeId}/like`);
+            fetchNotices(selectedBatch, currentPage);
         } catch (err) {
-            console.error("Failed to toggle like on notice", err);
+            // silent
         }
     };
 
-    const formatDateTime = (dateStr) => {
-        if (!dateStr) return "";
+    const formatDateTime = (dateString) => {
+        if (!dateString) return "";
         try {
-            const date = new Date(dateStr);
-            return date.toLocaleString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
+            const d = new Date(dateString);
+            const rtf = new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "medium",
+                timeStyle: "short"
             });
-        } catch (e) {
-            return "";
+            return rtf.format(d);
+        } catch {
+            return dateString;
         }
     };
 
-    if (batchesLoading) {
-        return <TeacherNoticesPageSkeleton />;
-    }
+
 
     return (
-        <div className="w-full pb-20 space-y-6">
-            {/* Title Header & Batch Selector */}
-            <div className="flex flex-col gap-4 mt-4">
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center md:items-start justify-between gap-4">
                 <div>
-                    <h1
-                        className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#f0f0fd]"
-                        style={{ fontFamily: "'Manrope', sans-serif" }}
-                    >
+                    <h1 className="text-2xl md:text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                         Notice Board
                     </h1>
                 </div>
 
-                {/* Batch Selector at the top */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 w-full">
-                    <div className="md:col-span-5 flex items-center gap-3 shrink-0 w-full">
-                        <ModernSelect
-                            value={selectedBatch}
-                            placeholder="Select a batch"
-                            options={batches}
-                            onChange={(e) => {
-                                setSelectedBatch(e.target.value);
-                                setAlertError("");
-                                setAlertSuccess("");
-                                setListError("");
-                            }}
-                            className="w-full"
-                        />
-                    </div>
+                {/* Batch Selector */}
+                <div className="w-full sm:w-64 relative z-40 md:mt-10">
+                    <ModernSelect
+                        value={selectedBatch}
+                        options={batches}
+                        placeholder="Select Batch"
+                        onChange={(e) => {
+                            setSelectedBatch(e.target.value);
+                            setAlertError("");
+                            setAlertSuccess("");
+                        }}
+                        className="w-full"
+                        theme={theme}
+                    />
                 </div>
             </div>
 
@@ -330,7 +316,7 @@ function TeacherNoticesContent() {
                 <div className="md:col-span-5 space-y-4 md:sticky md:top-24">
                     {/* Create Notice Card */}
                     <GlassCard className="p-5 shadow-lg">
-                        <h2 className="text-base font-bold text-white tracking-tight mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        <h2 className="text-base font-bold tracking-tight mb-4" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                             Publish New Notice
                         </h2>
                         {/* Form Input Area */}
@@ -340,16 +326,18 @@ function TeacherNoticesContent() {
                                 onChange={(e) => setContent(e.target.value)}
                                 maxLength={500}
                                 placeholder="Write a notice..."
-                                className="w-full h-24 md:h-40 px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 focus:border-[#6366f1]/30 focus:ring-1 focus:ring-[#6366f1]/30 text-white text-sm focus:outline-none transition-all placeholder:text-[#aaaab7]/40 leading-relaxed resize-none"
+                                className="w-full h-24 md:h-40 px-4 py-3 rounded-2xl border text-sm focus:outline-none transition-all leading-relaxed resize-none focus:ring-offset-0 focus:ring-0"
+                                style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
                             />
 
                             {/* Toolbar and Submit */}
-                            <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-3 mt-1">
+                            <div className="flex items-center justify-end border-t pt-3 mt-1" style={{ borderTopColor: 'var(--tt-divider)' }}>
                                 {/* Publish Button */}
                                 <button
                                     type="submit"
                                     disabled={publishing || !selectedBatch || !content.trim()}
-                                    className="w-32 h-9 justify-center whitespace-nowrap bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold px-4 rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shadow-md shadow-emerald-600/20 shrink-0"
+                                    className="w-32 h-9 justify-center whitespace-nowrap text-xs font-bold px-4 rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
+                                    style={{ backgroundColor: isLight ? '#0d9488' : '#10b981', color: '#ffffff', boxShadow: isLight ? '0 4px 12px rgba(13,148,136,0.2)' : '0 4px 12px rgba(16,185,129,0.2)' }}
                                 >
                                     {publishing ? (
                                         <>
@@ -369,12 +357,12 @@ function TeacherNoticesContent() {
 
                     {/* Error/Success alerts for publishing */}
                     {alertError && (
-                        <div className="p-3 text-xs rounded-xl bg-[#ff6e84]/15 border border-[#ff6e84]/20 text-[#ff6e84] animate-fade-in">
+                        <div className="p-3 text-xs rounded-xl border animate-fade-in" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--tt-error)' }}>
                             {alertError}
                         </div>
                     )}
                     {alertSuccess && (
-                        <div className="p-3 text-xs rounded-xl bg-[#4af8e3]/15 border border-[#4af8e3]/20 text-[#4af8e3] animate-fade-in">
+                        <div className="p-3 text-xs rounded-xl border animate-fade-in" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.12)' : 'rgba(74, 248, 227, 0.1)', borderColor: isLight ? 'rgba(13, 148, 136, 0.2)' : 'rgba(74, 248, 227, 0.2)', color: isLight ? '#0d9488' : '#4af8e3' }}>
                             {alertSuccess}
                         </div>
                     )}
@@ -384,22 +372,22 @@ function TeacherNoticesContent() {
                 <div className="md:col-span-7 space-y-4">
                     {/* Notices List */}
                     {listError && (
-                        <div className="p-3 text-xs rounded-xl bg-[#ff6e84]/15 border border-[#ff6e84]/20 text-[#ff6e84]">
+                        <div className="p-3 text-xs rounded-xl border animate-fade-in" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--tt-error)' }}>
                             {listError}
                         </div>
                     )}
 
                     {!selectedBatch ? (
-                        <div className="p-16 border border-white/5 bg-white/[0.01] rounded-[24px] flex flex-col items-center justify-center text-center gap-3">
-                            <span className="material-symbols-outlined text-4xl text-[#aaaab7]/20">school</span>
-                            <p className="text-xs font-bold text-[#aaaab7]">Select a batch to load active notices</p>
+                        <div className="p-16 border rounded-[24px] flex flex-col items-center justify-center text-center gap-3" style={{ borderColor: 'var(--tt-divider)', backgroundColor: 'var(--tt-hover-bg)' }}>
+                            <span className="material-symbols-outlined text-4xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>school</span>
+                            <p className="text-xs font-bold" style={{ color: 'var(--tt-text-secondary)' }}>Select a batch to load active notices</p>
                         </div>
                     ) : noticesLoading ? (
                         <TeacherNoticesSkeleton />
                     ) : notices.length === 0 ? (
-                        <div className="p-16 border border-white/5 bg-white/[0.01] rounded-[24px] flex flex-col items-center justify-center text-center gap-3">
-                            <span className="material-symbols-outlined text-4xl text-[#aaaab7]/20">campaign</span>
-                            <p className="text-xs font-bold text-[#aaaab7]">No active notices found in this batch</p>
+                        <div className="p-16 border rounded-[24px] flex flex-col items-center justify-center text-center gap-3" style={{ borderColor: 'var(--tt-divider)', backgroundColor: 'var(--tt-hover-bg)' }}>
+                            <span className="material-symbols-outlined text-4xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>campaign</span>
+                            <p className="text-xs font-bold" style={{ color: 'var(--tt-text-secondary)' }}>No active notices found in this batch</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -417,11 +405,12 @@ function TeacherNoticesContent() {
 
                             {/* Pagination Controls */}
                             {selectedBatch && totalPages > 1 && (
-                                <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-white/5" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                                <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t" style={{ borderTopColor: 'var(--tt-divider)', transform: "translateZ(0)", isolation: "isolate" }}>
                                     <button
                                         onClick={() => fetchNotices(selectedBatch, currentPage - 1)}
                                         disabled={currentPage === 1 || noticesLoading}
-                                        className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 bg-white/5 text-[#aaaab7] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-white/10"
+                                        className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                        style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                                     >
                                         <span className="material-symbols-outlined text-base">chevron_left</span>
                                     </button>
@@ -449,7 +438,7 @@ function TeacherNoticesContent() {
                                                     <span
                                                         key={item}
                                                         className="w-9 h-9 flex items-center justify-center text-xs font-bold"
-                                                        style={{ color: '#aaaab7' }}
+                                                        style={{ color: 'var(--tt-text-muted)' }}
                                                     >
                                                         ···
                                                     </span>
@@ -460,12 +449,20 @@ function TeacherNoticesContent() {
                                                 <button
                                                     key={item}
                                                     onClick={() => fetchNotices(selectedBatch, item)}
-                                                    disabled={noticesLoading}
+                                                    disabled={notesLoading}
                                                     className="w-9 h-9 rounded-xl font-bold text-xs transition-all cursor-pointer active:scale-95"
                                                     style={{
-                                                        backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                                        color: isActive ? '#818cf8' : '#aaaab7',
-                                                        border: isActive ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                                                        backgroundColor: isActive 
+                                                            ? (isLight ? 'rgba(13, 148, 136, 0.15)' : 'rgba(99, 102, 241, 0.15)') 
+                                                            : 'var(--tt-hover-bg)',
+                                                        color: isActive 
+                                                            ? (isLight ? '#0d9488' : '#818cf8') 
+                                                            : 'var(--tt-text-secondary)',
+                                                        borderColor: isActive 
+                                                            ? (isLight ? 'rgba(13, 148, 136, 0.35)' : 'rgba(99, 102, 241, 0.35)') 
+                                                            : 'var(--tt-divider)',
+                                                        borderWidth: 1,
+                                                        borderStyle: 'solid'
                                                     }}
                                                 >
                                                     {item}
@@ -477,7 +474,8 @@ function TeacherNoticesContent() {
                                     <button
                                         onClick={() => fetchNotices(selectedBatch, currentPage + 1)}
                                         disabled={currentPage === totalPages || noticesLoading}
-                                        className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 bg-white/5 text-[#aaaab7] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-white/10"
+                                        className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                        style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                                     >
                                         <span className="material-symbols-outlined text-base">chevron_right</span>
                                     </button>

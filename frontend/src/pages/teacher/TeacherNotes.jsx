@@ -4,6 +4,7 @@ import TeacherLayout from "@/components/TeacherLayout";
 import ModernSelect from "@/components/ModernSelect";
 import { api, isSystemicError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useTeacherTheme } from "@/context/TeacherThemeContext";
 import { TeacherNotesPageSkeleton, TeacherNotesSkeleton } from "@/components/Skeletons";
 import MediaPreviewer from "@/components/MediaPreviewer";
 import { checkCachedFiles, saveCachedFile, getCachedFile } from "@/lib/mediaDb";
@@ -11,9 +12,11 @@ import { checkCachedFiles, saveCachedFile, getCachedFile } from "@/lib/mediaDb";
 function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
-            className={`rounded-[28px] border border-white/[0.07] ${className}`}
+            className={`rounded-[28px] border ${className}`}
             style={{
-                background: "rgba(28, 31, 43, 0.6)",
+                background: "var(--tt-card-bg, rgba(28, 31, 43, 0.6))",
+                borderColor: "var(--tt-card-border, rgba(255, 255, 255, 0.07))",
+                boxShadow: "var(--tt-card-shadow)",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
                 ...style,
@@ -25,8 +28,10 @@ function GlassCard({ children, className = "", style = {}, ...props }) {
     );
 }
 
-// Skeletons are imported from @/components/Skeletons
 function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon, formatDateTime, onPreview, onSaveToCache, savingFiles, cacheVersion }) {
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
+
     const [activeIndex, setActiveIndex] = useState(0);
     const [cachedFileIds, setCachedFileIds] = useState(new Set());
 
@@ -44,7 +49,7 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     useEffect(() => {
         const ids = noteFiles.map(f => f.file_id).filter(Boolean);
         checkCachedFiles(ids).then(setCachedFileIds);
-    }, [note.id, savingFiles, cacheVersion]); // Trigger check when savingFiles or cacheVersion changes
+    }, [note.id, savingFiles, cacheVersion]);
 
     const handlePrev = (e) => {
         e.stopPropagation();
@@ -68,14 +73,11 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     const isImgOrPdf = isPreviewable(currentFile.file_name);
 
     const handleCardClick = async (e) => {
-        // Ignore container clicks if clicking interactive buttons (carousel arrows, save/delete icon)
         if (e.target.closest('button') || e.target.closest('a')) return;
 
         if (isImgOrPdf) {
-            // Open previewer immediately! Previewer will handle loading from cache or network automatically.
             onPreview(note, activeIndex);
         } else {
-            // For non-previewable files (docx, zip, etc.)
             if (!currentCached) {
                 if (!isSaving) {
                     onSaveToCache(note, () => {
@@ -86,7 +88,6 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                 return;
             }
 
-            // Local download from IndexedDB cache
             try {
                 const cached = await getCachedFile(currentFile.file_id);
                 if (cached && cached.blob) {
@@ -108,25 +109,29 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     return (
         <div 
             onClick={handleCardClick}
-            className={`p-4 rounded-2xl bg-white/[0.02] border border-white/5 transition-all flex flex-col justify-between gap-3 group cursor-pointer hover:border-white/20 hover:bg-white/[0.04] ${isSaving ? 'opacity-80 pointer-events-none' : ''}`}
+            className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 group cursor-pointer hover:bg-white/10 ${isSaving ? 'opacity-80 pointer-events-none' : ''}`}
+            style={{
+                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.02)',
+                borderColor: isLight ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.05)',
+            }}
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* File Type Icon */}
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/50 shrink-0">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--tt-icon-bg)', color: 'var(--tt-text-secondary)' }}>
                         <span className="material-symbols-outlined text-xl">
                             {getFileIcon(currentFile.file_name)}
                         </span>
                     </div>
                     <div className="min-w-0 flex-1">
                         {/* File Caption / Name */}
-                        <h3 className="text-sm font-bold text-[#f0f0fd] truncate" title={currentFile.caption || currentFile.file_name}>
+                        <h3 className="text-sm font-bold truncate" title={currentFile.caption || currentFile.file_name} style={{ color: 'var(--tt-text-primary)' }}>
                             {currentFile.caption || currentFile.file_name}
                         </h3>
 
                         {/* Original File Name if caption is used */}
                         {currentFile.caption && currentFile.caption !== currentFile.file_name && (
-                            <p className="text-[10px] text-[#aaaab7]/80 mt-0.5 truncate" title={currentFile.file_name}>
+                            <p className="text-[10px] mt-0.5 truncate" title={currentFile.file_name} style={{ color: 'var(--tt-text-secondary)', opacity: 0.8 }}>
                                 {currentFile.file_name}
                             </p>
                         )}
@@ -136,13 +141,13 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                 {/* Carousel controls in top right */}
                 {noteFiles.length > 1 && (
                     <div className="flex items-center gap-1.5 shrink-0 select-none">
-                        <span className="text-[10px] text-[#aaaab7]/70 font-semibold mr-1">
+                        <span className="text-[10px] font-semibold mr-1" style={{ color: 'var(--tt-text-secondary)', opacity: 0.7 }}>
                             {activeIndex + 1} of {noteFiles.length}
                         </span>
-                        <button onClick={handlePrev} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95" title="Previous File">
+                        <button onClick={handlePrev} className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95" style={{ backgroundColor: 'var(--tt-icon-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)', borderWidth: 1 }} title="Previous File">
                             <span className="material-symbols-outlined text-sm">chevron_left</span>
                         </button>
-                        <button onClick={handleNext} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-[#aaaab7] flex items-center justify-center transition-all cursor-pointer border border-white/5 active:scale-95" title="Next File">
+                        <button onClick={handleNext} className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95" style={{ backgroundColor: 'var(--tt-icon-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)', borderWidth: 1 }} title="Next File">
                             <span className="material-symbols-outlined text-sm">chevron_right</span>
                         </button>
                     </div>
@@ -150,9 +155,9 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
             </div>
 
             {/* Footer info & Action buttons */}
-            <div className="flex items-center justify-between border-t border-white/5 pt-3">
-                <div className="text-[10px] text-[#aaaab7] leading-tight min-w-0 flex-1 pr-2">
-                    <p className="text-[10px] text-[#aaaab7]/80">{formatDateTime(note.created_at)}</p>
+            <div className="flex items-center justify-between pt-3 border-t" style={{ borderTopColor: 'var(--tt-divider)' }}>
+                <div className="text-[10px] leading-tight min-w-0 flex-1 pr-2" style={{ color: 'var(--tt-text-secondary)' }}>
+                    <p className="text-[10px]" style={{ color: 'var(--tt-text-secondary)', opacity: 0.8 }}>{formatDateTime(note.created_at)}</p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -160,7 +165,8 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="w-9 h-9 rounded-xl bg-white/5 text-[#aaaab7] hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border"
+                            style={{ backgroundColor: 'var(--tt-icon-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                             title="Save Offline"
                         >
                             {isSaving ? (
@@ -179,11 +185,12 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
                                 handleDeleteNote(note.id);
                             }}
                             disabled={deletingId === note.id}
-                            className="w-9 h-9 rounded-xl bg-[#ff6e84]/10 text-[#ff6e84] hover:bg-[#ff6e84]/20 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 border border-white/5"
+                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 border"
+                            style={{ backgroundColor: 'var(--tt-error-bg, rgba(239, 68, 68, 0.1))', borderColor: isLight ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 110, 132, 0.2)', color: 'var(--tt-error)' }}
                             title="Delete Note Group"
                         >
                             {deletingId === note.id ? (
-                                <div className="w-4 h-4 border-2 border-[#ff6e84]/30 border-t-[#ff6e84] rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-t-current rounded-full animate-spin" style={{ borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 110, 132, 0.3)' }} />
                             ) : (
                                 <span className="material-symbols-outlined text-lg">delete</span>
                             )}
@@ -195,9 +202,11 @@ function TeacherNoteCard({ note, deletingId, user, handleDeleteNote, getFileIcon
     );
 }
 
-
 function TeacherNotesContent() {
     const { user } = useAuth();
+    const { theme } = useTeacherTheme();
+    const isLight = theme === "light";
+
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
     const [notes, setNotes] = useState([]);
@@ -206,19 +215,16 @@ function TeacherNotesContent() {
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [deletingId, setDeletingId] = useState(null);
-    const [previewData, setPreviewData] = useState(null); // { note, index }
-    const [savingFiles, setSavingFiles] = useState({}); // { file_id: true/false }
+    const [previewData, setPreviewData] = useState(null);
+    const [savingFiles, setSavingFiles] = useState({});
     const [cacheVersion, setCacheVersion] = useState(0);
 
     const triggerCacheRefresh = () => setCacheVersion(prev => prev + 1);
 
-    // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    // Form inputs
-    const [selectedFiles, setSelectedFiles] = useState([]); // [{ id, file, caption }]
+    const [selectedFiles, setSelectedFiles] = useState([]);
 
-    // Alerts
     const [uploadError, setUploadError] = useState("");
     const [uploadSuccess, setUploadSuccess] = useState("");
     const [listError, setListError] = useState("");
@@ -234,7 +240,6 @@ function TeacherNotesContent() {
         }
     }, []);
 
-    // Downloads all files of the note to IndexedDB for preview
     const handleSaveToCache = async (note, onDone) => {
         const files = note.files || [];
         if (!files.length) return;
@@ -300,127 +305,72 @@ function TeacherNotesContent() {
     }, [user?.uid]);
 
     useEffect(() => {
-        if (user?.uid) {
-            fetchBatches();
-        }
-    }, [user?.uid, fetchBatches]);
+        fetchBatches();
+    }, [fetchBatches]);
 
     useEffect(() => {
         if (selectedBatch) {
             fetchNotes(selectedBatch, 1);
+        } else {
+            setNotes([]);
         }
     }, [selectedBatch, fetchNotes]);
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        if (files.length > 0) {
-            setUploadError("");
-            setUploadSuccess("");
+        if (files.length === 0) return;
 
-            // Enforce restriction: multiple files are ONLY allowed if ALL of them are images.
-            const totalFiles = [...selectedFiles.map(f => f.file), ...files];
-            if (totalFiles.length > 1) {
-                const allImages = totalFiles.every(file => file.type.startsWith("image/"));
-                if (!allImages) {
-                    setUploadError("You can only select multiple files if they are ALL images. Other documents (PDFs, etc.) must be sent one at a time.");
-                    e.target.value = ""; // reset input
-                    return;
-                }
-            }
+        const imageOnlyMode = selectedFiles.length > 0 && selectedFiles.every(f => f.file.type.startsWith("image/"));
+        const newImagesOnly = files.every(f => f.type.startsWith("image/"));
 
-            const newFiles = files.map((file) => {
-                return {
-                    id: Math.random().toString(36).substring(2, 9),
-                    file: file,
-                    caption: ""
-                };
-            });
-            setSelectedFiles((prev) => [...prev, ...newFiles]);
+        if (selectedFiles.length > 0 && !imageOnlyMode) {
+            setUploadError("Multi-file uploads are only allowed for images.");
+            return;
         }
-    };
-
-    const handleDiscardFile = (id) => {
-        setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
-    };
-
-    const handleFileCaptionChange = (id, newCaption) => {
-        setSelectedFiles((prev) =>
-            prev.map((f) => (f.id === id ? { ...f, caption: newCaption } : f))
-        );
-    };
-
-    const handleUploadSubmit = async (e) => {
-        e.preventDefault();
-        if (!selectedBatch || selectedFiles.length === 0) {
-            setUploadError("Please select a batch and add at least one file.");
+        if (selectedFiles.length > 0 && imageOnlyMode && !newImagesOnly) {
+            setUploadError("You can only append more images, other file types must be uploaded singly.");
             return;
         }
 
-        setUploading(true);
-        setUploadProgress(0);
+        if (files.length > 1 && !newImagesOnly) {
+            setUploadError("Multi-file uploads are only allowed for images.");
+            return;
+        }
+
+        const newItems = files.map(file => ({
+            id: Math.random().toString(36).substr(2, 9),
+            file,
+            caption: ""
+        }));
+
+        if (newImagesOnly && (selectedFiles.length === 0 || imageOnlyMode)) {
+            setSelectedFiles(prev => [...prev, ...newItems]);
+        } else {
+            setSelectedFiles(newItems);
+        }
         setUploadError("");
         setUploadSuccess("");
-
-        const formData = new FormData();
-        formData.append("batch_id", selectedBatch);
-        
-        selectedFiles.forEach((fileItem) => {
-            formData.append("files", fileItem.file);
-            formData.append("file_captions", fileItem.caption);
-        });
-
-        let currentProgress = 0;
-        let targetProgress = 0;
-        setUploadProgress(0);
-
-        const progressInterval = setInterval(() => {
-            if (currentProgress < targetProgress) {
-                const diff = targetProgress - currentProgress;
-                const increment = Math.max(1, Math.min(3, Math.ceil(diff * 0.08)));
-                currentProgress += increment;
-                setUploadProgress(currentProgress);
-            }
-        }, 30);
-
-        try {
-            await api.upload("/api/notes/upload", formData, (progress) => {
-                targetProgress = Math.round(progress * 0.95);
-            });
-            
-            while (currentProgress < 92) {
-                await new Promise(resolve => setTimeout(resolve, 50));
-            }
-            
-            clearInterval(progressInterval);
-            setUploadProgress(100);
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            setUploadSuccess("Notes uploaded successfully!");
-            const fileInput = document.getElementById("note-file-input");
-            if (fileInput) {
-                fileInput.value = "";
-            }
-            setSelectedFiles([]);
-            fetchNotes(selectedBatch, 1);
-        } catch (err) {
-            clearInterval(progressInterval);
-            if (!isSystemicError(err.message)) {
-                setUploadError(err.message || "Failed to upload notes");
-            }
-        } finally {
-            clearInterval(progressInterval);
-            setUploading(false);
-        }
     };
+
+    const handleDiscardFile = (id) => {
+        setSelectedFiles(prev => prev.filter(f => f.id !== id));
+    };
+
+    const handleFileCaptionChange = (id, text) => {
+        setSelectedFiles(prev => prev.map(f => f.id === id ? { ...f, caption: text } : f));
+    };
+
     const handleDeleteNote = async (noteId) => {
-        if (!window.confirm("Are you sure you want to delete this note?")) return;
-
+        if (!window.confirm("Are you sure you want to delete this note? This action cannot be undone.")) return;
         setDeletingId(noteId);
-        setListError("");
-
         try {
             await api.delete(`/api/notes/${noteId}`);
-            fetchNotes(selectedBatch, currentPage);
+            setNotes(prev => prev.filter(n => n.id !== noteId));
+            if (notes.length === 1 && currentPage > 1) {
+                fetchNotes(selectedBatch, currentPage - 1);
+            } else {
+                fetchNotes(selectedBatch, currentPage);
+            }
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setListError(err.message || "Failed to delete note");
@@ -430,71 +380,137 @@ function TeacherNotesContent() {
         }
     };
 
-    const formatDateTime = (dateStr) => {
-        if (!dateStr) return "";
+    const handleUploadSubmit = async (e) => {
+        e.preventDefault();
+        if (selectedFiles.length === 0) return;
+        if (!selectedBatch) {
+            setUploadError("Please select a batch first.");
+            return;
+        }
+
+        setUploading(true);
+        setUploadError("");
+        setUploadSuccess("");
+        setUploadProgress(0);
+
         try {
-            const date = new Date(dateStr);
-            return date.toLocaleString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
+            const formData = new FormData();
+            formData.append("batch_id", selectedBatch);
+
+            selectedFiles.forEach((fileItem, index) => {
+                formData.append("files", fileItem.file);
+                formData.append("captions", fileItem.caption || "");
             });
-        } catch (e) {
-            return "";
+
+            const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = localStorage.getItem("idToken");
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${baseUrl}/api/notes/upload`);
+
+            if (token) {
+                xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+            }
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    setUploadProgress(percent);
+                }
+            };
+
+            const responsePromise = new Promise((resolve, reject) => {
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            resolve(JSON.parse(xhr.responseText));
+                        } catch {
+                            resolve(xhr.responseText);
+                        }
+                    } else {
+                        try {
+                            const errObj = JSON.parse(xhr.responseText);
+                            reject(new Error(errObj.detail || `Upload failed with status ${xhr.status}`));
+                        } catch {
+                            reject(new Error(`Upload failed with status ${xhr.status}`));
+                        }
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network connection error."));
+                xhr.onabort = () => reject(new Error("Upload aborted."));
+            });
+
+            xhr.send(formData);
+            await responsePromise;
+
+            setUploadSuccess("Notes uploaded successfully!");
+            setSelectedFiles([]);
+            fetchNotes(selectedBatch, 1);
+        } catch (err) {
+            setUploadError(err.message || "Something went wrong during upload.");
+        } finally {
+            setUploading(false);
+            setUploadProgress(0);
         }
     };
 
     const getFileIcon = (filename) => {
-        if (!filename) return "insert_drive_file";
-        const ext = filename.split('.').pop().toLowerCase();
-        if (["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg"].includes(ext)) return "image";
-        if (ext === "pdf") return "picture_as_pdf";
-        if (["doc", "docx"].includes(ext)) return "description";
-        if (["xls", "xlsx", "csv"].includes(ext)) return "table_chart";
-        if (["ppt", "pptx"].includes(ext)) return "slideshow";
-        if (["txt", "md"].includes(ext)) return "article";
-        if (["zip", "rar", "7z"].includes(ext)) return "folder_zip";
-        if (["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(ext)) return "audiotrack";
-        if (["mp4", "mkv", "avi", "mov", "webm", "flv", "3gp"].includes(ext)) return "video_file";
-        return "insert_drive_file";
+        if (!filename) return "description";
+        const ext = filename.split(".").pop().toLowerCase();
+        const iconMap = {
+            pdf: "picture_as_pdf",
+            doc: "description",
+            docx: "description",
+            xls: "table_chart",
+            xlsx: "table_chart",
+            ppt: "present_to_all",
+            pptx: "present_to_all",
+            png: "image",
+            jpg: "image",
+            jpeg: "image",
+            webp: "image",
+            gif: "gif",
+            zip: "folder_zip",
+            rar: "folder_zip",
+            txt: "draft",
+        };
+        return iconMap[ext] || "description";
     };
 
-    if (batchesLoading) {
-        return <TeacherNotesPageSkeleton />;
-    }
+    const formatDateTime = (dateString) => {
+        if (!dateString) return "";
+        try {
+            const d = new Date(dateString);
+            const rtf = new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "medium",
+                timeStyle: "short",
+            });
+            return rtf.format(d);
+        } catch {
+            return dateString;
+        }
+    };
+
+
 
     return (
         <div className="space-y-6">
-            {/* Title Header */}
-            <div className="flex flex-col gap-4">
-                <div>
-                    <h1
-                        className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#f0f0fd]"
-                        style={{ fontFamily: "'Manrope', sans-serif" }}
-                    >
-                        Share Study Notes
-                    </h1>
-                </div>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center md:items-start justify-between gap-4">
+                <h1 className="text-2xl md:text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
+                    Study Notes
+                </h1>
 
-                {/* Batch Selector at the top */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-                    <div className="lg:col-span-5 flex items-center gap-3 shrink-0 w-full">
-                        <ModernSelect
-                            value={selectedBatch}
-                            placeholder="Select Batch"
-                            options={batches}
-                            onChange={(e) => {
-                                setSelectedBatch(e.target.value);
-                                setUploadError("");
-                                setUploadSuccess("");
-                                setListError("");
-                            }}
-                            className="w-full"
-                        />
-                    </div>
+                {/* Batch Selector */}
+                <div className="w-full sm:w-64 relative z-40 md:mt-10">
+                    <ModernSelect
+                        value={selectedBatch}
+                        options={batches}
+                        placeholder="Select Batch"
+                        onChange={(e) => setSelectedBatch(e.target.value)}
+                        className="w-full"
+                        theme={theme}
+                    />
                 </div>
             </div>
 
@@ -504,17 +520,23 @@ function TeacherNotesContent() {
                 {/* Left side: Upload Form */}
                 <div className="lg:col-span-5">
                     <GlassCard className="p-6 space-y-5">
-                        <h2 className="text-lg font-bold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>Upload New Note</h2>
+                        <h2 className="text-lg font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Upload New Note</h2>
 
                         <form onSubmit={handleUploadSubmit} className="space-y-4">
 
                             {/* File Upload Field */}
                             <div>
-                                <label className="block text-[11px] font-bold tracking-widest uppercase mb-2 text-[#aaaab7]">
+                                <label className="block text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--tt-text-secondary)' }}>
                                     Choose Files
                                 </label>
                                 {selectedFiles.length === 0 ? (
-                                    <div className="relative group rounded-2xl border border-dashed border-white/15 hover:border-[#3b82f6]/40 p-4 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex flex-col items-center justify-center cursor-pointer min-h-[120px]">
+                                    <div 
+                                        className="relative group rounded-2xl border border-dashed p-4 transition-all flex flex-col items-center justify-center cursor-pointer min-h-[120px]"
+                                        style={{
+                                            backgroundColor: 'var(--tt-input-bg)',
+                                            borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                                        }}
+                                    >
                                         <input
                                             id="note-file-input"
                                             type="file"
@@ -523,34 +545,34 @@ function TeacherNotesContent() {
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             multiple
                                         />
-                                        <span className="material-symbols-outlined text-3xl text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mb-2">
+                                        <span className="material-symbols-outlined text-3xl transition-colors mb-2" style={{ color: 'var(--tt-text-secondary)' }}>
                                             cloud_upload
                                         </span>
-                                        <span className="text-xs font-semibold text-[#f0f0fd] text-center">
+                                        <span className="text-xs font-semibold text-center" style={{ color: 'var(--tt-text-primary)' }}>
                                             Select or drag files here
                                         </span>
-                                        <span className="text-[10px] text-[#aaaab7] mt-1">PDF, Word, Excel, Image &amp; more</span>
+                                        <span className="text-[10px] mt-1" style={{ color: 'var(--tt-text-secondary)' }}>PDF, Word, Excel, Image &amp; more</span>
                                     </div>
                                 ) : (
-                                    <div className="rounded-2xl border border-dashed border-white/20 p-4 bg-white/[0.01] space-y-4">
+                                    <div className="rounded-2xl border border-dashed p-4 space-y-4" style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)' }}>
                                         <div className="max-h-[260px] overflow-y-auto pr-1 custom-scrollbar space-y-3">
                                             {selectedFiles.length > 1 ? (
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Queue ({selectedFiles.length} images)</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--tt-text-secondary)' }}>Queue ({selectedFiles.length} images)</p>
                                             ) : (
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#aaaab7] mb-1">Selected File</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--tt-text-secondary)' }}>Selected File</p>
                                             )}
                                             {selectedFiles.map((fileItem) => (
-                                                <div key={fileItem.id} className="rounded-xl border border-white/10 p-3 bg-white/[0.02] flex flex-col gap-2">
+                                                <div key={fileItem.id} className="rounded-xl border p-3 flex flex-col gap-2" style={{ borderColor: 'var(--tt-divider)', backgroundColor: 'var(--tt-input-bg)' }}>
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="flex items-center gap-2.5 min-w-0">
-                                                            <span className="material-symbols-outlined text-lg text-white/50 shrink-0">
+                                                            <span className="material-symbols-outlined text-lg shrink-0" style={{ color: 'var(--tt-text-secondary)' }}>
                                                                 {getFileIcon(fileItem.file.name)}
                                                             </span>
                                                             <div className="min-w-0">
-                                                                <p className="text-xs font-semibold text-[#f0f0fd] truncate pr-2 max-w-[180px]" title={fileItem.file.name}>
+                                                                <p className="text-xs font-semibold truncate pr-2 max-w-[180px]" title={fileItem.file.name} style={{ color: 'var(--tt-text-primary)' }}>
                                                                     {fileItem.file.name}
                                                                 </p>
-                                                                <p className="text-[9px] text-[#aaaab7]">
+                                                                <p className="text-[9px]" style={{ color: 'var(--tt-text-secondary)' }}>
                                                                     {(fileItem.file.size / (1024 * 1024)).toFixed(2)} MB
                                                                 </p>
                                                             </div>
@@ -558,7 +580,8 @@ function TeacherNotesContent() {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDiscardFile(fileItem.id)}
-                                                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-[#aaaab7] hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 border border-white/5"
+                                                            className="w-7 h-7 rounded-lg active:scale-95 flex items-center justify-center transition-all cursor-pointer shrink-0 border"
+                                                            style={{ backgroundColor: 'var(--tt-icon-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                                                             title="Remove"
                                                         >
                                                             <span className="material-symbols-outlined text-sm">close</span>
@@ -568,7 +591,8 @@ function TeacherNotesContent() {
                                                         type="text"
                                                         value={fileItem.caption}
                                                         onChange={(e) => handleFileCaptionChange(fileItem.id, e.target.value)}
-                                                        className="w-full px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 focus:border-[#3b82f6]/30 focus:ring-1 focus:ring-[#3b82f6]/30 text-[#f0f0fd] text-xs focus:outline-none transition-all placeholder:text-[#464752]"
+                                                        className="w-full px-3 py-1.5 rounded-xl border focus:outline-none transition-all text-xs focus:ring-offset-0 focus:ring-0"
+                                                        style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
                                                         placeholder="File caption (optional)"
                                                     />
                                                 </div>
@@ -577,7 +601,7 @@ function TeacherNotesContent() {
 
                                         {/* Add more files button inside the dashed container */}
                                         {selectedFiles.every(f => f.file.type.startsWith("image/")) && (
-                                            <div className="relative group rounded-xl border border-dashed border-white/10 hover:border-[#3b82f6]/30 py-2.5 transition-all bg-white/[0.01] hover:bg-[#3b82f6]/5 flex items-center justify-center cursor-pointer">
+                                            <div className="relative group rounded-xl border border-dashed py-2.5 transition-all flex items-center justify-center cursor-pointer" style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)' }}>
                                                 <input
                                                     id="note-file-input-more"
                                                     type="file"
@@ -586,10 +610,10 @@ function TeacherNotesContent() {
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                     multiple
                                                 />
-                                                <span className="material-symbols-outlined text-sm text-[#aaaab7] group-hover:text-[#3b82f6] transition-colors mr-1.5">
+                                                <span className="material-symbols-outlined text-sm transition-colors mr-1.5" style={{ color: 'var(--tt-text-secondary)' }}>
                                                     add
                                                 </span>
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-[#aaaab7] group-hover:text-white transition-colors">
+                                                <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--tt-text-secondary)' }}>
                                                     Add more images
                                                 </span>
                                             </div>
@@ -600,13 +624,13 @@ function TeacherNotesContent() {
 
                             {/* Status messages */}
                             {uploadError && (
-                                <div className="p-3 text-xs rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/20 text-[#ff6e84]">
+                                <div className="p-3 text-xs rounded-xl border" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--tt-error)' }}>
                                     {uploadError}
                                 </div>
                             )}
 
                             {uploadSuccess && (
-                                <div className="p-3 text-xs rounded-xl bg-[#4af8e3]/10 border border-[#4af8e3]/20 text-[#4af8e3]">
+                                <div className="p-3 text-xs rounded-xl border" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.12)' : 'rgba(74, 248, 227, 0.1)', borderColor: isLight ? 'rgba(13, 148, 136, 0.2)' : 'rgba(74, 248, 227, 0.2)', color: isLight ? '#0d9488' : '#4af8e3' }}>
                                     {uploadSuccess}
                                 </div>
                             )}
@@ -617,29 +641,37 @@ function TeacherNotesContent() {
                                 disabled={uploading || selectedFiles.length === 0}
                                 className={`relative overflow-hidden w-full py-4 rounded-2xl border text-sm font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2
                                     ${(selectedFiles.length === 0) && !uploading ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}
-                                    ${uploading ? 'border-[#4af8e3] text-white animate-pulse' : 'border-[#4af8e3]/30 text-[#4af8e3] hover:border-[#4af8e3]/50 active:scale-[0.98]'}
+                                    ${uploading ? 'text-white animate-pulse' : 'active:scale-[0.98]'}
                                 `}
                                 style={{
                                     background: uploading 
-                                        ? 'linear-gradient(to right, rgba(74, 248, 227, 0.4), rgba(199, 153, 255, 0.4))' 
-                                        : 'linear-gradient(to right, rgba(74, 248, 227, 0.2), rgba(199, 153, 255, 0.2))',
+                                        ? (isLight 
+                                            ? 'linear-gradient(to right, rgba(13, 148, 136, 0.4), rgba(13, 148, 136, 0.4))'
+                                            : 'linear-gradient(to right, rgba(74, 248, 227, 0.4), rgba(199, 153, 255, 0.4))')
+                                        : (isLight 
+                                            ? 'linear-gradient(to right, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.15))'
+                                            : 'linear-gradient(to right, rgba(74, 248, 227, 0.2), rgba(199, 153, 255, 0.2))'),
+                                    borderColor: isLight ? 'rgba(13, 148, 136, 0.35)' : 'rgba(74, 248, 227, 0.3)',
+                                    color: isLight ? '#0d9488' : '#4af8e3',
                                     boxShadow: uploading 
-                                        ? '0 0 25px rgba(74, 248, 227, 0.5), 0 0 50px rgba(199, 153, 255, 0.3), inset 0 0 15px rgba(255,255,255,0.2)' 
+                                        ? (isLight 
+                                            ? '0 0 25px rgba(13, 148, 136, 0.4), 0 0 50px rgba(13, 148, 136, 0.2)' 
+                                            : '0 0 25px rgba(74, 248, 227, 0.5), 0 0 50px rgba(199, 153, 255, 0.3)') 
                                         : 'none'
                                 }}
                             >
                                 {/* Progress background fill overlay */}
                                 {uploading && (
                                     <div 
-                                        className={`absolute top-0 left-0 bottom-0 bg-gradient-to-r from-[#4af8e3]/35 to-[#c799ff]/35 transition-all duration-300 ease-out z-0 ${uploadProgress >= 95 ? 'animate-pulse' : ''}`}
-                                        style={{ width: `${uploadProgress}%` }}
+                                        className={`absolute top-0 left-0 bottom-0 transition-all duration-300 ease-out z-0 ${uploadProgress >= 95 ? 'animate-pulse' : ''}`}
+                                        style={{ width: `${uploadProgress}%`, backgroundColor: isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(74, 248, 227, 0.35)' }}
                                     />
                                 )}
 
                                 <div className="relative z-10 flex items-center justify-center gap-2">
                                     {uploading ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 border-[#4af8e3]/30 border-t-[#4af8e3] rounded-full animate-spin" />
+                                            <div className="w-4 h-4 border-2 border-t-current rounded-full animate-spin" style={{ borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)' }} />
                                             {uploadProgress >= 95 ? (
                                                 <span className="animate-pulse">Processing...</span>
                                             ) : (
@@ -662,31 +694,31 @@ function TeacherNotesContent() {
                 <div className="lg:col-span-7">
                     <GlassCard className="p-6 min-h-[400px] flex flex-col">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between items-start gap-2 mb-4">
-                            <h2 className="text-lg font-bold text-[#f0f0fd]" style={{ fontFamily: "'Manrope', sans-serif" }}>Your Shared Notes</h2>
+                            <h2 className="text-lg font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Your Shared Notes</h2>
                             {selectedBatch && (
-                                <span className="text-xs font-bold text-[#aaaab7] bg-white/5 px-3 py-1 rounded-full border border-white/5 shrink-0">
+                                <span className="text-xs font-bold border px-3 py-1 rounded-full shrink-0" style={{ color: 'var(--tt-text-secondary)', backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)' }}>
                                     {batches.find(b => b.id === selectedBatch)?.batch_name || ""}
                                 </span>
                             )}
                         </div>
 
                         {listError && (
-                            <div className="mb-4 p-3 text-xs rounded-xl bg-[#ff6e84]/10 border border-[#ff6e84]/20 text-[#ff6e84]">
+                            <div className="mb-4 p-3 text-xs rounded-xl border" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--tt-error)' }}>
                                 {listError}
                             </div>
                         )}
 
                         {!selectedBatch ? (
-                            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center gap-3">
-                                <span className="material-symbols-outlined text-5xl text-white/10">school</span>
-                                <p className="text-sm font-bold text-[#f0f0fd]">No Batch Selected</p>
+                            <div className="flex-grow flex flex-col items-center justify-center py-20 text-center gap-3">
+                                <span className="material-symbols-outlined text-5xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>school</span>
+                                <p className="text-sm font-bold" style={{ color: 'var(--tt-text-primary)' }}>No Batch Selected</p>
                             </div>
                         ) : notesLoading ? (
                             <TeacherNotesSkeleton />
                         ) : notes.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center gap-3">
-                                <span className="material-symbols-outlined text-5xl text-white/10">edit_document</span>
-                                <p className="text-sm font-bold text-[#f0f0fd]">No notes shared yet</p>
+                            <div className="flex-grow flex flex-col items-center justify-center py-20 text-center gap-3">
+                                <span className="material-symbols-outlined text-5xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>edit_document</span>
+                                <p className="text-sm font-bold" style={{ color: 'var(--tt-text-primary)' }}>No notes shared yet</p>
                             </div>
                         ) : (
                             <div className="flex-grow space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
@@ -710,11 +742,12 @@ function TeacherNotesContent() {
 
                         {/* Pagination Controls */}
                         {selectedBatch && totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/5" style={{ transform: "translateZ(0)", isolation: "isolate" }}>
+                            <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t" style={{ borderTopColor: 'var(--tt-divider)', transform: "translateZ(0)", isolation: "isolate" }}>
                                 <button
                                     onClick={() => fetchNotes(selectedBatch, currentPage - 1)}
                                     disabled={currentPage === 1 || notesLoading}
-                                    className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 bg-white/5 text-[#aaaab7] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-white/10"
+                                    className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                    style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                                 >
                                     <span className="material-symbols-outlined text-base">chevron_left</span>
                                 </button>
@@ -742,7 +775,7 @@ function TeacherNotesContent() {
                                                 <span
                                                     key={item}
                                                     className="w-9 h-9 flex items-center justify-center text-xs font-bold"
-                                                    style={{ color: '#aaaab7' }}
+                                                    style={{ color: 'var(--tt-text-muted)' }}
                                                 >
                                                     ···
                                                 </span>
@@ -756,9 +789,17 @@ function TeacherNotesContent() {
                                                 disabled={notesLoading}
                                                 className="w-9 h-9 rounded-xl font-bold text-xs transition-all cursor-pointer active:scale-95"
                                                 style={{
-                                                    backgroundColor: isActive ? 'rgba(74, 248, 227, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                                    color: isActive ? '#4af8e3' : '#aaaab7',
-                                                    border: isActive ? '1px solid rgba(74, 248, 227, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                                                    backgroundColor: isActive 
+                                                        ? (isLight ? 'rgba(13, 148, 136, 0.15)' : 'rgba(74, 248, 227, 0.15)') 
+                                                        : 'var(--tt-hover-bg)',
+                                                    color: isActive 
+                                                        ? (isLight ? '#0d9488' : '#4af8e3') 
+                                                        : 'var(--tt-text-secondary)',
+                                                    borderColor: isActive 
+                                                        ? (isLight ? 'rgba(13, 148, 136, 0.35)' : 'rgba(74, 248, 227, 0.35)') 
+                                                        : 'var(--tt-divider)',
+                                                    borderWidth: 1,
+                                                    borderStyle: 'solid'
                                                 }}
                                             >
                                                 {item}
@@ -770,7 +811,8 @@ function TeacherNotesContent() {
                                 <button
                                     onClick={() => fetchNotes(selectedBatch, currentPage + 1)}
                                     disabled={currentPage === totalPages || notesLoading}
-                                    className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 bg-white/5 text-[#aaaab7] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95 hover:bg-white/10"
+                                    className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                    style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
                                 >
                                     <span className="material-symbols-outlined text-base">chevron_right</span>
                                 </button>
