@@ -13,6 +13,30 @@ export default function BiometricLockScreen() {
     // Track if this is the first lock trigger (auto-prompt once)
     const autoTriggered = useRef(false);
 
+    const [theme, setTheme] = useState(() => {
+        if (typeof window !== "undefined") {
+            const role = user?.role;
+            if (role === "admin") return localStorage.getItem("fp_admin_theme_v2") || "light";
+            if (role === "teacher") return localStorage.getItem("fp_teacher_theme_v2") || "light";
+            return localStorage.getItem("fp_student_theme_v2") || "light";
+        }
+        return "light";
+    });
+
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            setTheme(e.detail);
+        };
+        window.addEventListener("fp-student-theme-change", handleThemeChange);
+        window.addEventListener("fp-teacher-theme-change", handleThemeChange);
+        window.addEventListener("fp-admin-theme-change", handleThemeChange);
+        return () => {
+            window.removeEventListener("fp-student-theme-change", handleThemeChange);
+            window.removeEventListener("fp-teacher-theme-change", handleThemeChange);
+            window.removeEventListener("fp-admin-theme-change", handleThemeChange);
+        };
+    }, []);
+
     // Track app background state (minimizing/multitasking history switcher)
     useEffect(() => {
         if (!settings?.enabled) {
@@ -108,11 +132,12 @@ export default function BiometricLockScreen() {
         unlock();
     };
 
-    const showPrivacyOverlay = !isLocked && settings?.enabled && isAppBackgrounded;
+    const showPrivacyOverlay = !isLocked && settings?.enabled && isAppBackgrounded && !!user;
 
+    if (!user) return null;
     if (!visible && !showPrivacyOverlay) return null;
 
-    const isLight = user ? (user.role === "student" && localStorage.getItem("fp_student_theme_v2") === "light") : (localStorage.getItem("fp_student_theme_v2") === "light");
+    const isLight = theme === "light";
 
     // Dynamic styles based on theme
     const themeBg = isLight

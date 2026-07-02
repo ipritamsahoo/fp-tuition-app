@@ -108,6 +108,7 @@ function TeacherDashboardContent() {
     
     const [error, setError] = useState("");
     const [offlineLoading, setOfflineLoading] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const [warningModalData, setWarningModalData] = useState(null);
     const [warningConfirmText, setWarningConfirmText] = useState("");
     const [selectedDueIds, setSelectedDueIds] = useState([]);
@@ -290,7 +291,9 @@ function TeacherDashboardContent() {
     const { total_students: totalStudents, paid_count: paidCount, unpaid_count: unpaidCount } = counts;
 
     const statusLabel = (s) => (s === "Pending_Verification" ? "Pending" : s || "—");
-    const filteredPayments = payments; 
+    const filteredPayments = payments.filter(p => 
+        (p.student_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
 
 
@@ -441,16 +444,51 @@ function TeacherDashboardContent() {
             ) : (
                 /* ── Card Layout ── */
                 <section>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                         <h2 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                             Pending Actions
                         </h2>
+                        {payments.length > 0 && (
+                            <div className="relative w-full sm:w-64">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style={{ color: 'var(--tt-text-secondary)', opacity: 0.6 }}>search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search Student"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-8 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[var(--tt-primary)]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.02)',
+                                        borderColor: 'var(--tt-input-border)',
+                                        color: 'var(--tt-text-primary)'
+                                    }}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[#ff6e84] transition-colors cursor-pointer w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/5"
+                                        style={{ color: 'var(--tt-text-secondary)' }}
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">close</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-3">
                         {filteredPayments.length === 0 ? (
                             <GlassCard className="p-10 text-center">
-                                <span className="material-symbols-outlined text-5xl mb-3 block" style={{ color: 'var(--tt-primary)', opacity: 0.4 }}>verified</span>
-                                <p className="font-bold text-sm" style={{ color: 'var(--tt-text-primary)' }}>No Pending Actions! 🎉</p>
+                                {searchQuery ? (
+                                    <>
+                                        <span className="material-symbols-outlined text-5xl mb-3 block animate-pulse" style={{ color: 'var(--tt-primary)', opacity: 0.4 }}>search_off</span>
+                                        <p className="font-bold text-sm" style={{ color: 'var(--tt-text-primary)' }}>No matching students found</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-5xl mb-3 block" style={{ color: 'var(--tt-primary)', opacity: 0.4 }}>verified</span>
+                                        <p className="font-bold text-sm" style={{ color: 'var(--tt-text-primary)' }}>No Pending Actions! 🎉</p>
+                                    </>
+                                )}
                             </GlassCard>
                         ) : (
                             filteredPayments.map((p) => (

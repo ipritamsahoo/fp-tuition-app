@@ -18,8 +18,10 @@ export function StudentAvatarFallback({ name, size = 44 }) {
     const colorIndex = (name || "").charCodeAt(0) % colors.length;
     return (
         <div
-            className={`rounded-2xl bg-gradient-to-br ${colors[colorIndex]} flex items-center justify-center text-white font-bold shadow-lg shrink-0 overflow-hidden`}
+            className={`rounded-full bg-gradient-to-br ${colors[colorIndex]} flex items-center justify-center text-white font-bold shadow-lg shrink-0 overflow-hidden select-none pointer-events-none`}
             style={{ width: size, height: size, minWidth: size, fontSize: size * 0.4 }}
+            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
         >
             {initial}
         </div>
@@ -78,12 +80,20 @@ export default function CachedAvatar({ uid, name, size = 44, profile_pic_url, pi
     }
 
     return (
-        <img
-            src={imgSrc}
-            alt={name || "Avatar"}
-            className="rounded-2xl object-cover shrink-0 shadow-lg border border-white/10"
+        <div 
+            className="rounded-full shrink-0 select-none overflow-hidden"
             style={{ width: size, height: size, minWidth: size }}
-            loading="lazy"
-        />
+            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+        >
+            <img
+                src={imgSrc}
+                alt={name || "Avatar"}
+                className="rounded-full object-cover w-full h-full pointer-events-none select-none"
+                style={{ width: size, height: size, minWidth: size }}
+                loading="lazy"
+                draggable="false"
+            />
+        </div>
     );
 }

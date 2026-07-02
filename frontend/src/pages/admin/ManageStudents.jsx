@@ -35,17 +35,20 @@ function StudentsContent() {
     // ── Add-student form ─────────────────────────────────────────────────
     const [form, setForm] = useState({ name: "", username: "", password: "", batch_id: "" });
     const [formLoading, setFormLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // ── List tab state ───────────────────────────────────────────────────
     const [selectedListBatch, setSelectedListBatch] = useState("");
     const [students, setStudents] = useState([]);
     const [listLoading, setListLoading] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // ── Edit modal ───────────────────────────────────────────────────────
     const [editingStudent, setEditingStudent] = useState(null);
     const [editForm, setEditForm] = useState({ name: "", username: "", batch_id: "", password: "" });
     const [editLoading, setEditLoading] = useState(false);
+    const [showEditPassword, setShowEditPassword] = useState(false);
 
     // ── Fee-override modal ───────────────────────────────────────────────
     const [overrideStudent, setOverrideStudent] = useState(null);
@@ -144,6 +147,7 @@ function StudentsContent() {
             await api.post("/api/admin/students", form);
             setSuccess("Student added successfully!");
             setForm({ name: "", username: "", password: "", batch_id: "" });
+            setShowPassword(false);
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setError(err.message);
@@ -173,6 +177,7 @@ function StudentsContent() {
     const cancelEdit = () => {
         setEditingStudent(null);
         setEditForm({ name: "", username: "", batch_id: "", password: "" });
+        setShowEditPassword(false);
     };
 
     const handleEditSubmit = async (e) => {
@@ -287,6 +292,10 @@ function StudentsContent() {
         }
     };
 
+    const filteredStudents = students.filter((s) =>
+        (s.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     // ── Loading skeleton (only while batches load) ───────────────────────
     if (batchesLoading) {
         return (
@@ -299,37 +308,86 @@ function StudentsContent() {
     return (
         <div className="space-y-6">
 
-            {/* ── Tab control ─────────────────────────────────────────── */}
-            <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
-                 style={{
-                     backgroundColor: 'var(--ad-card-bg)',
-                     borderColor: 'var(--ad-divider)'
-                 }}
-            >
-                <button
-                    onClick={() => setActiveTab("list")}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
-                    style={{
-                        backgroundColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
-                        color: activeTab === "list" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
-                        borderColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
-                    }}
+            {/* ── Top Header Controls (Tabs on Left, Batch selector/Search on Right) ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                {/* Tab control */}
+                <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
+                     style={{
+                         backgroundColor: 'var(--ad-card-bg)',
+                         borderColor: 'var(--ad-divider)'
+                     }}
                 >
-                    <span className="material-symbols-outlined text-[16px]">group</span>
-                    View Students
-                </button>
-                <button
-                    onClick={() => setActiveTab("add")}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
-                    style={{
-                        backgroundColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
-                        color: activeTab === "add" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
-                        borderColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
-                    }}
-                >
-                    <span className="material-symbols-outlined text-[16px]">person_add</span>
-                    Add Student
-                </button>
+                    <button
+                        onClick={() => setActiveTab("list")}
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                        style={{
+                            backgroundColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                            color: activeTab === "list" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                            borderColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                        }}
+                    >
+                        <span className="material-symbols-outlined text-[16px]">group</span>
+                        View Students
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("add")}
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
+                        style={{
+                            backgroundColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                            color: activeTab === "add" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
+                            borderColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                        }}
+                    >
+                        <span className="material-symbols-outlined text-[16px]">person_add</span>
+                        Add Student
+                    </button>
+                </div>
+
+                {/* Batch Selector & Search on Right */}
+                {activeTab === "list" && (
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
+                        <div className="w-full sm:w-64">
+                            <ModernSelect
+                                value={selectedListBatch}
+                                onChange={(e) => { setSelectedListBatch(e.target.value); setSearchQuery(""); }}
+                                options={batches}
+                                placeholder="Select Batch"
+                                className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                style={{
+                                    backgroundColor: 'var(--ad-input-bg)',
+                                    borderColor: 'var(--ad-input-border)',
+                                    color: 'var(--ad-text-primary)'
+                                }}
+                            />
+                        </div>
+                        {!listLoading && hasLoaded && students.length > 0 && (
+                            <div className="relative w-full sm:w-64">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style={{ color: 'var(--ad-text-secondary)', opacity: 0.6 }}>search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search Student"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-8 py-2.5 rounded-2xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/50 transition-colors animate-fade-in"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[#ff6e84] transition-colors cursor-pointer w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/5"
+                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">close</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ── Messages ────────────────────────────────────────────── */}
@@ -365,23 +423,6 @@ function StudentsContent() {
             ══════════════════════════════════════════════════════════════ */}
             {activeTab === "list" && (
                 <div className="space-y-5">
-                    {/* Batch selector row */}
-                    <div className="flex flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
-                        <div className="w-full sm:flex-1 sm:max-w-xs">
-                            <ModernSelect
-                                value={selectedListBatch}
-                                onChange={(e) => setSelectedListBatch(e.target.value)}
-                                options={batches}
-                                placeholder="Select Batch"
-                                className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                                style={{
-                                    backgroundColor: 'var(--ad-input-bg)',
-                                    borderColor: 'var(--ad-input-border)',
-                                    color: 'var(--ad-text-primary)'
-                                }}
-                            />
-                        </div>
-                    </div>
 
                     {/* Loading skeleton */}
                     {listLoading && <GenericListSkeleton />}
@@ -412,14 +453,27 @@ function StudentsContent() {
                         </div>
                     )}
 
+                    {/* Empty search results state */}
+                    {!listLoading && hasLoaded && students.length > 0 && filteredStudents.length === 0 && (
+                        <div className="backdrop-blur-[20px] border rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-4xl animate-pulse" style={{ color: 'var(--ad-text-secondary)' }}>search_off</span>
+                            <p className="font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No matching students found.</p>
+                        </div>
+                    )}
+
                     {/* ── Mobile: Card layout ───────────────────────────── */}
-                    {!listLoading && hasLoaded && students.length > 0 && (
+                    {!listLoading && hasLoaded && filteredStudents.length > 0 && (
                         <>
                             <div className="mb-4 md:hidden px-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
                                 {students.length} student{students.length !== 1 ? "s" : ""} · {batches.find(b => b.id === selectedListBatch)?.batch_name || ""}
                             </div>
                             <div className="space-y-4 md:hidden">
-                                {students.map((s) => (
+                                {filteredStudents.map((s) => (
                                     <div key={s.uid || s.id} 
                                          className={`backdrop-blur-[20px] border rounded-2xl p-5 transition-all ${s.is_disabled ? "opacity-60 grayscale-[0.3]" : ""}`}
                                          style={{
@@ -498,7 +552,7 @@ function StudentsContent() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-[var(--ad-divider)]">
-                                            {students.map((s) => (
+                                            {filteredStudents.map((s) => (
                                                 <tr key={s.uid || s.id} className={`hover:bg-white/[0.01] transition-colors group ${s.is_disabled ? "opacity-50 grayscale-[0.5]" : ""}`}>
                                                     <td className="px-6 py-5 whitespace-nowrap">
                                                         <p className="font-bold tracking-wide flex items-center gap-2" style={{ color: 'var(--ad-text-primary)' }}>
@@ -615,20 +669,33 @@ function StudentsContent() {
                                 color: 'var(--ad-text-primary)'
                             }}
                         />
-                        <input
-                            placeholder="Password"
-                            type="password"
-                            value={form.password}
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            required
-                            minLength={6}
-                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                            style={{
-                                backgroundColor: 'var(--ad-input-bg)',
-                                borderColor: 'var(--ad-input-border)',
-                                color: 'var(--ad-text-primary)'
-                            }}
-                        />
+                        <div className="relative w-full">
+                            <input
+                                placeholder="Password"
+                                type={showPassword ? "text" : "password"}
+                                value={form.password}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                required
+                                minLength={6}
+                                className="w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                style={{
+                                    backgroundColor: 'var(--ad-input-bg)',
+                                    borderColor: 'var(--ad-input-border)',
+                                    color: 'var(--ad-text-primary)'
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 rounded-full hover:bg-black/5 cursor-pointer"
+                                tabIndex="-1"
+                                style={{ color: 'var(--ad-text-secondary)' }}
+                            >
+                                <span className="material-symbols-outlined text-[20px]">
+                                    {showPassword ? "visibility_off" : "visibility"}
+                                </span>
+                            </button>
+                        </div>
                         <ModernSelect
                             value={form.batch_id}
                             onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
@@ -734,19 +801,32 @@ function StudentsContent() {
                             </div>
                             <div>
                                 <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>New Password (Optional)</label>
-                                <input
-                                    placeholder="Leave blank to keep current"
-                                    type="password"
-                                    value={editForm.password}
-                                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                                    minLength={editForm.password ? 6 : undefined}
-                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
-                                    style={{
-                                        backgroundColor: 'var(--ad-input-bg)',
-                                        borderColor: 'var(--ad-input-border)',
-                                        color: 'var(--ad-text-primary)'
-                                    }}
-                                />
+                                <div className="relative">
+                                    <input
+                                        placeholder="Leave blank to keep current"
+                                        type={showEditPassword ? "text" : "password"}
+                                        value={editForm.password}
+                                        onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                                        minLength={editForm.password ? 6 : undefined}
+                                        className="w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                        style={{
+                                            backgroundColor: 'var(--ad-input-bg)',
+                                            borderColor: 'var(--ad-input-border)',
+                                            color: 'var(--ad-text-primary)'
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEditPassword(!showEditPassword)}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 rounded-full hover:bg-black/5 cursor-pointer"
+                                        tabIndex="-1"
+                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">
+                                            {showEditPassword ? "visibility_off" : "visibility"}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Batch</label>

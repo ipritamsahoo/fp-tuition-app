@@ -26,6 +26,29 @@ function StudentSettingsContent() {
     const [devicesModalOpen, setDevicesModalOpen] = useState(false);
     const [aboutModalOpen, setAboutModalOpen] = useState(false);
     const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [batchName, setBatchName] = useState(() => {
+        try {
+            return localStorage.getItem(`fp_student_batch_name_${user?.uid}`) || "";
+        } catch {
+            return "";
+        }
+    });
+
+    useEffect(() => {
+        if (!user?.uid) return;
+        const fetchBatchInfo = async () => {
+            try {
+                const info = await api.get("/api/student/batch-info");
+                const freshName = info.batch_name || "";
+                setBatchName(freshName);
+                localStorage.setItem(`fp_student_batch_name_${user.uid}`, freshName);
+            } catch (err) {
+                console.error("Failed to load batch info:", err);
+            }
+        };
+        fetchBatchInfo();
+    }, [user?.uid]);
 
     // PWA manual update checking states
     const [updateChecking, setUpdateChecking] = useState(false);
@@ -206,622 +229,723 @@ function StudentSettingsContent() {
             <div className="space-y-8">
                 {/* Custom PWA toast message */}
                 {toast.show && (
-                <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
-                    style={{
-                        backgroundColor: isLight 
-                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.08)" : "rgba(255, 255, 255, 0.45)")
-                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(30, 41, 59, 0.85)"),
-                        borderColor: isLight
-                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.2)" : "rgba(0, 0, 0, 0.08)")
-                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(255, 255, 255, 0.1)"),
-                        color: isLight
-                            ? (toast.type === "success" ? "#0d9488" : "var(--st-text-primary)")
-                            : (toast.type === "success" ? "#4af8e3" : "#f0f0fd"),
-                    }}
-                >
-                    <span className="material-symbols-outlined">
-                        {toast.type === "success" ? "check_circle" : "info"}
-                    </span>
-                    <p className="flex-1 font-medium">{toast.message}</p>
-                    <button onClick={() => setToast({ ...toast, show: false })} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
-                </div>
+                    <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
+                        style={{
+                            backgroundColor: isLight
+                                ? (toast.type === "success" ? "rgba(13, 148, 136, 0.08)" : "rgba(255, 255, 255, 0.95)")
+                                : (toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(30, 41, 59, 0.95)"),
+                            borderColor: isLight
+                                ? (toast.type === "success" ? "rgba(13, 148, 136, 0.2)" : "rgba(0, 0, 0, 0.08)")
+                                : (toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(255, 255, 255, 0.1)"),
+                            color: isLight
+                                ? (toast.type === "success" ? "#0d9488" : "var(--st-text-primary)")
+                                : (toast.type === "success" ? "#4af8e3" : "#f0f0fd"),
+                        }}
+                    >
+                        <span className="material-symbols-outlined">
+                            {toast.type === "success" ? "check_circle" : "info"}
+                        </span>
+                        <p className="flex-1 font-medium">{toast.message}</p>
+                        <button onClick={() => setToast({ ...toast, show: false })} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
+                    </div>
                 )}
-            {/* ── Profile Header Card ── */}
+                {/* ── Profile Header Card ── */}
 
-            <section className="relative">
-                <div
-                    className="backdrop-blur-2xl p-8 rounded-[32px] ring-1 flex flex-col items-center text-center"
-                    style={{
-                        backgroundColor: isLight ? 'rgba(13,148,136,0.06)' : 'rgba(59,130,246,0.1)',
-                        boxShadow: isLight ? '0 8px 32px rgba(0,0,0,0.06)' : '0 20px 40px rgba(0,0,0,0.3)',
-                        ringColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                        borderWidth: 1, borderStyle: 'solid',
-                        borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                    }}
-                >
-                    {/* Profile Picture */}
-                    <div ref={avatarElRef} className="mb-4 flex items-center justify-center">
-                        <ProfilePicture size={96} className="border-2 border-white/20" />
-                    </div>
-                    <h2 ref={nameElRef} className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
-                        {user?.name || "User"}
-                    </h2>
-                    <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold" style={{ color: accentColor }}>@{displayUsername}</p>
-                    <div className="mt-6 flex gap-2 flex-wrap justify-center">
- 
-                        {user?.currentBadge === "prime" && (
-                            <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
+                <section className="relative">
+                    <div
+                        className="backdrop-blur-2xl p-8 rounded-[32px] ring-1 flex flex-col items-center text-center"
+                        style={{
+                            backgroundColor: isLight ? 'rgba(13,148,136,0.06)' : 'rgba(59,130,246,0.1)',
+                            boxShadow: isLight ? '0 8px 32px rgba(0,0,0,0.06)' : '0 20px 40px rgba(0,0,0,0.3)',
+                            ringColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
+                            borderWidth: 1, borderStyle: 'solid',
+                            borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
+                        }}
+                    >
+                        {/* Profile Picture */}
+                        <div ref={avatarElRef} className="mb-4 flex items-center justify-center">
+                            <ProfilePicture size={96} className="border-2 border-white/20" />
+                        </div>
+                        <h2 ref={nameElRef} className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                            {user?.name || "User"}
+                        </h2>
+                        <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold" style={{ color: accentColor }}>@{displayUsername}</p>
+                        {batchName && (
+                            <span
+                                className="mt-2 inline-block px-3 py-1 text-[10px] font-bold tracking-widest rounded-full"
                                 style={{
-                                    backgroundColor: 'rgba(168,85,247,0.15)',
-                                    color: isLight ? '#7c3aed' : '#c084fc',
-                                    border: `1px solid rgba(168,85,247,0.25)`,
+                                    backgroundColor: isLight ? "rgba(13,148,136,0.1)" : "rgba(59,130,246,0.08)",
+                                    color: isLight ? "#0d9488" : "#3b82f6",
+                                    border: `1px solid ${isLight ? "rgba(13,148,136,0.2)" : "rgba(59,130,246,0.15)"}`,
+                                    backdropFilter: "blur(12px)",
+                                    WebkitBackdropFilter: "blur(12px)",
+                                    fontFamily: "'Manrope', sans-serif"
                                 }}
                             >
-                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
-                                Prime
+                                Batch: {batchName}
                             </span>
                         )}
-                        {user?.currentBadge === "golden" && (
-                            <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
-                                style={{
-                                    backgroundColor: 'rgba(245,158,11,0.15)',
-                                    color: isLight ? '#d97706' : '#fbbf24',
-                                    border: `1px solid rgba(245,158,11,0.25)`,
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                                Golden
-                            </span>
-                        )}
-                        {user?.currentBadge === "silver" && (
-                            <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
-                                style={{
-                                    backgroundColor: 'rgba(148,163,184,0.15)',
-                                    color: isLight ? '#64748b' : '#cbd5e1',
-                                    border: `1px solid rgba(148,163,184,0.25)`,
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
-                                Silver
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </section>
- 
-            {/* ── Settings List ── */}
-            <section className="space-y-6">
-                {/* ── ACCOUNT ── */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Account</h3>
-                    <div className="space-y-3">
-                        {/* Change Profile Photo */}
-                        <button
-                            onClick={() => setPicModalOpen(true)}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </button>
+                        <div className="mt-6 flex gap-2 flex-wrap justify-center">
 
-                        {/* Change Username or Mobile */}
-                        <button
-                            onClick={() => setUsernameModalOpen(true)}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4 text-left">
-                                <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
-                                </div>
-                                <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username or Mobile</span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* ── SECURITY ── */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Security</h3>
-                    <div className="space-y-3">
-                        {/* Change Password */}
-                        <button
-                            onClick={() => setPasswordModalOpen(true)}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>lock</span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Password</span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </button>
-
-                        {/* ── App Lock (Biometric) ── */}
-                        <AppLockSetting accentColor={accentColor} isLight={isLight} />
-
-                        {/* Devices */}
-                        <button
-                            onClick={() => setDevicesModalOpen(true)}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>devices</span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Devices</span>
-                            </div>
-                            <span className="text-xs px-2 py-1 rounded" style={{ color: 'var(--st-text-secondary)', backgroundColor: 'var(--st-icon-bg)' }}>
-                                {activeSessionCount} active
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* ── PREFERENCES ── */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Preferences</h3>
-                    <div className="space-y-3">
-                        {/* ── Theme Toggle (Functional) ── */}
-                        <button
-                            onClick={toggleTheme}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>
-                                        {isLight ? 'light_mode' : 'dark_mode'}
-                                    </span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Theme</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs" style={{ color: 'var(--st-text-secondary)' }}>
-                                    {isLight ? 'Light mode' : 'Dark mode'}
-                                </span>
-                                {/* Toggle switch */}
-                                <div
-                                    className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                            {user?.currentBadge === "prime" && (
+                                <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
                                     style={{
-                                        backgroundColor: isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)',
+                                        backgroundColor: 'rgba(168,85,247,0.15)',
+                                        color: isLight ? '#7c3aed' : '#c084fc',
+                                        border: `1px solid rgba(168,85,247,0.25)`,
                                     }}
                                 >
-                                    <div
-                                        className="w-4 h-4 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center"
-                                        style={{
-                                            backgroundColor: isLight ? '#0d9488' : '#3b82f6',
-                                            marginLeft: isLight ? 'auto' : '0',
-                                        }}
-                                    >
-                                        <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
+                                    Prime
+                                </span>
+                            )}
+                            {user?.currentBadge === "golden" && (
+                                <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
+                                    style={{
+                                        backgroundColor: 'rgba(245,158,11,0.15)',
+                                        color: isLight ? '#d97706' : '#fbbf24',
+                                        border: `1px solid rgba(245,158,11,0.25)`,
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                                    Golden
+                                </span>
+                            )}
+                            {user?.currentBadge === "silver" && (
+                                <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
+                                    style={{
+                                        backgroundColor: 'rgba(148,163,184,0.15)',
+                                        color: isLight ? '#64748b' : '#cbd5e1',
+                                        border: `1px solid rgba(148,163,184,0.25)`,
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
+                                    Silver
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Settings List ── */}
+                <section className="space-y-6">
+                    {/* ── ACCOUNT ── */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Account</h3>
+                        <div className="space-y-3">
+                            {/* Change Profile Photo */}
+                            <button
+                                onClick={() => setPicModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+
+                            {/* Change Username or Mobile */}
+                            <button
+                                onClick={() => setUsernameModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4 text-left">
+                                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
+                                    </div>
+                                    <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username or Mobile</span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── SECURITY ── */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Security</h3>
+                        <div className="space-y-3">
+                            {/* Change Password */}
+                            <button
+                                onClick={() => setPasswordModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>lock</span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Password</span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+
+                            {/* ── App Lock (Biometric) ── */}
+                            <AppLockSetting accentColor={accentColor} isLight={isLight} />
+
+                            {/* Devices */}
+                            <button
+                                onClick={() => setDevicesModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>devices</span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Devices</span>
+                                </div>
+                                <span className="text-xs px-2 py-1 rounded" style={{ color: 'var(--st-text-secondary)', backgroundColor: 'var(--st-icon-bg)' }}>
+                                    {activeSessionCount} active
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── PREFERENCES ── */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Preferences</h3>
+                        <div className="space-y-3">
+                            {/* ── Theme Toggle (Functional) ── */}
+                            <button
+                                onClick={toggleTheme}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>
                                             {isLight ? 'light_mode' : 'dark_mode'}
                                         </span>
                                     </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Theme</span>
                                 </div>
-                            </div>
-                        </button>
-
-                        {/* ── Push Notifications Toggle ── */}
-                        <button
-                            onClick={togglePushNotifications}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-4 text-left">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>
-                                        notifications
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs" style={{ color: 'var(--st-text-secondary)' }}>
+                                        {isLight ? 'Light mode' : 'Dark mode'}
                                     </span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Push Notifications</span>
-                            </div>
-                            <div className="flex items-center">
-                                {/* Toggle switch */}
-                                <div
-                                    className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
-                                    style={{
-                                        backgroundColor: pushEnabled
-                                            ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)')
-                                            : 'rgba(115, 117, 128, 0.3)',
-                                    }}
-                                >
+                                    {/* Toggle switch */}
                                     <div
-                                        className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                        className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
+                                        style={{
+                                            backgroundColor: isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-4 h-4 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center"
+                                            style={{
+                                                backgroundColor: isLight ? '#0d9488' : '#3b82f6',
+                                                marginLeft: isLight ? 'auto' : '0',
+                                            }}
+                                        >
+                                            <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                                {isLight ? 'light_mode' : 'dark_mode'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* ── Push Notifications Toggle ── */}
+                            <button
+                                onClick={togglePushNotifications}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all cursor-pointer group"
+                            >
+                                <div className="flex items-center gap-4 text-left">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>
+                                            notifications
+                                        </span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Push Notifications</span>
+                                </div>
+                                <div className="flex items-center">
+                                    {/* Toggle switch */}
+                                    <div
+                                        className="w-11 h-6 rounded-full relative flex items-center px-1 transition-colors duration-300"
                                         style={{
                                             backgroundColor: pushEnabled
-                                                ? (isLight ? '#0d9488' : '#3b82f6')
-                                                : '#737580',
-                                            marginLeft: pushEnabled ? 'auto' : '0',
+                                                ? (isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)')
+                                                : 'rgba(115, 117, 128, 0.3)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-4 h-4 rounded-full shadow-sm transition-all duration-300"
+                                            style={{
+                                                backgroundColor: pushEnabled
+                                                    ? (isLight ? '#0d9488' : '#3b82f6')
+                                                    : '#737580',
+                                                marginLeft: pushEnabled ? 'auto' : '0',
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── SUPPORT ── */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Support</h3>
+                        <div className="space-y-3">
+                            {/* Help & Support */}
+                            <button
+                                onClick={() => setHelpModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>support_agent</span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Help & Support</span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── APP INFO ── */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>App Info</h3>
+                        <div className="space-y-3">
+                            {/* Check for updates */}
+                            <button
+                                onClick={handleCheckUpdate}
+                                disabled={updateChecking}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className={updateChecking ? "material-symbols-outlined animate-spin" : "material-symbols-outlined"} style={{ color: accentColor }}>
+                                            {updateChecking ? 'autorenew' : 'system_update'}
+                                        </span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>
+                                        {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
+                                    </span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+
+                            {/* About */}
+                            <button
+                                onClick={() => {
+                                    if (window.innerWidth >= 768) {
+                                        // Desktop: open modal
+                                        setAboutModalOpen(true);
+                                    } else {
+                                        // Mobile: route to AboutPage
+                                        navigate("/about");
+                                    }
+                                }}
+                                className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>info</span>
+                                    </div>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>About</span>
+                                </div>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Footer ── */}
+                <footer className="mt-4 md:mt-12 flex flex-col items-center gap-6">
+                    <button
+                        onClick={logout}
+                        className="group flex items-center gap-3 px-8 py-3 transition-all rounded-full active:scale-95 cursor-pointer"
+                        style={{
+                            backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(167,1,56,0.2)',
+                            border: `1px solid ${isLight ? 'rgba(239,68,68,0.15)' : 'rgba(255,110,132,0.2)'}`,
+                        }}
+                    >
+                        <span className="material-symbols-outlined" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>logout</span>
+                        <span className="font-bold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#ef4444' : '#ff6e84' }}>Logout</span>
+                    </button>
+                </footer>
+
+                {/* ══ Modals ══ */}
+
+                {/* Profile Pic Upload */}
+                <ProfilePicUpload isOpen={picModalOpen} onClose={() => setPicModalOpen(false)} />
+
+                {/* Change Username Modal */}
+                {usernameModalOpen && createPortal(
+                    <div
+                        data-theme={theme}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                        onClick={closeCredModals}
+                        style={{
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(16px) saturate(1.5)',
+                            WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
+                        }}
+                    >
+                        <div
+                            className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
+                                border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
+                                backdropFilter: 'blur(80px) saturate(2.5)',
+                                WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
+                                boxShadow: isLight
+                                    ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
+                                    : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
+                                transform: "translateZ(0)", isolation: "isolate"
+                            }}
+                        >
+                            <h3 className="font-extrabold text-2xl mb-6 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Username</h3>
+
+                            {credError && (
+                                <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(239,68,68,0.1)' : 'rgba(255,110,132,0.1)',
+                                        border: `1px solid ${isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)'}`,
+                                        color: isLight ? '#ef4444' : '#ff9dac'
+                                    }}>
+                                    {credError}
+                                </div>
+                            )}
+
+                            {credSuccess && (
+                                <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center"
+                                    style={{
+                                        backgroundColor: 'var(--st-accent-bg)',
+                                        border: `1px solid ${isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)'}`,
+                                        color: 'var(--st-accent)'
+                                    }}>
+                                    {credSuccess}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleUsernameSubmit} className="space-y-5">
+                                <div>
+                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Username or Mobile</label>
+                                    <input
+                                        type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                                        placeholder="Enter new username or mobile" required
+                                        className="w-full px-5 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
+                                        style={{
+                                            backgroundColor: 'var(--st-icon-bg)',
+                                            border: `1px solid var(--st-input-border)`,
+                                            color: 'var(--st-text-primary)'
                                         }}
                                     />
                                 </div>
-                            </div>
-                        </button>
-                    </div>
-                </div>
 
-                {/* ── SUPPORT ── */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Support</h3>
-                    <div className="space-y-3">
-                        {/* Help & Support */}
-                        <a
-                            href="https://wa.me/917001637243"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>support_agent</span>
+                                <div className="flex gap-3 pt-2">
+                                    <button type="button" onClick={closeCredModals}
+                                        className="flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95"
+                                        style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-secondary)' }}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={credLoading}
+                                        className={`flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border shadow-lg ${isLight
+                                            ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
+                                            : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
+                                            }`}
+                                    >
+                                        {credLoading ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                                Updating...
+                                            </span>
+                                        ) : "Update"}
+                                    </button>
                                 </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Help & Support</span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </a>
-                    </div>
-                </div>
+                            </form>
+                        </div>
+                    </div>,
+                    document.body
+                )}
 
-                {/* ── APP INFO ── */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>App Info</h3>
-                    <div className="space-y-3">
-                        {/* Check for updates */}
-                        <button
-                            onClick={handleCheckUpdate}
-                            disabled={updateChecking}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer disabled:opacity-50"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className={updateChecking ? "material-symbols-outlined animate-spin" : "material-symbols-outlined"} style={{ color: accentColor }}>
-                                        {updateChecking ? 'autorenew' : 'system_update'}
-                                    </span>
-                                </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>
-                                    {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
-                                </span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </button>
-
-                        {/* About */}
-                        <button
-                            onClick={() => {
-                                if (window.innerWidth >= 768) {
-                                    // Desktop: open modal
-                                    setAboutModalOpen(true);
-                                } else {
-                                    // Mobile: route to AboutPage
-                                    navigate("/about");
-                                }
+                {/* Change Password Modal */}
+                {passwordModalOpen && createPortal(
+                    <div
+                        data-theme={theme}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                        onClick={closeCredModals}
+                        style={{
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(16px) saturate(1.5)',
+                            WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
+                        }}
+                    >
+                        <div
+                            className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
+                                border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
+                                backdropFilter: 'blur(80px) saturate(2.5)',
+                                WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
+                                boxShadow: isLight
+                                    ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
+                                    : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
+                                transform: "translateZ(0)", isolation: "isolate"
                             }}
-                            className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                    <span className="material-symbols-outlined" style={{ color: accentColor }}>info</span>
+                            <h3 className="font-extrabold text-2xl mb-1 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Password</h3>
+                            <p className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: 'var(--st-text-muted)' }}>Security update required</p>
+
+                            {credError && (
+                                <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(239,68,68,0.1)' : 'rgba(255,110,132,0.1)',
+                                        border: `1px solid ${isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)'}`,
+                                        color: isLight ? '#ef4444' : '#ff9dac'
+                                    }}>
+                                    {credError}
                                 </div>
-                                <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>About</span>
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
-                        </button>
-                    </div>
-                </div>
-            </section>
+                            )}
 
-            {/* ── Footer ── */}
-            <footer className="mt-4 md:mt-12 flex flex-col items-center gap-6">
-                <button
-                    onClick={logout}
-                    className="group flex items-center gap-3 px-8 py-3 transition-all rounded-full active:scale-95 cursor-pointer"
-                    style={{
-                        backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(167,1,56,0.2)',
-                        border: `1px solid ${isLight ? 'rgba(239,68,68,0.15)' : 'rgba(255,110,132,0.2)'}`,
+                            {credSuccess && (
+                                <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center"
+                                    style={{
+                                        backgroundColor: 'var(--st-accent-bg)',
+                                        border: `1px solid ${isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)'}`,
+                                        color: 'var(--st-accent)'
+                                    }}>
+                                    {credSuccess}
+                                </div>
+                            )}
+
+                            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Password</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="Min 6 characters" required minLength={6}
+                                            className="w-full pl-5 pr-12 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
+                                            style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-primary)' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+                                            style={{ backgroundColor: 'transparent' }}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--st-text-muted)' }}>
+                                                {showNewPassword ? "visibility" : "visibility_off"}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>Confirm Password</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                            placeholder="Re-enter password" required minLength={6}
+                                            className="w-full pl-5 pr-12 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
+                                            style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-primary)' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+                                            style={{ backgroundColor: 'transparent' }}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--st-text-muted)' }}>
+                                                {showConfirmPassword ? "visibility" : "visibility_off"}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-3">
+                                    <button type="button" onClick={closeCredModals}
+                                        className="flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95"
+                                        style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-secondary)' }}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={credLoading}
+                                        className={`flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border shadow-lg ${isLight
+                                            ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
+                                            : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
+                                            }`}
+                                    >
+                                        {credLoading ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                                Updating...
+                                            </span>
+                                        ) : "Update"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* Devices Modal */}
+                {devicesModalOpen && (
+                    <MyDevicesModal onClose={() => setDevicesModalOpen(false)} />
+                )}
+
+                {/* ── Feedback Modal ── */}
+                <StudentFeedbackModal
+                    isOpen={feedbackModalOpen}
+                    onClose={() => {
+                        setFeedbackModalOpen(false);
+                        setAboutModalOpen(true);
                     }}
-                >
-                    <span className="material-symbols-outlined" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>logout</span>
-                    <span className="font-bold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#ef4444' : '#ff6e84' }}>Logout</span>
-                </button>
-            </footer>
+                    isLight={isLight}
+                    accentColor={accentColor}
+                    theme={theme}
+                />
 
-            {/* ══ Modals ══ */}
-
-            {/* Profile Pic Upload */}
-            <ProfilePicUpload isOpen={picModalOpen} onClose={() => setPicModalOpen(false)} />
-
-            {/* Change Username Modal */}
-            {usernameModalOpen && createPortal(
-                <div 
-                    data-theme={theme}
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4" 
-                    onClick={closeCredModals}
-                    style={{
-                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
-                        backdropFilter: 'blur(16px) saturate(1.5)',
-                        WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
-                    }}
-                >
+                {/* ── About Modal (Desktop only) ── */}
+                {aboutModalOpen && createPortal(
                     <div
-                        className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
+                        data-theme={theme}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+                        onClick={() => setAboutModalOpen(false)}
                         style={{
-                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
-                            border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
-                            backdropFilter: 'blur(80px) saturate(2.5)',
-                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
-                            boxShadow: isLight
-                                ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
-                                : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
-                            transform: "translateZ(0)", isolation: "isolate"
+                            backgroundColor: isLight ? 'rgba(238,242,255,0.5)' : 'rgba(0,0,0,0.65)',
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
                         }}
                     >
-                        <h3 className="font-extrabold text-2xl mb-6 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Username</h3>
-                        
-                        {credError && (
-                            <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center" 
-                                style={{ 
-                                    backgroundColor: isLight ? 'rgba(239,68,68,0.1)' : 'rgba(255,110,132,0.1)', 
-                                    border: `1px solid ${isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)'}`, 
-                                    color: isLight ? '#ef4444' : '#ff9dac' 
-                                }}>
-                                {credError}
-                            </div>
-                        )}
-                        
-                        {credSuccess && (
-                            <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center" 
-                                style={{ 
-                                    backgroundColor: 'var(--st-accent-bg)', 
-                                    border: `1px solid ${isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)'}`, 
-                                    color: 'var(--st-accent)' 
-                                }}>
-                                {credSuccess}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleUsernameSubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Username or Mobile</label>
-                                <input
-                                    type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
-                                    placeholder="Enter new username or mobile" required
-                                    className="w-full px-5 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
-                                    style={{ 
-                                        backgroundColor: 'var(--st-icon-bg)', 
-                                        border: `1px solid var(--st-input-border)`, 
-                                        color: 'var(--st-text-primary)' 
+                        <div
+                            className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl flex flex-col gap-5"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.02)',
+                                border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.05)'}`,
+                                backdropFilter: 'blur(64px) saturate(2.2)',
+                                WebkitBackdropFilter: 'blur(64px) saturate(2.2)',
+                                transform: "translateZ(0)", isolation: "isolate",
+                            }}
+                        >
+                            {/* Header row */}
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-extrabold text-xl tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
+                                    About
+                                </h3>
+                                <button
+                                    onClick={() => setAboutModalOpen(false)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)',
+                                        border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                        color: 'var(--st-text-muted)'
                                     }}
-                                />
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={closeCredModals}
-                                    className="flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95"
-                                    style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-secondary)' }}>
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={credLoading}
-                                    className={`flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border shadow-lg ${
-                                        isLight
-                                            ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
-                                            : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
-                                    }`}
                                 >
-                                    {credLoading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                                            Updating...
-                                        </span>
-                                    ) : "Update"}
+                                    <span className="material-symbols-outlined text-sm">close</span>
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                </div>, 
-                document.body
-            )}
 
-            {/* Change Password Modal */}
-            {passwordModalOpen && createPortal(
-                <div 
-                    data-theme={theme}
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4" 
-                    onClick={closeCredModals}
-                    style={{
-                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
-                        backdropFilter: 'blur(16px) saturate(1.5)',
-                        WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
-                    }}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
-                            border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
-                            backdropFilter: 'blur(80px) saturate(2.5)',
-                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
-                            boxShadow: isLight
-                                ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
-                                : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
-                            transform: "translateZ(0)", isolation: "isolate"
-                        }}
-                    >
-                        <h3 className="font-extrabold text-2xl mb-1 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Password</h3>
-                        <p className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: 'var(--st-text-muted)' }}>Security update required</p>
-                        
-                        {credError && (
-                            <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center" 
-                                style={{ 
-                                    backgroundColor: isLight ? 'rgba(239,68,68,0.1)' : 'rgba(255,110,132,0.1)', 
-                                    border: `1px solid ${isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)'}`, 
-                                    color: isLight ? '#ef4444' : '#ff9dac' 
-                                }}>
-                                {credError}
-                            </div>
-                        )}
-                        
-                        {credSuccess && (
-                            <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center" 
-                                style={{ 
-                                    backgroundColor: 'var(--st-accent-bg)', 
-                                    border: `1px solid ${isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)'}`, 
-                                    color: 'var(--st-accent)' 
-                                }}>
-                                {credSuccess}
-                            </div>
-                        )}
+                            {/* Shared content */}
+                            <AboutContent
+                                isLight={isLight}
+                                accentColor={accentColor}
+                                onFeedbackClick={() => {
+                                    setAboutModalOpen(false);
+                                    setFeedbackModalOpen(true);
+                                }}
+                            />
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            </div>
 
-                        <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Password</label>
-                                <div className="relative">
-                                    <input
-                                        type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Min 6 characters" required minLength={6}
-                                        className="w-full pl-5 pr-12 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
-                                        style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-primary)' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewPassword(!showNewPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl transition-colors opacity-70 hover:opacity-100 cursor-pointer"
-                                        style={{ backgroundColor: 'transparent' }}
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--st-text-muted)' }}>
-                                            {showNewPassword ? "visibility" : "visibility_off"}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>Confirm Password</label>
-                                <div className="relative">
-                                    <input
-                                        type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Re-enter password" required minLength={6}
-                                        className="w-full pl-5 pr-12 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
-                                        style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-primary)' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl transition-colors opacity-70 hover:opacity-100 cursor-pointer"
-                                        style={{ backgroundColor: 'transparent' }}
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--st-text-muted)' }}>
-                                            {showConfirmPassword ? "visibility" : "visibility_off"}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-3">
-                                <button type="button" onClick={closeCredModals}
-                                    className="flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95"
-                                    style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-secondary)' }}>
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={credLoading}
-                                    className={`flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border shadow-lg ${
-                                        isLight
-                                            ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
-                                            : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
-                                    }`}
-                                >
-                                    {credLoading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                                            Updating...
-                                        </span>
-                                    ) : "Update"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            {/* Devices Modal */}
-            {devicesModalOpen && (
-                <MyDevicesModal onClose={() => setDevicesModalOpen(false)} />
-            )}
-
-            {/* ── Feedback Modal ── */}
-            <StudentFeedbackModal
-                isOpen={feedbackModalOpen}
-                onClose={() => {
-                    setFeedbackModalOpen(false);
-                    setAboutModalOpen(true);
-                }}
-                isLight={isLight}
-                accentColor={accentColor}
-                theme={theme}
-            />
-
-            {/* ── About Modal (Desktop only) ── */}
-            {aboutModalOpen && createPortal(
+            {/* ══ Help & Support Modal ══ */}
+            {helpModalOpen && createPortal(
                 <div
                     data-theme={theme}
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-6"
-                    onClick={() => setAboutModalOpen(false)}
+                    className="fixed inset-0 z-[200] flex items-center justify-center p-6"
+                    onClick={() => setHelpModalOpen(false)}
                     style={{
-                        backgroundColor: isLight ? 'rgba(238,242,255,0.5)' : 'rgba(0,0,0,0.65)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
+                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(16px) saturate(1.5)',
+                        WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
                     }}
                 >
+                    {/* Modal Card */}
                     <div
-                        className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl flex flex-col gap-5"
-                        onClick={(e) => e.stopPropagation()}
+                        className="relative w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl"
+                        onClick={e => e.stopPropagation()}
                         style={{
-                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.02)',
-                            border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.05)'}`,
-                            backdropFilter: 'blur(64px) saturate(2.2)',
-                            WebkitBackdropFilter: 'blur(64px) saturate(2.2)',
-                            transform: "translateZ(0)", isolation: "isolate",
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
+                            border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
+                            backdropFilter: 'blur(80px) saturate(2.5)',
+                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
+                            boxShadow: isLight
+                                ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
+                                : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
+                            transform: "translateZ(0)", isolation: "isolate"
                         }}
                     >
-                        {/* Header row */}
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-extrabold text-xl tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
-                                About
-                            </h3>
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-2xl flex items-center justify-center border"
+                                    style={{
+                                        backgroundColor: isLight ? 'rgba(37,211,102,0.1)' : 'rgba(37,211,102,0.15)',
+                                        borderColor: isLight ? 'rgba(37,211,102,0.25)' : 'rgba(37,211,102,0.25)'
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined text-[22px]" style={{ color: '#25d366' }}>support_agent</span>
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-base leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Help & Support</h3>
+                                </div>
+                            </div>
                             <button
-                                onClick={() => setAboutModalOpen(false)}
-                                className="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-                                style={{ 
-                                    backgroundColor: isLight ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)',
-                                    border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.1)'}`,
-                                    color: 'var(--st-text-muted)' 
-                                }}
+                                onClick={() => setHelpModalOpen(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer opacity-60 hover:opacity-100"
+                                style={{ backgroundColor: 'var(--st-icon-bg)', borderColor: 'var(--st-input-border)' }}
                             >
-                                <span className="material-symbols-outlined text-sm">close</span>
+                                <span className="material-symbols-outlined text-[20px]" style={{ color: 'var(--st-text-secondary)' }}>close</span>
                             </button>
                         </div>
 
-                        {/* Shared content */}
-                        <AboutContent 
-                            isLight={isLight} 
-                            accentColor={accentColor} 
-                            onFeedbackClick={() => {
-                                setAboutModalOpen(false);
-                                setFeedbackModalOpen(true);
-                            }} 
-                        />
+                        {/* Info message */}
+                        <div className="rounded-2xl px-4 py-4 mb-5 border"
+                            style={{
+                                backgroundColor: isLight ? 'rgba(13,148,136,0.05)' : 'rgba(59,130,246,0.08)',
+                                borderColor: isLight ? 'rgba(13,148,136,0.15)' : 'rgba(59,130,246,0.2)'
+                            }}
+                        >
+                            <p className="text-sm leading-relaxed" style={{ color: 'var(--st-text-secondary)' }}>
+                                If you face any issue with the app, payments, or your account — just send a message in our <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>WhatsApp group</span> and we'll help you out as soon as possible.
+                            </p>
+                        </div>
+
+                        {/* WhatsApp Group button */}
+                        <a
+                            href="https://chat.whatsapp.com/IZEGoCBUlIk8cXrtuApsnd"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl border font-bold text-sm transition-all active:scale-95 cursor-pointer"
+                            style={{
+                                backgroundColor: isLight ? 'rgba(37,211,102,0.1)' : 'rgba(37,211,102,0.12)',
+                                borderColor: isLight ? 'rgba(37,211,102,0.3)' : 'rgba(37,211,102,0.3)',
+                                color: '#25d366',
+                            }}
+                        >
+                            {/* WhatsApp SVG icon */}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+                            </svg>
+                            Join FP Help Desk Group
+                        </a>
+
+                        <p className="text-center text-[10px] mt-3 font-medium" style={{ color: 'var(--st-text-muted)' }}>
+                            Tap the button above to open WhatsApp
+                        </p>
                     </div>
                 </div>,
                 document.body
             )}
-        </div>
         </>
     );
 }

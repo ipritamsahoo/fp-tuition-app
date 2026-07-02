@@ -419,24 +419,23 @@ function PayNowModal({ payment, unpaidPayments = [], onClose, onProceed, initial
                 </div>
 
                 {/* ── Fullscreen Image Preview Modal ── */}
-                {showPreviewModal && preview && (
-                    <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col" onClick={() => setShowPreviewModal(false)} style={{ transform: "translateZ(0)", isolation: "isolate" }}>
-                        <div className="flex justify-end p-5">
-                            <button
-                                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer active:scale-90 transition-all font-bold"
+                {showPreviewModal && preview && createPortal(
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setShowPreviewModal(false)} style={{ touchAction: "none" }}>
+                        <div className="relative max-w-2xl w-full max-h-[80vh] flex justify-center" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => setShowPreviewModal(false)}
+                                className="absolute -top-10 sm:-top-4 right-1 sm:-right-4 w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer z-10 transition-colors shadow-xl"
                                 style={{
                                     backgroundColor: 'var(--st-icon-bg)',
-                                    color: 'var(--st-text-secondary)',
-                                    border: `1px solid var(--st-input-border)`
+                                    borderColor: 'var(--st-input-border)',
+                                    color: 'var(--st-text-primary)'
                                 }}
                             >
-                                <span className="material-symbols-outlined">close</span>
+                                <span className="material-symbols-outlined text-lg">close</span>
                             </button>
+                            <img src={preview} alt="Fullscreen Preview" className="max-h-[80vh] w-auto max-w-full object-contain block shadow-2xl shadow-black/80" />
                         </div>
-                        <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
-                            <img src={preview} alt="Fullscreen Preview" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
-                        </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </div>,

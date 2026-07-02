@@ -112,11 +112,16 @@ export default function LoginPage() {
                     {/* Header */}
                     <div className="mb-2 md:mb-4">
                         <div className="flex items-center gap-4 mb-3">
-                            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden shadow-lg shadow-[#3861fb]/20 flex-shrink-0">
+                            <div 
+                                className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden shadow-lg shadow-[#3861fb]/20 flex-shrink-0 select-none"
+                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                            >
                                 <img 
                                     src={logoSrc} 
                                     alt="FP Finance Logo" 
-                                    className="w-full h-full object-cover scale-[1.25]" 
+                                    className="w-full h-full object-cover scale-[1.25] pointer-events-none select-none" 
+                                    draggable="false"
                                 />
                             </div>
                             <h1 

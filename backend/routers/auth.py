@@ -295,7 +295,7 @@ def update_own_credentials(req: SelfUpdateCredentials, user=Depends(get_current_
 # ──────────────────────────────────────────────
 @router.post("/session")
 def register_active_session(req: SessionRegisterRequest, request: Request, user=Depends(get_current_user)):
-    """Register a new active device session. Cleans up old ghost sessions (>30 days)."""
+    """Register a new active device session. Cleans up old ghost sessions (>15 days)."""
     uid = user["uid"]
     session_data = {
         "session_id": req.session_id,
@@ -312,7 +312,7 @@ def register_active_session(req: SessionRegisterRequest, request: Request, user=
         data = user_doc.to_dict()
         active_sessions = data.get("active_sessions", [])
 
-        # Lazy 30-day cleanup of ghost sessions
+        # Lazy 15-day cleanup of ghost sessions
         now = datetime.fromisoformat(str(ts_now()).replace("Z", "+00:00"))
         valid_sessions = []
         for s in active_sessions:
@@ -320,7 +320,7 @@ def register_active_session(req: SessionRegisterRequest, request: Request, user=
                 last_active_str = str(s.get("last_active", s.get("created_at", ""))).replace("Z", "+00:00")
                 if last_active_str:
                     last_active_dt = datetime.fromisoformat(last_active_str)
-                    if (now - last_active_dt).days <= 30:
+                    if (now - last_active_dt).days <= 15:
                         valid_sessions.append(s)
             except Exception:
                 pass
@@ -358,7 +358,7 @@ def delete_active_session(session_id: str, user=Depends(get_current_user)):
 # ──────────────────────────────────────────────
 @router.patch("/session/{session_id}/heartbeat")
 def session_heartbeat(session_id: str, user=Depends(get_current_user)):
-    """Update last_active timestamp for a session. Called when app comes to foreground."""
+    """Update last_active timestamp for a session and clean up >15 days old sessions. Called when app comes to foreground."""
     uid = user["uid"]
     user_ref = db.collection("users").document(uid)
     user_doc = user_ref.get()
@@ -368,16 +368,34 @@ def session_heartbeat(session_id: str, user=Depends(get_current_user)):
 
     data = user_doc.to_dict()
     active_sessions = data.get("active_sessions", [])
-    now = ts_now()
-
+    
+    from datetime import datetime
+    now_dt = datetime.fromisoformat(str(ts_now()).replace("Z", "+00:00"))
+    
+    valid_sessions = []
     updated = False
+    
     for s in active_sessions:
-        if s.get("session_id") == session_id:
-            s["last_active"] = now
-            updated = True
-            break
+        try:
+            # 1. Update heartbeat for current session
+            if s.get("session_id") == session_id:
+                s["last_active"] = ts_now()
+                updated = True
+            
+            # 2. Keep if <= 15 days old
+            last_active_str = str(s.get("last_active", s.get("created_at", ""))).replace("Z", "+00:00")
+            if last_active_str:
+                last_active_dt = datetime.fromisoformat(last_active_str)
+                if (now_dt - last_active_dt).days <= 15:
+                    valid_sessions.append(s)
+                else:
+                    updated = True # Cleaned up an old session, so we need to update DB
+            else:
+                valid_sessions.append(s)
+        except Exception:
+            valid_sessions.append(s)
 
     if updated:
-        user_ref.update({"active_sessions": active_sessions})
+        user_ref.update({"active_sessions": valid_sessions})
 
-    return {"message": "Heartbeat recorded", "last_active": now}
+    return {"message": "Heartbeat recorded and old sessions cleaned up", "last_active": ts_now()}

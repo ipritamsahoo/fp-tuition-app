@@ -25,11 +25,13 @@ function TeachersContent() {
     const [deleting, setDeleting] = useState(null);
     const [form, setForm] = useState({ name: "", username: "", password: "", batch_ids: [] });
     const [formLoading, setFormLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Edit state
     const [editingTeacher, setEditingTeacher] = useState(null);
     const [editForm, setEditForm] = useState({ name: "", username: "", batch_ids: [], password: "" });
     const [editLoading, setEditLoading] = useState(false);
+    const [showEditPassword, setShowEditPassword] = useState(false);
 
     // Devices modal state
     const [devicesTeacher, setDevicesTeacher] = useState(null);
@@ -108,6 +110,7 @@ function TeachersContent() {
             await api.post("/api/admin/teachers", form);
             setSuccess("Teacher added successfully!");
             setForm({ name: "", username: "", password: "", batch_ids: [] });
+            setShowPassword(false);
             setShowForm(false);
             fetchData();
         } catch (err) {
@@ -156,6 +159,7 @@ function TeachersContent() {
         setEditingTeacher(null);
         setError("");
         setEditForm({ name: "", username: "", batch_ids: [], password: "" });
+        setShowEditPassword(false);
     };
 
     const handleEditSubmit = async (e) => {
@@ -293,14 +297,27 @@ function TeachersContent() {
                                     color: 'var(--ad-text-primary)'
                                 }}
                             />
-                            <input placeholder="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6}
-                                className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                                style={{
-                                    backgroundColor: 'var(--ad-input-bg)',
-                                    borderColor: 'var(--ad-input-border)',
-                                    color: 'var(--ad-text-primary)'
-                                }}
-                            />
+                            <div className="relative">
+                                <input placeholder="Password" type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6}
+                                    className="w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 rounded-full hover:bg-black/5 cursor-pointer"
+                                    tabIndex="-1"
+                                    style={{ color: 'var(--ad-text-secondary)' }}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {showPassword ? "visibility_off" : "visibility"}
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                         <div className="mb-8">
                             <label className="block text-[13px] font-bold tracking-wide uppercase mb-3" style={{ color: 'var(--ad-text-secondary)' }}>Assign to Batches</label>
@@ -404,14 +421,27 @@ function TeachersContent() {
                                 </div>
                                 <div>
                                     <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>New Password (Optional)</label>
-                                    <input placeholder="Leave blank to keep current password" type="password" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} minLength={editForm.password ? 6 : undefined}
-                                        className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
-                                        style={{
-                                            backgroundColor: 'var(--ad-input-bg)',
-                                            borderColor: 'var(--ad-input-border)',
-                                            color: 'var(--ad-text-primary)'
-                                        }}
-                                    />
+                                    <div className="relative">
+                                        <input placeholder="Leave blank to keep current password" type={showEditPassword ? "text" : "password"} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} minLength={editForm.password ? 6 : undefined}
+                                            className="w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
+                                            style={{
+                                                backgroundColor: 'var(--ad-input-bg)',
+                                                borderColor: 'var(--ad-input-border)',
+                                                color: 'var(--ad-text-primary)'
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEditPassword(!showEditPassword)}
+                                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 rounded-full hover:bg-black/5 cursor-pointer"
+                                            tabIndex="-1"
+                                            style={{ color: 'var(--ad-text-secondary)' }}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">
+                                                {showEditPassword ? "visibility_off" : "visibility"}
+                                            </span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-[13px] font-bold tracking-wide uppercase mb-3" style={{ color: 'var(--ad-text-secondary)' }}>Assigned Batches</label>

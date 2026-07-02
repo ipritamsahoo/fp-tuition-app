@@ -140,7 +140,6 @@ export function AuthProvider({ children }) {
                             if (
                                 isSynced &&
                                 !userDoc.metadata.fromCache &&
-                                !isFirstSnapshot &&
                                 !withinGracePeriod &&
                                 currentSessionId &&
                                 !activeSessions.some(s => s.session_id === currentSessionId)

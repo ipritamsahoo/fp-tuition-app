@@ -47,9 +47,9 @@ function DistributionContent() {
     const [year, setYear] = useState(defaultYear);
     const [batchFilter, setBatchFilter] = useState("");
 
-    const cacheKeyBatches = "admin_distribution_batches";
+    const cacheKeyBatches = "admin_batches";
     const cachedBatches = getCache(cacheKeyBatches);
-    const [batches, setBatches] = useState([]);
+    const [batches, setBatches] = useState(cachedBatches || []);
     const [batchesLoading, setBatchesLoading] = useState(!cachedBatches);
 
     const [data, setData] = useState(null);
@@ -743,7 +743,7 @@ function DistributionContent() {
                     <div
                         className="relative w-full max-w-sm rounded-3xl p-6 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-[modalIn_0.3s_ease-out] z-10"
                         style={{
-                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.01)',
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
                             border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
                             backdropFilter: 'blur(80px) saturate(2.5)',
                             WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
@@ -751,8 +751,13 @@ function DistributionContent() {
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Warning icon */}
-                        <div className="w-14 h-14 rounded-2xl bg-[#ff9dac]/10 border border-[#ff9dac]/20 flex items-center justify-center mx-auto mb-4">
-                            <span className="material-symbols-outlined text-[28px] text-[#ff9dac]">warning</span>
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 border"
+                             style={{
+                                 backgroundColor: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 110, 132, 0.15)',
+                                 borderColor: isLight ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 110, 132, 0.2)'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-[28px]" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>warning</span>
                         </div>
                         <h3 className="text-lg font-bold text-center mb-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>Permanent Action</h3>
                         <p className="text-sm text-center leading-relaxed mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
@@ -761,30 +766,58 @@ function DistributionContent() {
                         <p className="text-sm text-center leading-relaxed mb-2" style={{ color: 'var(--ad-text-secondary)' }}>
                             This will freeze <span className="font-semibold" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>{confirmModal.paymentsCount} student payment(s)</span> and teacher shares permanently.
                         </p>
-                        <div className="flex items-center gap-2 justify-center mb-5 mt-4">
-                            <span className="material-symbols-outlined text-[14px] text-[#ff9dac]/70">info</span>
-                            <p className="text-[#ff9dac]/70 text-xs font-semibold tracking-wide">This action CANNOT be undone.</p>
+                        {/* Same-day rule info note */}
+                        <div className="flex items-start gap-2.5 rounded-2xl px-4 py-3 mb-4 mt-3 border"
+                             style={{
+                                 backgroundColor: isLight ? 'rgba(59, 130, 246, 0.06)' : 'rgba(99, 179, 237, 0.08)',
+                                 borderColor: isLight ? 'rgba(59, 130, 246, 0.2)' : 'rgba(99, 179, 237, 0.2)'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0"
+                                  style={{ color: isLight ? '#3b82f6' : '#63b3ed' }}>
+                                info
+                            </span>
+                            <p className="text-xs leading-relaxed text-left"
+                               style={{ color: isLight ? '#2563eb' : '#93c5fd' }}>
+                                Payments collected <span className="font-bold">on the same day</span> as the settlement date will <span className="font-bold">not be included</span> in this settlement. Only yesterday's and earlier payments are eligible.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 justify-center mb-5">
+                            <span className="material-symbols-outlined text-[14px]" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>info</span>
+                            <p className="text-xs font-semibold tracking-wide" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>This action CANNOT be undone.</p>
                         </div>
                         {/* Buttons */}
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setConfirmModal(null)}
-                                className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border text-sm font-bold transition-all cursor-pointer active:scale-95"
-                                style={{ borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                                className="flex-1 px-4 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer active:scale-95"
+                                style={{ 
+                                    backgroundColor: isLight ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.02)',
+                                    borderColor: 'var(--ad-divider)', 
+                                    color: 'var(--ad-text-secondary)' 
+                                }}
                             >
                                 Cancel
                             </button>
-                            <button
-                                onClick={confirmSettle}
-                                className="flex-1 px-4 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
-                                style={{ 
-                                    backgroundColor: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 157, 172, 0.1)',
-                                    borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 157, 172, 0.3)',
-                                    color: isLight ? '#ef4444' : '#ff9dac'
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-[16px]">lock</span> Settle
-                            </button>
+                            {(() => {
+                                const todayStr = new Date().toISOString().slice(0, 10);
+                                const isBlocked = confirmModal.date >= todayStr;
+                                return (
+                                    <button
+                                        onClick={isBlocked ? undefined : confirmSettle}
+                                        disabled={isBlocked}
+                                        title={isBlocked ? "Cannot settle today's payments. Wait until tomorrow." : undefined}
+                                        className={`flex-1 px-4 py-3 rounded-2xl border text-sm font-bold transition-all flex items-center justify-center gap-2 ${isBlocked ? 'cursor-not-allowed opacity-40' : 'cursor-pointer active:scale-95'}`}
+                                        style={{ 
+                                            backgroundColor: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 157, 172, 0.1)',
+                                            borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 157, 172, 0.3)',
+                                            color: isLight ? '#ef4444' : '#ff9dac'
+                                        }}
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">lock</span> Settle
+                                    </button>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>,

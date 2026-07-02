@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 import { api, isSystemicError } from "@/lib/api";
-import { getCache, setCache } from "@/lib/memoryCache";
+import { getCache, setCache, clearCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
 import { useAdminTheme } from "@/context/AdminThemeContext";
 
@@ -73,6 +73,15 @@ function BatchesContent() {
         };
     }, [showForm, deleteModalBatch]);
 
+    const invalidateBatchesCache = () => {
+        clearCache("admin_batches");
+        clearCache("admin_all_batches");
+        clearCache("admin_distribution_batches");
+        clearCache("admin_fee_override_batches");
+        clearCache("admin_approval_batches");
+        clearCache("teacher_all_batches");
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setFormLoading(true);
@@ -90,6 +99,7 @@ function BatchesContent() {
                 await api.post("/api/admin/batches", payload);
                 setSuccess("Batch created!");
             }
+            invalidateBatchesCache();
             setForm({ batch_name: "", teacher_ids: [], batch_fee: "" });
             setShowForm(false);
             setEditId(null);
@@ -121,6 +131,7 @@ function BatchesContent() {
         setDeleting(id);
         try {
             await api.delete(`/api/admin/batches/${id}`);
+            invalidateBatchesCache();
             setSuccess("Batch deleted.");
             fetchData();
         } catch (err) {
