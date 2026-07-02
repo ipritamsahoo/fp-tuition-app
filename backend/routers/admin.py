@@ -1206,6 +1206,7 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
         # Track for notifications using already fetched data
         notified_students.append({
             "uid": student_id,
+            "name": student.get("name", "Student"),
             "tokens": student.get("fcm_tokens", [])
         })
 
@@ -1225,10 +1226,12 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
         
         from notifications import notify_user
         for ns in notified_students:
+            student_name = ns["name"]
             notify_user(
                 ns["uid"],
-                f"Your fee for {month_name} {req.year} has been generated.",
+                f"Dear {student_name}, your tuition fee for {month_name} {req.year} has been issued. Please review and pay your fees.",
                 "bill_generated",
+                title="Fees Payment Alert",
                 tokens=ns["tokens"]
             )
 
@@ -1701,6 +1704,17 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
     }
     db.collection("distribution_snapshots").add(snapshot_data)
 
+    # Resolve batch name for notification
+    batch_name = "All Batches"
+    if req.batch_id:
+        if req.batch_id in cache_batches:
+            batch_name = cache_batches[req.batch_id].get("batch_name", "Unknown")
+        else:
+            b_doc = db.collection("batches").document(req.batch_id).get()
+            b_data = b_doc.to_dict() if b_doc.exists else {}
+            cache_batches[req.batch_id] = b_data
+            batch_name = b_data.get("batch_name", "Unknown")
+
     # Notify each teacher with their personalized earnings
     # Convert date from YYYY-MM-DD to DD.MM.YYYY
     parts = req.date.split("-")
@@ -1713,8 +1727,8 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
             from notifications import _send_fcm
             _send_fcm(
                 tokens, 
-                "FP Finance", 
-                f"The distribution for {formatted_date} has been successfully settled.", 
+                "Distribution Settlement", 
+                f"The settlement for batch {batch_name} on {formatted_date} has been successfully completed.", 
                 "distribution_settled",
                 target_uid=tid
             )

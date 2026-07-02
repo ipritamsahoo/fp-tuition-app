@@ -236,7 +236,8 @@ def teacher_offline_request(
         # Notify student + admins
         student_tokens = student.get("fcm_tokens", [])
         notify_user(req.student_id, "Your payment is currently pending verification.", "payment_pending", tokens=student_tokens)
-        notify_admins(f"New payment request for {student_name} (Offline) by {teacher_name}.", "new_approval")
+        month_str = f"{MONTH_FULL[req.month - 1]} {req.year}"
+        notify_admins(f"New payment request for {student_name} ({month_str}) (Offline) by {teacher_name}.", "new_approval", title="Payment Request")
         return {"message": "Offline request submitted", "payment_id": existing_list[0].id}
     else:
         # Create new payment record
@@ -271,7 +272,8 @@ def teacher_offline_request(
         _, doc_ref = db.collection("payments").add(payment_data)
         student_tokens = student.get("fcm_tokens", [])
         notify_user(req.student_id, "Your payment is currently pending verification.", "payment_pending", tokens=student_tokens)
-        notify_admins(f"New payment request for {student_name} (Offline) by {teacher_name}.", "new_approval")
+        month_str = f"{MONTH_FULL[req.month - 1]} {req.year}"
+        notify_admins(f"New payment request for {student_name} ({month_str}) (Offline) by {teacher_name}.", "new_approval", title="Payment Request")
         return {"message": "Offline request submitted", "payment_id": doc_ref.id}
 
 
@@ -379,7 +381,8 @@ def teacher_offline_request_batch(
     
     notify_admins(
         f"New payment request for {student_name} ({months_str}) (Offline) by {teacher_name}.",
-        "new_approval"
+        "new_approval",
+        title="Payment Request"
     )
 
     return {"message": "Batch offline requests submitted successfully"}

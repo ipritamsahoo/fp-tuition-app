@@ -69,9 +69,80 @@ async def health_check(x_cron_secret: str = Header(None, alias="X-Cron-Secret"))
         raise HTTPException(status_code=403, detail="Invalid cron secret")
     return {"status": "ok", "message": "Server is active"}
 
-# ──────────────────────────────────────────────
-# STARTUP EVENT
-# ──────────────────────────────────────────────
+def _run_due_reminders() -> int:
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    from database import db
+    from notifications import notify_user
+    
+    # Query all unpaid or rejected payments (projecting only student_id to save bandwidth)
+    unpaid_payments = db.collection("payments") \
+        .where(filter=FieldFilter("status", "in", ["Unpaid", "Rejected"])) \
+        .select(["student_id"]) \
+        .stream()
+        
+    student_dues = {}
+    for doc in unpaid_payments:
+        p = doc.to_dict()
+        sid = p.get("student_id")
+        if sid:
+            student_dues.setdefault(sid, []).append(p)
+            
+    if not student_dues:
+        return 0
+        
+    # Fetch details for all students who have dues
+    uids = list(student_dues.keys())
+    user_refs = [db.collection("users").document(uid) for uid in uids]
+    
+    users_details = {}
+    for i in range(0, len(user_refs), 100):
+        docs = db.get_all(user_refs[i:i+100])
+        for doc in docs:
+            if doc.exists:
+                d = doc.to_dict()
+                users_details[doc.id] = {
+                    "name": d.get("name", "Student"),
+                    "tokens": d.get("fcm_tokens") or []
+                }
+                
+    notified_count = 0
+    for uid, dues in student_dues.items():
+        user_info = users_details.get(uid)
+        if not user_info:
+            continue
+            
+        tokens = user_info["tokens"]
+        if not tokens:
+            continue
+            
+        student_name = user_info["name"]
+        message = f"Dear {student_name}, this is a gentle reminder that your tuition fee is currently pending. Kindly review the dues and complete your payment. Thank you."
+        
+        notify_user(
+            uid,
+            message,
+            "bill_reminder",
+            title="Tuition Fee Reminder",
+            tokens=tokens
+        )
+        notified_count += 1
+        
+    return notified_count
+
+@app.post("/cron/due-reminders")
+@app.get("/cron/due-reminders")
+async def daily_due_reminders(
+    x_cron_secret: str = Header(None, alias="X-Cron-Secret")
+):
+    if x_cron_secret != CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+        
+    notified_count = _run_due_reminders()
+    return {
+        "status": "success",
+        "message": f"Sent due reminder notifications to {notified_count} students."
+    }
+
 
 # ──────────────────────────────────────────────
 # RUN

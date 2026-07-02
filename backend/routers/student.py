@@ -17,9 +17,8 @@ from notifications import notify_user, notify_admins
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 router = APIRouter(prefix="/api/student", tags=["Student"])
-# ──────────────────────────────────────────────
-# POST /api/student/feedback
-# ──────────────────────────────────────────────
+MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
 class FeedbackPayload(BaseModel):
     rating: int
     features: List[str]
@@ -193,13 +192,13 @@ def student_batch_upload_screenshot(
         if pdata["student_id"] != user["uid"]:
             raise HTTPException(status_code=403, detail="Not your payment record")
         if pdata["status"] == "Paid":
-            raise HTTPException(status_code=400, detail=f"Payment for {MONTHS[pdata.get('month', 1) - 1]} {pdata.get('year')} is already verified")
+            raise HTTPException(status_code=400, detail=f"Payment for {MONTHS_FULL[pdata.get('month', 1) - 1]} {pdata.get('year')} is already verified")
         payment_docs.append((pref, pdata))
         
         # Build month/year label for notification
         month_num = pdata.get("month", 1)
         year_num = pdata.get("year", "")
-        months_labels.append(f"{MONTHS[month_num - 1]} {year_num}")
+        months_labels.append(f"{MONTHS_FULL[month_num - 1]} {year_num}")
 
     # Upload to Cloudinary once
     contents = file.file.read()
@@ -234,7 +233,7 @@ def student_batch_upload_screenshot(
     notify_user(user["uid"], "Your payments are currently pending verification.", "payment_pending")
     
     months_str = ", ".join(months_labels)
-    notify_admins(f"New payment request from {student_name} (Online) for {months_str}.", "new_approval")
+    notify_admins(f"New payment request from {student_name} (Online) for {months_str}.", "new_approval", title="Payment Request")
 
     return {"message": "Screenshot uploaded for batch", "screenshot_url": screenshot_url, "payment_ids": payment_ids}
 
@@ -291,7 +290,12 @@ def student_upload_screenshot(
     # Notify student + admins
     student_name = user.get("name", "Student")
     notify_user(user["uid"], "Your payment is currently pending verification.", "payment_pending")
-    notify_admins(f"New payment request from {student_name} (Online).", "new_approval")
+    
+    # Resolve month/year label for notification
+    month_num = payment.get("month", 1)
+    year_num = payment.get("year", "")
+    month_str = f"{MONTHS_FULL[month_num - 1]} {year_num}"
+    notify_admins(f"New payment request from {student_name} (Online) for {month_str}.", "new_approval", title="Payment Request")
 
     return {"message": "Screenshot uploaded", "screenshot_url": screenshot_url}
 

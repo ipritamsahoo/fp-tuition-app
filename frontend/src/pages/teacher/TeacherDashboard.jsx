@@ -238,19 +238,66 @@ function TeacherDashboardContent() {
 
     const handlePreOfflineClick = async (payment) => {
         setError("");
+        setOfflineLoading(payment.id); // Instantly show spinner on button to indicate click was registered
+        
         try {
             const data = await api.get(`/api/teacher/student-dues/${payment.student_id}`);
             if (data.length > 1) {
+                // Clear loading state and show warning modal without card status flashing
+                setOfflineLoading(null);
                 setWarningConfirmText("");
                 // Pre-select only the due matching the currently viewed month/year
                 const matchingDue = data.find(d => d.month === filterMonth && d.year === filterYear);
                 setSelectedDueIds(matchingDue ? [matchingDue.id] : [data[0].id]);
                 setWarningModalData({ payment, dues: data });
             } else {
-                handleBatchOfflineRequests(payment.student_id, [payment]);
+                // If there's only 1 due, we can perform the optimistic UI card status change now
+                const snapshotPayments = [...paymentsRef.current];
+                const snapshotCounts = { ...counts };
+                
+                // Optimistically set the payment status in local state
+                const optimisticallyUpdated = snapshotPayments.map(p => {
+                    if (p.id === payment.id) {
+                        return { ...p, status: "Pending_Verification", mode: "offline" };
+                    }
+                    return p;
+                });
+                setPayments(optimisticallyUpdated);
+                
+                // Optimistically update counts
+                if (payment.status === "Unpaid") {
+                    setCounts(c => ({
+                        ...c,
+                        unpaid_count: Math.max(0, (c.unpaid_count || 0) - 1)
+                    }));
+                }
+                
+                try {
+                    await api.post("/api/teacher/offline-request/batch", {
+                        student_id: payment.student_id,
+                        batch_name: payment.batch_name || null,
+                        items: [{
+                            month: payment.month,
+                            year: payment.year,
+                            amount: payment.amount || null,
+                        }]
+                    });
+                } catch (apiErr) {
+                    // Revert to original state on submit failure
+                    setPayments(snapshotPayments);
+                    setCounts(snapshotCounts);
+                    if (!isSystemicError(apiErr.message)) {
+                        setError(apiErr.message || "Failed to submit offline request.");
+                    }
+                } finally {
+                    setOfflineLoading(null);
+                }
             }
         } catch (err) {
-            setError(err.message || "Verification check failed.");
+            setOfflineLoading(null);
+            if (!isSystemicError(err.message)) {
+                setError(err.message || "Verification check failed.");
+            }
         }
     };
 
@@ -261,23 +308,42 @@ function TeacherDashboardContent() {
         setOfflineLoading(firstPaymentId);
         setError("");
         
+        // Save snapshot for potential rollback on failure
+        const snapshotPayments = [...paymentsRef.current];
+        const snapshotCounts = { ...counts };
+        
+        // Optimistic UI updates (used for multiple dues confirm modal)
+        // 1. Update statuses of the selected payments to 'Pending_Verification' in local state
+        const optimisticallyUpdatedPayments = snapshotPayments.map(p => {
+            if (paymentIds.includes(p.id)) {
+                return { ...p, status: "Pending_Verification", mode: "offline" };
+            }
+            return p;
+        });
+        setPayments(optimisticallyUpdatedPayments);
+        
+        // 2. Decrement the unpaid count in local state based on count of Unpaid items in selection
+        const countToSubtract = paymentsArray.filter(p => p.status === "Unpaid").length;
+        setCounts(c => ({
+            ...c,
+            unpaid_count: Math.max(0, (c.unpaid_count || 0) - countToSubtract)
+        }));
+        
         try {
-            await api.post("/api/payments/offline-batch", {
+            await api.post("/api/teacher/offline-request/batch", {
                 student_id: studentId,
-                payment_ids: paymentIds
+                batch_name: paymentsArray[0]?.batch_name || null,
+                items: paymentsArray.map(p => ({
+                    month: p.month,
+                    year: p.year,
+                    amount: p.amount || null,
+                }))
             });
-            
-            const currentPayments = paymentsRef.current;
-            const updated = currentPayments.filter(p => !paymentIds.includes(p.id));
-            setPayments(updated);
-            
-            const countToSubtract = paymentsArray.filter(p => p.status === "Unpaid").length;
-            setCounts(c => ({
-                ...c,
-                unpaid_count: Math.max(0, (c.unpaid_count || 0) - countToSubtract),
-                paid_count: (c.paid_count || 0) + paymentsArray.length
-            }));
         } catch (err) {
+            // Rollback state if the request fails
+            setPayments(snapshotPayments);
+            setCounts(snapshotCounts);
+            
             if (!isSystemicError(err.message)) {
                 const msg = err.message || "Failed to submit offline request.";
                 setError(msg);
