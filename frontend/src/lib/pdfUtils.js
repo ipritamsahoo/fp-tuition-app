@@ -58,6 +58,7 @@ export async function generateReceiptPDF(payment, user) {
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text(`Student Name: ${user.name}`, margin, startY + 10);
+    doc.text(`Batch: ${payment.batch_name || "N/A"}`, margin, startY + 18);
 
     // ─── Receipt Details ───
     const rightColX = pageWidth / 2 + 10;
@@ -99,7 +100,7 @@ export async function generateReceiptPDF(payment, user) {
 
     autoTable(doc, {
         startY: tableStartY,
-        head: [["Description", "Month/Year", "Amount (INR)"]],
+        head: [["Description", "Billing Cycle", "Amount (INR)"]],
         body: [
             ["Tuition Fee", `${monthName} ${payment.year}`, `Rs. ${payment.amount}`],
         ],

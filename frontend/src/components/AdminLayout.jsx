@@ -16,6 +16,128 @@ const easeOutBack = (x) => {
     return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 };
 
+// ── Custom Scroll Bounce Hook (only bounces content, not fixed nav) ──
+function useScrollBounce(isDisabled) {
+    const elementRef = useRef(null);
+    const startYRef = useRef(0);
+    const startXRef = useRef(0);
+    const isAtTopRef = useRef(false);
+    const isAtBottomRef = useRef(false);
+    const isDraggingRef = useRef(false);
+    const accumulatedBounceRef = useRef(0);
+    const decayRafRef = useRef(null);
+
+    useEffect(() => {
+        if (isDisabled) return;
+
+        const el = elementRef.current;
+        if (!el) return;
+
+        const getScrollMetrics = () => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            return { scrollTop, scrollHeight, clientHeight };
+        };
+
+        const handleTouchStart = (e) => {
+            if (e.touches.length !== 1) return;
+            if (!el.contains(e.target)) return;
+
+            if (decayRafRef.current) {
+                cancelAnimationFrame(decayRafRef.current);
+                decayRafRef.current = null;
+            }
+
+            const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
+            startYRef.current = e.touches[0].clientY;
+            startXRef.current = e.touches[0].clientX;
+            isAtTopRef.current = scrollTop <= 1;
+            isAtBottomRef.current = (scrollTop + clientHeight) >= (scrollHeight - 2);
+            isDraggingRef.current = true;
+            accumulatedBounceRef.current = 0;
+            el.style.transition = "none";
+        };
+
+        const handleTouchMove = (e) => {
+            if (!isDraggingRef.current) return;
+            if (!el.contains(e.target)) return;
+
+            const dy = e.touches[0].clientY - startYRef.current;
+            const dx = e.touches[0].clientX - startXRef.current;
+
+            if (Math.abs(dy) > Math.abs(dx)) {
+                if (isAtTopRef.current && dy > 0) {
+                    const bounce = Math.pow(dy, 0.7) * 1.5;
+                    el.style.transform = `translate3d(0, ${bounce}px, 0)`;
+                    accumulatedBounceRef.current = bounce;
+                    if (e.cancelable) e.preventDefault();
+                } else if (isAtBottomRef.current && dy < 0) {
+                    const bounce = -Math.pow(-dy, 0.7) * 1.5;
+                    el.style.transform = `translate3d(0, ${bounce}px, 0)`;
+                    accumulatedBounceRef.current = bounce;
+                    if (e.cancelable) e.preventDefault();
+                }
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (!isDraggingRef.current) return;
+            isDraggingRef.current = false;
+            if (accumulatedBounceRef.current !== 0) {
+                el.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
+                el.style.transform = "translate3d(0, 0, 0)";
+                accumulatedBounceRef.current = 0;
+            }
+        };
+
+        const handleWheel = (e) => {
+            if (!el.contains(e.target)) return;
+            const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
+            const dy = e.deltaY;
+
+            if ((scrollTop <= 1 && dy < 0) || ((scrollTop + clientHeight) >= (scrollHeight - 2) && dy > 0)) {
+                if (decayRafRef.current) cancelAnimationFrame(decayRafRef.current);
+
+                el.style.transition = "none";
+                let targetBounce = accumulatedBounceRef.current - dy * 0.15;
+                targetBounce = dy < 0 ? Math.min(80, targetBounce) : Math.max(-80, targetBounce);
+                accumulatedBounceRef.current = targetBounce;
+                el.style.transform = `translate3d(0, ${accumulatedBounceRef.current}px, 0)`;
+
+                const decay = () => {
+                    accumulatedBounceRef.current *= 0.82;
+                    if (Math.abs(accumulatedBounceRef.current) < 0.5) {
+                        accumulatedBounceRef.current = 0;
+                        el.style.transform = "";
+                    } else {
+                        el.style.transform = `translate3d(0, ${accumulatedBounceRef.current}px, 0)`;
+                        decayRafRef.current = requestAnimationFrame(decay);
+                    }
+                };
+                decayRafRef.current = requestAnimationFrame(decay);
+            }
+        };
+
+        window.addEventListener("touchstart", handleTouchStart, { passive: false });
+        window.addEventListener("touchmove",  handleTouchMove,  { passive: false });
+        window.addEventListener("touchend",   handleTouchEnd,   { passive: false });
+        window.addEventListener("wheel",      handleWheel,      { passive: false });
+
+        return () => {
+            window.removeEventListener("touchstart", handleTouchStart);
+            window.removeEventListener("touchmove",  handleTouchMove);
+            window.removeEventListener("touchend",   handleTouchEnd);
+            window.removeEventListener("wheel",      handleWheel);
+            if (decayRafRef.current) cancelAnimationFrame(decayRafRef.current);
+            if (el) { el.style.transform = ""; el.style.transition = ""; }
+        };
+    }, [isDisabled]);
+
+    return elementRef;
+}
+
+
 const adminBottomNav = [
     { label: "Home", href: "/admin", icon: "home" },
     { label: "Approvals", href: "/admin/approvals", icon: "fact_check" },
@@ -45,6 +167,8 @@ export function AdminLayoutInner({ children }) {
     const [desktopProfileOpen, setDesktopProfileOpen] = useState(false);
     const [picUploadOpen, setPicUploadOpen] = useState(false);
     const profileDropdownRef = useRef(null);
+
+    const bounceRef = useScrollBounce(false);
 
     // Draggable FAB alignment states
     const [fabAlign, setFabAlign] = useState("right");
@@ -280,8 +404,8 @@ export function AdminLayoutInner({ children }) {
                 <div className="fixed top-20 right-4 z-[999] pointer-events-auto p-4 rounded-xl backdrop-blur-xl shadow-lg border text-sm flex items-center gap-3 w-80 animate-fade-in"
                     style={{
                         backgroundColor: isLight 
-                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.08)" : "rgba(255, 255, 255, 0.45)")
-                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(30, 41, 59, 0.85)"),
+                            ? (toast.type === "success" ? "rgba(13, 148, 136, 0.08)" : "rgba(255, 255, 255, 0.95)")
+                            : (toast.type === "success" ? "rgba(74, 248, 227, 0.15)" : "rgba(30, 41, 59, 0.95)"),
                         borderColor: isLight
                             ? (toast.type === "success" ? "rgba(13, 148, 136, 0.2)" : "rgba(0, 0, 0, 0.08)")
                             : (toast.type === "success" ? "rgba(74, 248, 227, 0.3)" : "rgba(255, 255, 255, 0.1)"),
@@ -326,9 +450,16 @@ export function AdminLayoutInner({ children }) {
                         borderStyle: 'solid',
                     }}
                 >
-                    <div className="flex items-center gap-3" onClick={() => navigate("/admin")}>
+                    <div className="flex items-center gap-3 select-none">
                         <div className="w-10 h-10 rounded-full overflow-hidden border bg-[#0c0e17] flex items-center justify-center" style={{ borderColor: 'var(--ad-logo-border)', boxShadow: '0 4px 12px var(--ad-logo-shadow)' }}>
-                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
+                            <img 
+                                src={logoSrc} 
+                                alt="Logo" 
+                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                draggable="false"
+                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                            />
                         </div>
                         <h1 className="text-xl font-bold tracking-tighter" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>FP Finance</h1>
                     </div>
@@ -358,28 +489,34 @@ export function AdminLayoutInner({ children }) {
             {/* ── Mobile Header (Sub-Pages) ── */}
             {isSubPageMobile && (
                 <header 
-                    className="md:hidden fixed top-0 w-full backdrop-blur-3xl flex items-center px-4 h-16 z-50 border-b shadow-xl" 
+                    className="md:hidden fixed top-0 w-full z-50 border-b" 
                     style={{ 
                         transform: "translateZ(0)", 
                         isolation: "isolate",
-                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(12, 14, 23, 0.8)',
-                        borderColor: 'var(--ad-divider)'
+                        backgroundColor: isLight ? "rgba(255, 255, 255, 0.2)" : "rgba(15, 17, 23, 0.25)",
+                        borderColor: isLight ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.08)",
+                        backdropFilter: "blur(48px) saturate(2.0)",
+                        WebkitBackdropFilter: "blur(48px) saturate(2.0)",
                     }}
                 >
-                    <button 
-                        onClick={() => navigate("/admin")}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl active:scale-90 transition-all mr-3"
-                        style={{
-                            backgroundColor: 'var(--ad-icon-bg)',
-                            color: 'var(--ad-text-secondary)',
-                        }}
-                    >
-                        <span className="material-symbols-outlined">arrow_back_ios_new</span>
-                    </button>
-                    <div>
-                        <h1 className="text-lg font-bold tracking-tight leading-none" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                    <div className="flex items-center px-4 h-16 gap-4">
+                        <button 
+                            onClick={() => navigate("/admin")}
+                            className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all active:scale-90 cursor-pointer border"
+                            style={{
+                                backgroundColor: isLight ? "rgba(255, 255, 255, 0.4)" : "rgba(255, 255, 255, 0.05)",
+                                borderColor: isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.1)",
+                                color: 'var(--ad-text-primary)',
+                            }}
+                        >
+                            <span className="material-symbols-outlined">arrow_back</span>
+                        </button>
+                        <h1 
+                            className="font-extrabold text-xl tracking-tight" 
+                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}
+                        >
                             {getSubPageTitle() === "Reports" ? "Report Export" : 
-                             getSubPageTitle() === "Profile" ? "Admin Profile" : 
+                             getSubPageTitle() === "Profile" ? "Admin profile & Settings" : 
                              `Manage ${getSubPageTitle()}`}
                         </h1>
                     </div>
@@ -631,7 +768,7 @@ export function AdminLayoutInner({ children }) {
 
             {/* ── Main Content ── */}
             <main className={`relative z-10 pt-24 ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pb-8 px-6 md:px-12 md:ml-64 space-y-8 flex-1`}>
-                <div className="max-w-7xl mx-auto">
+                <div ref={bounceRef} className="max-w-7xl mx-auto" style={{ willChange: "transform" }}>
                     {children}
                 </div>
             </main>

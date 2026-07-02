@@ -37,7 +37,10 @@ export function BiometricProvider({ children, userId }) {
 
     // ── Visibility-based lock trigger ─────────────────────────────────────────
     useEffect(() => {
-        if (!settings.enabled) return;
+        if (!settings.enabled || !userId) {
+            setIsLocked(false);
+            return;
+        }
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "hidden") {
@@ -74,7 +77,7 @@ export function BiometricProvider({ children, userId }) {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             clearTimeout(lockTimerRef.current);
         };
-    }, [settings]);
+    }, [settings, userId]);
 
     // ── Public API ────────────────────────────────────────────────────────────
 

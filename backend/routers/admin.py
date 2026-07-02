@@ -779,13 +779,11 @@ def admin_add_student(req: StudentCreate, user=Depends(require_role("admin"))):
             "student_count": firestore.Increment(1)
         })
 
-    # Auto-generate payment records for months already generated in this batch
-    auto_created = _auto_generate_for_student(fb_user.uid, req.name, req.batch_id)
+    # NOTE: We do NOT auto-generate past billing records for newly added students.
+    # New students are only billed starting from the next billing cycle generated
+    # after they are enrolled. Past months are intentionally skipped.
 
-    msg = f"Student '{req.name}' added"
-    if auto_created > 0:
-        msg += f" — {auto_created} payment record(s) auto-generated for existing months."
-    return {"uid": fb_user.uid, "message": msg}
+    return {"uid": fb_user.uid, "message": f"Student '{req.name}' added successfully."}
 
 
 @router.put("/students/{uid}")
@@ -841,7 +839,6 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
             })
 
     # Update student_count on batch documents if batch changed
-    auto_created = 0
     new_batch_id = req.batch_id
     old_batch_id = student_data.get("batch_id")
     if new_batch_id is not None and new_batch_id != old_batch_id:
@@ -853,8 +850,9 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
         db.collection("batches").document(new_batch_id).update({
             "student_count": firestore.Increment(1)
         })
-        student_name = req.name or student_data.get("name", "")
-        auto_created = _auto_generate_for_student(uid, student_name, new_batch_id)
+        # NOTE: We do NOT auto-generate past billing records when a student is
+        # moved to a new batch. They will be billed from the next billing cycle
+        # generated after the transfer.
 
     # Update Firebase Auth (username/email, password, display_name)
     auth_updates = {}
@@ -873,10 +871,7 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Firebase Auth update failed: {e}")
 
-    msg = "Student updated successfully"
-    if auto_created > 0:
-        msg += f" — {auto_created} payment record(s) auto-generated for existing months."
-    return {"message": msg}
+    return {"message": "Student updated successfully"}
 
 
 @router.put("/students/{uid}/status")
@@ -2064,17 +2059,22 @@ def admin_report_export(
             self.report_type = report_type
 
         def footer(self):
-            self.set_y(-20)
+            self.set_y(-22)
             self.set_font("Helvetica", "I", 7.5)
             self.set_text_color(150, 150, 150)
             if self.report_type == "teacher":
                 msg = "This is a computer-generated report of collection and distribution."
             else:
                 msg = "This is a computer-generated report of student payments."
-            self.cell(0, 5, msg, align="C", new_x="LMARGIN", new_y="NEXT")
-            self.cell(0, 5, "\xa9 2026 FP Finance. All rights reserved.", align="C")
+            self.cell(0, 4.5, msg, align="C", new_x="LMARGIN", new_y="NEXT")
+            self.cell(0, 4.5, "\xa9 2026 FP Finance. All rights reserved.", align="C")
+            
+            # Page number at bottom right corner
+            self.set_y(-13)
+            self.cell(0, 4.5, f"Page {self.page_no()} of {{nb}}", align="R")
 
     pdf = PDFReport(report_type=report_type, orientation="P")
+    pdf.alias_nb_pages()
     pdf.set_auto_page_break(auto=True, margin=20)
 
     PAGE_W = 210

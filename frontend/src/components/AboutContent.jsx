@@ -14,9 +14,9 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
     return (
         <div className="flex flex-col items-center w-full gap-8 md:gap-4 text-center animate-fade-in">
 
-            {/* Logo */}
+             {/* Logo */}
             <div
-                className="w-24 h-24 md:w-16 md:h-16 rounded-full flex items-center justify-center overflow-hidden animate-slide-up relative"
+                className="w-24 h-24 md:w-16 md:h-16 rounded-full flex items-center justify-center overflow-hidden animate-slide-up relative select-none"
                 style={{
                     backgroundColor: isLight ? "rgba(255, 255, 255, 0.4)" : "rgba(255, 255, 255, 0.02)",
                     border: `2px solid ${isLight ? "rgba(255, 255, 255, 0.7)" : "rgba(255, 255, 255, 0.12)"}`,
@@ -26,11 +26,14 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                     animation: "logo-pulse 4s ease-in-out infinite, slide-up 0.8s ease-out forwards",
                     animationDelay: "100ms"
                 }}
+                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
             >
                 <img
                     src={logoSrc}
                     alt="FP Finance Logo"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover pointer-events-none select-none"
+                    draggable="false"
                 />
 
                 {/* Visual Glass Overlay */}
@@ -107,7 +110,10 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                         <img
                             src="/suman.png"
                             alt="Suman Maji"
-                            className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10"
+                            className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10 pointer-events-none select-none"
+                            draggable="false"
+                            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                         />
                         <div>
                             <p className="font-extrabold text-lg md:text-sm" style={{ color: `var(${prefix}text-primary)` }}>Suman Maji</p>
@@ -118,7 +124,10 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                         <img
                             src="/pritam.png"
                             alt="Pritam Sahoo"
-                            className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10"
+                            className="w-11 h-11 md:w-8 md:h-8 rounded-full object-cover shadow-lg shrink-0 border border-white/10 pointer-events-none select-none"
+                            draggable="false"
+                            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                         />
                         <div>
                             <p className="font-extrabold text-lg md:text-sm" style={{ color: `var(${prefix}text-primary)` }}>Pritam Sahoo</p>

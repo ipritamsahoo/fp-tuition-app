@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-const AdminThemeContext = createContext({ theme: "dark", toggleTheme: () => {} });
+const AdminThemeContext = createContext({ theme: "light", toggleTheme: () => {} });
 
 export function AdminThemeProvider({ children }) {
     const [theme, setTheme] = useState(() => {
         try {
-            return localStorage.getItem("fp_admin_theme_v2") || "dark";
+            return localStorage.getItem("fp_admin_theme_v2") || "light";
         } catch {
-            return "dark";
+            return "light";
         }
     });
 

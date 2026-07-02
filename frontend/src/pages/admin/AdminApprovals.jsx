@@ -76,6 +76,20 @@ function ApprovalContent() {
     // Initial fetch — runs exactly ONCE on mount
     useEffect(() => { fetchPending(); }, [fetchPending]);
 
+    useEffect(() => {
+        if (success) {
+            const timer = setTimeout(() => setSuccess(""), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [success]);
+
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(""), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
     // Disable body scroll when payment screenshot preview is open
     useEffect(() => {
         if (previewImg) {
@@ -308,7 +322,7 @@ function ApprovalContent() {
                     </h1>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <div className="relative z-10 w-full sm:w-auto min-w-[150px]">
+                    <div className="relative z-10 w-full sm:w-auto sm:min-w-[260px] min-w-[150px]">
                         <ModernSelect
                             value={filterBatch}
                             onChange={(e) => setFilterBatch(e.target.value)}
@@ -343,31 +357,37 @@ function ApprovalContent() {
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-4 p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
-                     style={{
-                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
-                         borderColor: 'rgba(255, 110, 132, 0.3)',
-                         color: isLight ? '#ef4444' : '#ff9dac'
-                     }}
-                >
-                    <span className="material-symbols-outlined text-[#ff6e84]">error</span>
-                    <span className="flex-1 font-medium">{error}</span>
-                    <button onClick={() => setError("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
-                </div>
-            )}
-            {success && (
-                <div className="mb-4 p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
-                     style={{
-                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
-                         borderColor: 'rgba(74, 248, 227, 0.3)',
-                         color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
-                     }}
-                >
-                    <span className="material-symbols-outlined text-[#4af8e3]">check_circle</span>
-                    <span className="flex-1 font-medium">{success}</span>
-                    <button onClick={() => setSuccess("")} className="ml-2 hover:text-white transition-colors cursor-pointer">✕</button>
-                </div>
+            {/* Messages */}
+            {createPortal(
+                <div className="fixed z-50 flex flex-col gap-2 pointer-events-none items-center w-full max-w-md left-1/2 -translate-x-1/2 top-20 px-4">
+                    {error && (
+                        <div className="toast-enter pointer-events-auto p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3 w-full md:w-80"
+                             style={{
+                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)',
+                                 borderColor: 'rgba(255, 110, 132, 0.3)',
+                                 color: isLight ? '#ef4444' : '#ff9dac'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-[#ff6e84]">error</span>
+                            <span className="flex-1 font-medium">{error}</span>
+                            <button onClick={() => setError("")} className="ml-2 hover:text-[#ef4444] dark:hover:text-[#ff9dac] transition-colors cursor-pointer">✕</button>
+                        </div>
+                    )}
+                    {success && (
+                        <div className="toast-enter pointer-events-auto p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3 w-full md:w-80"
+                             style={{
+                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)',
+                                 borderColor: 'rgba(74, 248, 227, 0.3)',
+                                 color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
+                             }}
+                        >
+                            <span className="material-symbols-outlined text-[#4af8e3]">check_circle</span>
+                            <span className="flex-1 font-medium">{success}</span>
+                            <button onClick={() => setSuccess("")} className="ml-2 hover:text-[#0d9488] dark:hover:text-[#4af8e3] transition-colors cursor-pointer">✕</button>
+                        </div>
+                    )}
+                </div>,
+                document.body
             )}
 
             {groupedPending.length === 0 ? (
@@ -395,9 +415,23 @@ function ApprovalContent() {
                             {/* Top: Name + Badges */}
                             <div className="flex items-center gap-4 mb-4 flex-wrap">
                                 {group.profile_pic_url ? (
-                                    <img src={safeOptimizedUrl(group.profile_pic_url)} alt="Avatar" className="w-[44px] h-[44px] min-w-[44px] rounded-2xl object-cover shrink-0 shadow-lg border border-white/10" loading="lazy" />
+                                    <img 
+                                        src={safeOptimizedUrl(group.profile_pic_url)} 
+                                        alt="Avatar" 
+                                        className="w-[44px] h-[44px] min-w-[44px] rounded-full object-cover shrink-0 shadow-lg border border-white/10 pointer-events-none select-none" 
+                                        loading="lazy" 
+                                        draggable="false"
+                                        onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                                    />
                                 ) : (
-                                    <StudentAvatarFallback name={group.student_name} size={44} />
+                                    <div 
+                                        onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                                        className="select-none pointer-events-none rounded-full shrink-0 overflow-hidden"
+                                    >
+                                        <StudentAvatarFallback name={group.student_name} size={44} />
+                                    </div>
                                 )}
                                 <h3 className="font-bold text-base sm:text-lg truncate flex-1 min-w-0" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                     {group.student_name || "Unknown Student"}
@@ -520,7 +554,7 @@ function ApprovalContent() {
                         >
                             <span className="material-symbols-outlined text-lg">close</span>
                         </button>
-                        <img src={previewImg} alt="Payment Screenshot" className="rounded-3xl max-h-[80vh] w-auto max-w-full object-contain border shadow-2xl shadow-black/80" style={{ borderColor: 'var(--ad-divider)' }} />
+                        <img src={previewImg} alt="Payment Screenshot" className="max-h-[80vh] w-auto max-w-full object-contain block shadow-2xl shadow-black/80" />
                     </div>
                 </div>,
                 document.body

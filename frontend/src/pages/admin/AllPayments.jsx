@@ -26,12 +26,12 @@ const MONTHS = [
 function PaymentsContent() {
     const { theme } = useAdminTheme();
     const isLight = theme === "light";
-    const cacheKeyBatches = "admin_all_batches";
+    const cacheKeyBatches = "admin_batches";
     const cachedBatches = getCache(cacheKeyBatches);
 
     const { month: prevMonth, year: prevYear } = getPreviousMonth();
 
-    const [batches,     setBatches]     = useState([]);
+    const [batches,     setBatches]     = useState(cachedBatches || []);
     const [filterBatch, setFilterBatch] = useState("");
     const [filterYear,  setFilterYear]  = useState(prevYear);
     const [filterMonth, setFilterMonth] = useState(prevMonth);
@@ -68,15 +68,28 @@ function PaymentsContent() {
         }
 
         const fetchPayments = async () => {
-            setLoading(true);
-            setHasLoaded(false);
-            setPayments([]);
+            const fetchCacheKey = `admin_payments_${filterBatch}_${filterYear}_${filterMonth}`;
+            const currentCache = getCache(fetchCacheKey);
+
+            if (currentCache) {
+                setPayments(prev => JSON.stringify(prev) !== JSON.stringify(currentCache) ? currentCache : prev);
+                setHasLoaded(true);
+                setLoading(false);
+            } else {
+                setPayments([]);
+                setHasLoaded(false);
+                setLoading(true);
+            }
+
             setError("");
             try {
                 const res = await api.get(
                     `/api/admin/payments?batch_id=${filterBatch}&year=${filterYear}&month=${filterMonth}`
                 );
-                setPayments(res);
+                if (JSON.stringify(currentCache) !== JSON.stringify(res)) {
+                    setCache(fetchCacheKey, res);
+                    setPayments(prev => JSON.stringify(prev) !== JSON.stringify(res) ? res : prev);
+                }
                 setHasLoaded(true);
             } catch (err) {
                 if (!isSystemicError(err.message)) {

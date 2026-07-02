@@ -408,7 +408,7 @@ function StudentLayoutInner({ children }) {
                         transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
-                    <div className="flex items-center gap-3" onClick={() => navigate("/student")}>
+                    <div className="flex items-center gap-3 select-none">
                         <div
                             className="w-10 h-10 rounded-full overflow-hidden shadow-lg flex items-center justify-center"
                             style={{
@@ -419,7 +419,14 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
+                            <img 
+                                src={logoSrc} 
+                                alt="Logo" 
+                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                draggable="false"
+                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                            />
                         </div>
                         <h1
                             className="text-xl font-bold tracking-tighter"
@@ -544,7 +551,14 @@ function StudentLayoutInner({ children }) {
                                 boxShadow: `0 4px 12px var(--st-logo-shadow)`,
                             }}
                         >
-                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
+                            <img 
+                                src={logoSrc} 
+                                alt="Logo" 
+                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                draggable="false"
+                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+                            />
                         </div>
                         <div>
                             <h1
