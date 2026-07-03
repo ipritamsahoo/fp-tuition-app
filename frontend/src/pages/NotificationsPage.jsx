@@ -62,13 +62,13 @@ export default function NotificationsPage() {
             }
         } else if (user?.role === "admin") {
             try {
-                const savedTheme = localStorage.getItem("fp_admin_theme_v2") || "dark";
+                const savedTheme = localStorage.getItem("fp_admin_theme_v2") || "light";
                 setTheme(savedTheme);
             } catch (e) {
-                setTheme("dark");
+                setTheme("light");
             }
         } else {
-            setTheme("dark");
+            setTheme("light");
         }
     }, [user?.role]);
 
@@ -197,9 +197,6 @@ export default function NotificationsPage() {
                                         </button>
                                     </div>
                                     <div className="flex items-center gap-3 mt-3">
-                                        <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-lg border ${cfg.accent} ${cfg.bg}`} style={{ borderColor: 'currentColor' }}>
-                                            {cfg.label}
-                                        </span>
                                         <span className="text-[10px] sm:text-xs font-bold" style={{ color: `var(${prefix}text-muted)` }}>
                                             {timeAgo(n.created_at)}
                                         </span>

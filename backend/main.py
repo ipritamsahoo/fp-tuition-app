@@ -37,6 +37,8 @@ app.add_middleware(
 
 
 
+
+
 # Cloudinary configuration
 cloudinary.config(
     cloud_name=CLOUDINARY_CLOUD_NAME,
@@ -116,7 +118,7 @@ def _run_due_reminders() -> int:
             continue
             
         student_name = user_info["name"]
-        message = f"Dear {student_name}, this is a gentle reminder that your tuition fee is currently pending. Kindly review the dues and complete your payment. Thank you."
+        message = f"Dear {student_name}, this is a friendly reminder regarding your pending tuition fees. We kindly request you to review and clear your outstanding dues at your earliest convenience. Thank you."
         
         notify_user(
             uid,
@@ -138,9 +140,19 @@ async def daily_due_reminders(
         raise HTTPException(status_code=403, detail="Invalid cron secret")
         
     notified_count = _run_due_reminders()
+    
+    # Also clean up expired notices (older than 7 days)
+    from routers.notices import cleanup_expired_notices
+    try:
+        deleted_count = cleanup_expired_notices()
+        print(f"[Cron] Cleaned up {deleted_count} expired notices.")
+    except Exception as e:
+        print(f"[Cron Error] Failed to clean up expired notices: {e}")
+        deleted_count = 0
+        
     return {
         "status": "success",
-        "message": f"Sent due reminder notifications to {notified_count} students."
+        "message": f"Sent due reminder notifications to {notified_count} students. Cleaned up {deleted_count} expired notices."
     }
 
 

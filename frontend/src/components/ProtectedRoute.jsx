@@ -19,9 +19,16 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     if (loading) {
         const activeTheme = (() => {
             if (typeof window !== "undefined") {
+                const path = window.location.pathname;
+                if (path.includes("/admin")) return localStorage.getItem("fp_admin_theme_v2") || "light";
+                if (path.includes("/teacher")) return localStorage.getItem("fp_teacher_theme_v2") || "light";
+                if (path.includes("/student")) return localStorage.getItem("fp_student_theme_v2") || "light";
+
                 const role = user?.role;
                 if (role === "admin") return localStorage.getItem("fp_admin_theme_v2") || "light";
                 if (role === "teacher") return localStorage.getItem("fp_teacher_theme_v2") || "light";
+                if (role === "student") return localStorage.getItem("fp_student_theme_v2") || "light";
+
                 return localStorage.getItem("fp_admin_theme_v2") || 
                        localStorage.getItem("fp_teacher_theme_v2") || 
                        localStorage.getItem("fp_student_theme_v2") || 
@@ -30,7 +37,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
             return "light";
         })();
         const isLight = activeTheme === "light";
-        const isAdminOrTeacher = user?.role === "admin" || user?.role === "teacher";
+        const path = typeof window !== "undefined" ? window.location.pathname : "";
+        const isAdminOrTeacher = user?.role === "admin" || user?.role === "teacher" || path.includes("/admin") || path.includes("/teacher");
 
         const spinnerBorderClass = isLight 
             ? (isAdminOrTeacher ? "border-[#0d9488]/20 border-t-[#0d9488]" : "border-indigo-500/20 border-t-indigo-600")

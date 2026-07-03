@@ -1,5 +1,6 @@
 import io
 import asyncio
+import threading
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -11,13 +12,12 @@ from config import (
     GOOGLE_DRIVE_FOLDER_ID
 )
 
-_drive_service_cache = None
+_drive_service_cache = threading.local()
 
 def get_drive_service():
-    """Initializes Google Drive API service using refresh token authentication."""
-    global _drive_service_cache
-    if _drive_service_cache is not None:
-        return _drive_service_cache
+    """Initializes Google Drive API service using refresh token authentication (thread-local)."""
+    if hasattr(_drive_service_cache, "service"):
+        return _drive_service_cache.service
 
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or not GOOGLE_REFRESH_TOKEN:
         raise ValueError("Google Drive credentials not set in environment variables.")
@@ -29,41 +29,49 @@ def get_drive_service():
         client_secret=GOOGLE_CLIENT_SECRET,
         token_uri="https://oauth2.googleapis.com/token"
     )
-    _drive_service_cache = build('drive', 'v3', credentials=creds)
-    return _drive_service_cache
+    _drive_service_cache.service = build('drive', 'v3', credentials=creds)
+    return _drive_service_cache.service
 
+
+_folder_creation_lock = threading.Lock()
 
 def _get_or_create_subfolder(service, parent_folder_id: str, folder_name: str) -> str:
-    """Gets an existing subfolder by name or creates a new one inside the parent folder."""
-    # Escape single quotes in folder name for query safety
-    escaped_name = folder_name.replace("'", "\\'")
-    query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{escaped_name}' and '{parent_folder_id}' in parents and trashed = false"
-    
-    response = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
-    files = response.get('files', [])
-    
-    if files:
-        return files[0]['id']
+    """Gets an existing subfolder by name or creates a new one inside the parent folder (thread-safe)."""
+    with _folder_creation_lock:
+        # Escape single quotes in folder name for query safety
+        escaped_name = folder_name.replace("'", "\\'")
+        query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{escaped_name}' and '{parent_folder_id}' in parents and trashed = false"
         
-    # Create the folder if it does not exist
-    folder_metadata = {
-        'name': folder_name,
-        'mimeType': 'application/vnd.google-apps.folder',
-        'parents': [parent_folder_id]
-    }
-    new_folder = service.files().create(body=folder_metadata, fields='id').execute()
-    new_folder_id = new_folder.get('id')
-    
-    # Share the subfolder publicly so files inside it are easily accessible
-    try:
-        service.permissions().create(
-            fileId=new_folder_id,
-            body={"role": "reader", "type": "anyone"},
+        response = service.files().list(
+            q=query,
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
-    except Exception as e:
-        print(f"Error sharing subfolder '{folder_name}': {e}")
+        files = response.get('files', [])
         
-    return new_folder_id
+        if files:
+            return files[0]['id']
+            
+        # Create the folder if it does not exist
+        folder_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_folder_id]
+        }
+        new_folder = service.files().create(body=folder_metadata, fields='id').execute()
+        new_folder_id = new_folder.get('id')
+        
+        # Share the subfolder publicly so files inside it are easily accessible
+        try:
+            service.permissions().create(
+                fileId=new_folder_id,
+                body={"role": "reader", "type": "anyone"},
+            ).execute()
+        except Exception as e:
+            print(f"Error sharing subfolder '{folder_name}': {e}")
+            
+        return new_folder_id
 
 
 def _upload_sync(file_content: bytes, filename: str, content_type: str, subfolder_name: str = None) -> dict:
@@ -151,7 +159,12 @@ def delete_folder_from_gdrive(folder_name: str) -> bool:
             f"and '{GOOGLE_DRIVE_FOLDER_ID}' in parents "
             f"and trashed = false"
         )
-        response = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        response = service.files().list(
+            q=query,
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
         folders = response.get('files', [])
 
         if not folders:
@@ -206,3 +219,66 @@ def _download_sync(file_id: str) -> tuple:
 async def download_from_gdrive(file_id: str) -> tuple:
     """Asynchronous wrapper for downloading file content from Google Drive."""
     return await asyncio.to_thread(_download_sync, file_id)
+
+
+def _list_files_in_folder_sync(service, folder_id: str) -> list:
+    """Lists all files inside a Google Drive folder recursively (sync)."""
+    results = []
+    query = f"'{folder_id}' in parents and trashed = false"
+    page_token = None
+    
+    while True:
+        response = service.files().list(
+            q=query,
+            fields='nextPageToken, files(id, name, mimeType)',
+            pageToken=page_token,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        
+        files = response.get('files', [])
+        for f in files:
+            if f['mimeType'] == 'application/vnd.google-apps.folder':
+                # Recurse into subfolder
+                results.extend(_list_files_in_folder_sync(service, f['id']))
+            else:
+                results.append(f)
+                
+        page_token = response.get('nextPageToken')
+        if not page_token:
+            break
+            
+    return results
+
+
+def _get_backup_files_list_sync() -> list:
+    """Finds the root backup folder and returns a list of all backup files under it (sync)."""
+    service = get_drive_service()
+    if not GOOGLE_DRIVE_FOLDER_ID:
+        return []
+
+    # Find the root backup folder named "FP Finance Database Backup"
+    query = (
+        f"mimeType = 'application/vnd.google-apps.folder' "
+        f"and name = 'FP Finance Database Backup' "
+        f"and '{GOOGLE_DRIVE_FOLDER_ID}' in parents "
+        f"and trashed = false"
+    )
+    response = service.files().list(
+        q=query,
+        fields='files(id, name)',
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True
+    ).execute()
+    folders = response.get('files', [])
+    if not folders:
+        return []
+        
+    root_folder_id = folders[0]['id']
+    return _list_files_in_folder_sync(service, root_folder_id)
+
+
+async def list_backup_files() -> list:
+    """Asynchronous wrapper to list all backup files under 'FP Finance Database Backup'."""
+    return await asyncio.to_thread(_get_backup_files_list_sync)
+

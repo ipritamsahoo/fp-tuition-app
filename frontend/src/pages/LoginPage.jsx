@@ -18,6 +18,17 @@ export default function LoginPage() {
     const [isBtnHovered, setIsBtnHovered] = useState(false);
 
     useEffect(() => {
+        // Force dark theme on login page to avoid light flashes
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+            metaThemeColor.setAttribute("content", "#0c0e17");
+        }
+    }, []);
+
+    useEffect(() => {
         if (fromWelcome) {
             const timer = setTimeout(() => {
                 setIsEntering(false);

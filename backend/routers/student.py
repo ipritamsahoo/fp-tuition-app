@@ -15,6 +15,7 @@ from dependencies import require_role
 from utils import ts_now, serialize_doc, IST
 from notifications import notify_user, notify_admins
 from google.cloud.firestore_v1.base_query import FieldFilter
+from backup_service import backup_document
 
 router = APIRouter(prefix="/api/student", tags=["Student"])
 MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -228,11 +229,24 @@ def student_batch_upload_screenshot(
         })
     batch.commit()
 
+    # Backup each updated payment
+    for pref, _ in payment_docs:
+        updated = pref.get()
+        if updated.exists:
+            backup_document("payments", pref.id, updated.to_dict())
+
     # Notify student + admins
     student_name = user.get("name", "Student")
-    notify_user(user["uid"], "Your payments are currently pending verification.", "payment_pending")
-    
     months_str = ", ".join(months_labels)
+    is_plural = len(payment_ids) > 1
+    p_word = "payments" if is_plural else "payment"
+    v_word = "are" if is_plural else "is"
+    notify_user(
+        user["uid"],
+        f"Your tuition fee {p_word} for {months_str} {v_word} under verification.",
+        "payment_pending",
+        title="Payment Under Verification"
+    )
     notify_admins(f"New payment request from {student_name} (Online) for {months_str}.", "new_approval", title="Payment Request")
 
     return {"message": "Screenshot uploaded for batch", "screenshot_url": screenshot_url, "payment_ids": payment_ids}
@@ -286,15 +300,23 @@ def student_upload_screenshot(
         "requested_at": ts_now(),
         "updated_at": ts_now(),
     })
+    updated = payment_ref.get()
+    if updated.exists:
+        backup_document("payments", payment_id, updated.to_dict())
 
-    # Notify student + admins
-    student_name = user.get("name", "Student")
-    notify_user(user["uid"], "Your payment is currently pending verification.", "payment_pending")
-    
     # Resolve month/year label for notification
     month_num = payment.get("month", 1)
     year_num = payment.get("year", "")
     month_str = f"{MONTHS_FULL[month_num - 1]} {year_num}"
+
+    # Notify student + admins
+    student_name = user.get("name", "Student")
+    notify_user(
+        user["uid"],
+        f"Your tuition fee payment for {month_str} is under verification.",
+        "payment_pending",
+        title="Payment Under Verification"
+    )
     notify_admins(f"New payment request from {student_name} (Online) for {month_str}.", "new_approval", title="Payment Request")
 
     return {"message": "Screenshot uploaded", "screenshot_url": screenshot_url}
@@ -475,6 +497,9 @@ def student_acknowledge_rejection(
         "teacher_name": None,
         "updated_at": ts_now(),
     })
+    updated = payment_ref.get()
+    if updated.exists:
+        backup_document("payments", payment_id, updated.to_dict())
 
     return {"message": "Payment reset to Unpaid. You may now submit a new payment request."}
 
@@ -489,6 +514,9 @@ def student_badge_celebrated(user=Depends(require_role("student"))):
         db.collection("users").document(user["uid"]).update({
             "badge_animation_pending": False,
         })
+        updated = db.collection("users").document(user["uid"]).get()
+        if updated.exists:
+            backup_document("users", user["uid"], updated.to_dict())
         return {"message": "Badge celebration acknowledged"}
     except Exception as e:
         print(f"Error clearing badge animation flag: {e}")

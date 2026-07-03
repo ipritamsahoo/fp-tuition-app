@@ -19,6 +19,7 @@ from dependencies import get_current_user, require_role
 from utils import ts_now
 from firebase_admin import auth as firebase_auth
 from google.cloud.firestore_v1.base_query import FieldFilter
+from backup_service import backup_document, delete_document_backup
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -54,6 +55,7 @@ def register(req: RegisterRequest, user=Depends(require_role("admin"))):
         "created_at": ts_now(),
     }
     db.collection("users").document(fb_user.uid).set(user_doc)
+    backup_document("users", fb_user.uid, user_doc, "create")
 
     return {"uid": fb_user.uid, "message": f"User {req.name} created successfully"}
 
@@ -156,10 +158,14 @@ def upload_profile_pic(file: UploadFile = File(...), user=Depends(get_current_us
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
     pic_version = ts_now()
-    db.collection("users").document(uid).update({
+    update_data = {
         "profile_pic_url": pic_url,
         "pic_version": pic_version,
-    })
+    }
+    db.collection("users").document(uid).update(update_data)
+    updated_doc = db.collection("users").document(uid).get()
+    if updated_doc.exists:
+        backup_document("users", uid, updated_doc.to_dict())
 
     return {"profile_pic_url": pic_url, "pic_version": pic_version}
 
@@ -178,10 +184,14 @@ def delete_profile_pic(user=Depends(get_current_user)):
     except Exception as e:
         print(f"Cloudinary delete failed: {e}")
 
-    db.collection("users").document(uid).update({
+    update_data = {
         "profile_pic_url": None,
         "pic_version": None,
-    })
+    }
+    db.collection("users").document(uid).update(update_data)
+    updated_doc = db.collection("users").document(uid).get()
+    if updated_doc.exists:
+        backup_document("users", uid, updated_doc.to_dict())
 
     return {"message": "Profile picture removed"}
 
@@ -207,6 +217,9 @@ def register_fcm_token(body: FCMTokenBody, user=Depends(get_current_user)):
             existing = u.to_dict().get("fcm_tokens") or []
             updated = [t for t in existing if t != body.token]
             db.collection("users").document(u.id).update({"fcm_tokens": updated})
+            other_doc = db.collection("users").document(u.id).get()
+            if other_doc.exists:
+                backup_document("users", u.id, other_doc.to_dict())
 
     # 2. Add it to the current user
     user_ref = db.collection("users").document(uid)
@@ -219,6 +232,9 @@ def register_fcm_token(body: FCMTokenBody, user=Depends(get_current_user)):
     if body.token not in existing_tokens:
         existing_tokens.append(body.token)
         user_ref.update({"fcm_tokens": existing_tokens})
+        updated_doc = user_ref.get()
+        if updated_doc.exists:
+            backup_document("users", uid, updated_doc.to_dict())
 
     return {"message": "Token registered"}
 
@@ -233,6 +249,9 @@ def unregister_fcm_token(body: FCMTokenBody, user=Depends(get_current_user)):
         existing_tokens = user_doc.to_dict().get("fcm_tokens") or []
         updated = [t for t in existing_tokens if t != body.token]
         user_ref.update({"fcm_tokens": updated})
+        refreshed = user_ref.get()
+        if refreshed.exists:
+            backup_document("users", uid, refreshed.to_dict())
 
     return {"message": "Token removed"}
 
@@ -282,6 +301,9 @@ def update_own_credentials(req: SelfUpdateCredentials, user=Depends(get_current_
     if firestore_updates:
         firestore_updates["updated_at"] = ts_now()
         db.collection("users").document(uid).update(firestore_updates)
+        updated_doc = db.collection("users").document(uid).get()
+        if updated_doc.exists:
+            backup_document("users", uid, updated_doc.to_dict())
 
     # Generate a fresh custom token so the frontend can re-authenticate
     # (update_user invalidates existing tokens)
@@ -327,6 +349,9 @@ def register_active_session(req: SessionRegisterRequest, request: Request, user=
 
         valid_sessions.append(session_data)
         user_ref.update({"active_sessions": valid_sessions})
+        updated_doc = user_ref.get()
+        if updated_doc.exists:
+            backup_document("users", uid, updated_doc.to_dict())
 
     return {"message": "Session registered successfully", "session": session_data}
 
@@ -349,6 +374,9 @@ def delete_active_session(session_id: str, user=Depends(get_current_user)):
     db.collection("users").document(uid).update({
         "active_sessions": updated_sessions
     })
+    updated_doc = db.collection("users").document(uid).get()
+    if updated_doc.exists:
+        backup_document("users", uid, updated_doc.to_dict())
 
     return {"message": "Session removed successfully"}
 
@@ -397,5 +425,8 @@ def session_heartbeat(session_id: str, user=Depends(get_current_user)):
 
     if updated:
         user_ref.update({"active_sessions": valid_sessions})
+        refreshed = user_ref.get()
+        if refreshed.exists:
+            backup_document("users", uid, refreshed.to_dict())
 
     return {"message": "Heartbeat recorded and old sessions cleaned up", "last_active": ts_now()}

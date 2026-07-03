@@ -11,32 +11,23 @@ export default function AboutPage() {
     const [theme, setTheme] = useState(() => {
         try {
             const isTeacherPath = window.location.pathname.startsWith("/teacher");
-            const key = isTeacherPath ? "fp_teacher_theme_v2" : "fp_student_theme_v2";
-            return localStorage.getItem(key) || "dark";
+            const isAdminPath = window.location.pathname.startsWith("/admin");
+            const key = isAdminPath ? "fp_admin_theme_v2" : (isTeacherPath ? "fp_teacher_theme_v2" : "fp_student_theme_v2");
+            return localStorage.getItem(key) || "light";
         } catch {
-            return "dark";
+            return "light";
         }
     });
     const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
-            if (user.role === "student") {
-                try {
-                    const saved = localStorage.getItem("fp_student_theme_v2") || "dark";
-                    setTheme(saved);
-                } catch {
-                    setTheme("dark");
-                }
-            } else if (user.role === "teacher") {
-                try {
-                    const saved = localStorage.getItem("fp_teacher_theme_v2") || "dark";
-                    setTheme(saved);
-                } catch {
-                    setTheme("dark");
-                }
-            } else {
-                setTheme("dark");
+            const key = user.role === "admin" ? "fp_admin_theme_v2" : (user.role === "teacher" ? "fp_teacher_theme_v2" : "fp_student_theme_v2");
+            try {
+                const saved = localStorage.getItem(key) || "light";
+                setTheme(saved);
+            } catch {
+                setTheme("light");
             }
         }
     }, [user]);

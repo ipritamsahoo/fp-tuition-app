@@ -15,6 +15,7 @@ from dependencies import require_role
 from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_admins
 from google.cloud.firestore_v1.base_query import FieldFilter
+from backup_service import backup_document
 
 router = APIRouter(prefix="/api/teacher", tags=["Teacher"])
 
@@ -233,10 +234,20 @@ def teacher_offline_request(
             "requested_at": ts_now(),
             "updated_at": ts_now(),
         })
+        # Backup updated payment
+        updated = payment_ref.get()
+        if updated.exists:
+            backup_document("payments", existing_list[0].id, updated.to_dict())
         # Notify student + admins
-        student_tokens = student.get("fcm_tokens", [])
-        notify_user(req.student_id, "Your payment is currently pending verification.", "payment_pending", tokens=student_tokens)
         month_str = f"{MONTH_FULL[req.month - 1]} {req.year}"
+        student_tokens = student.get("fcm_tokens", [])
+        notify_user(
+            req.student_id,
+            f"Your offline tuition fee payment for {month_str} is under verification.",
+            "payment_pending",
+            title="Payment Under Verification",
+            tokens=student_tokens
+        )
         notify_admins(f"New payment request for {student_name} ({month_str}) (Offline) by {teacher_name}.", "new_approval", title="Payment Request")
         return {"message": "Offline request submitted", "payment_id": existing_list[0].id}
     else:
@@ -270,9 +281,16 @@ def teacher_offline_request(
             "updated_at": ts_now(),
         }
         _, doc_ref = db.collection("payments").add(payment_data)
-        student_tokens = student.get("fcm_tokens", [])
-        notify_user(req.student_id, "Your payment is currently pending verification.", "payment_pending", tokens=student_tokens)
+        backup_document("payments", doc_ref.id, payment_data, "create")
         month_str = f"{MONTH_FULL[req.month - 1]} {req.year}"
+        student_tokens = student.get("fcm_tokens", [])
+        notify_user(
+            req.student_id,
+            f"Your offline tuition fee payment for {month_str} is under verification.",
+            "payment_pending",
+            title="Payment Under Verification",
+            tokens=student_tokens
+        )
         notify_admins(f"New payment request for {student_name} ({month_str}) (Offline) by {teacher_name}.", "new_approval", title="Payment Request")
         return {"message": "Offline request submitted", "payment_id": doc_ref.id}
 
@@ -312,6 +330,8 @@ def teacher_offline_request_batch(
 
     # Use Firestore batch for atomic writes
     db_batch = db.batch()
+    updated_refs = []    # (payment_ref, doc_id) for existing payments
+    new_docs = []        # (doc_ref, payment_data) for new payments
     
     for item in req.items:
         # Check if payment record already exists for this month/year
@@ -341,6 +361,7 @@ def teacher_offline_request_batch(
                 "requested_at": ts_now(),
                 "updated_at": ts_now(),
             })
+            updated_refs.append(payment_ref)
         else:
             amount = item.amount or DEFAULT_FEE_AMOUNT
             payment_data = {
@@ -363,8 +384,17 @@ def teacher_offline_request_batch(
             # Add to a new doc ref
             new_doc_ref = db.collection("payments").document()
             db_batch.set(new_doc_ref, payment_data)
+            new_docs.append((new_doc_ref.id, payment_data))
 
     db_batch.commit()
+
+    # Backup all writes after commit
+    for pref in updated_refs:
+        upd = pref.get()
+        if upd.exists:
+            backup_document("payments", pref.id, upd.to_dict())
+    for doc_id, doc_data in new_docs:
+        backup_document("payments", doc_id, doc_data, "create")
 
     # Sort items chronologically for notification display
     sorted_items = sorted(req.items, key=lambda x: (x.year, x.month))
@@ -372,10 +402,14 @@ def teacher_offline_request_batch(
 
     # Notify student + admins
     student_tokens = student.get("fcm_tokens", [])
+    is_plural = len(req.items) > 1
+    p_word = "payments" if is_plural else "payment"
+    v_word = "are" if is_plural else "is"
     notify_user(
         req.student_id,
-        f"Your offline payment request for {months_str} is currently pending verification.",
+        f"Your offline tuition fee {p_word} for {months_str} {v_word} under verification.",
         "payment_pending",
+        title="Payment Under Verification",
         tokens=student_tokens
     )
     

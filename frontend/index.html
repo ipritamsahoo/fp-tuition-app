@@ -1,8 +1,66 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        const path = window.location.pathname;
+        let role = null;
+        if (path.includes("/admin")) {
+          role = "admin";
+        } else if (path.includes("/teacher")) {
+          role = "teacher";
+        } else if (path.includes("/student")) {
+          role = "student";
+        } else {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith("fpfinance_profile_")) {
+              try {
+                const profile = JSON.parse(localStorage.getItem(key));
+                if (profile && profile.role) {
+                  role = profile.role;
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+
+        let theme = "light";
+        if (path === "/" || path === "/login" || path === "/welcome") {
+          theme = "dark";
+        } else if (role === "admin") {
+          theme = localStorage.getItem("fp_admin_theme_v2") || "light";
+        } else if (role === "teacher") {
+          theme = localStorage.getItem("fp_teacher_theme_v2") || "light";
+        } else if (role === "student") {
+          theme = localStorage.getItem("fp_student_theme_v2") || "light";
+        } else {
+          theme = localStorage.getItem("fp_admin_theme_v2") || 
+                  localStorage.getItem("fp_teacher_theme_v2") || 
+                  localStorage.getItem("fp_student_theme_v2") || 
+                  "light";
+        }
+
+        document.documentElement.setAttribute("data-theme", theme);
+        if (theme === "dark") {
+          document.documentElement.classList.add("dark");
+          document.documentElement.classList.remove("light");
+        } else {
+          document.documentElement.classList.add("light");
+          document.documentElement.classList.remove("dark");
+        }
+
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+          metaThemeColor.setAttribute("content", theme === "dark" ? "#0c0e17" : "#eef2ff");
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="description" content="FP Finance by Future Point — Manage fees, track payments, payment verification, and financial insights." />
@@ -23,8 +81,8 @@
   <title>FP Finance</title>
 </head>
 
-<body class="bg-slate-950 text-white antialiased" style="font-family: 'Inter', sans-serif; background: #0c0e17; margin: 0;">
-  <div id="root" style="background: #0c0e17; min-height: 100vh; min-height: 100dvh;"></div>
+<body class="bg-slate-950 text-white antialiased" style="font-family: 'Inter', sans-serif; margin: 0;">
+  <div id="root" style="min-height: 100vh; min-height: 100dvh;"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

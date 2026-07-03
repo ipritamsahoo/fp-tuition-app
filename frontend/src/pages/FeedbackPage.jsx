@@ -9,23 +9,22 @@ export default function FeedbackPage() {
     
     const [theme, setTheme] = useState(() => {
         try {
-            return localStorage.getItem("fp_student_theme_v2") || "dark";
+            const role = user?.role;
+            const key = role === "admin" ? "fp_admin_theme_v2" : (role === "teacher" ? "fp_teacher_theme_v2" : "fp_student_theme_v2");
+            return localStorage.getItem(key) || "light";
         } catch {
-            return "dark";
+            return "light";
         }
     });
 
     useEffect(() => {
         if (user) {
-            if (user.role === "student") {
-                try {
-                    const saved = localStorage.getItem("fp_student_theme_v2") || "dark";
-                    setTheme(saved);
-                } catch {
-                    setTheme("dark");
-                }
-            } else {
-                setTheme("dark");
+            const key = user.role === "admin" ? "fp_admin_theme_v2" : (user.role === "teacher" ? "fp_teacher_theme_v2" : "fp_student_theme_v2");
+            try {
+                const saved = localStorage.getItem(key) || "light";
+                setTheme(saved);
+            } catch {
+                setTheme("light");
             }
         }
     }, [user]);

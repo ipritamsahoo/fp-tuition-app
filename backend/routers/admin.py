@@ -13,7 +13,6 @@ import cloudinary.uploader
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from firebase_admin import auth as firebase_auth
-from utils_backup import export_database, import_database, get_last_backup_time
 
 from config import DEFAULT_FEE_AMOUNT
 from database import db
@@ -29,10 +28,11 @@ from dependencies import require_role
 from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_users, notify_admins
 from gdrive import delete_folder_from_gdrive
+from backup_service import backup_document, delete_document_backup
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
-
+MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 # ══════════════════════════════════════════════
 #  DASHBOARD
 # ══════════════════════════════════════════════
@@ -211,6 +211,12 @@ def admin_approve_batch(req: BatchActionPayload, user=Depends(require_role("admi
 
     db_batch.commit()
 
+    # Backup each approved payment
+    for payment_ref, _, pid in payment_docs:
+        upd = payment_ref.get()
+        if upd.exists:
+            backup_document("payments", pid, upd.to_dict())
+
     # Save badge on student doc if we have student_id
     if student_id and last_badge_tier:
         try:
@@ -220,12 +226,29 @@ def admin_approve_batch(req: BatchActionPayload, user=Depends(require_role("admi
                 "badge_year": last_badge_year,
                 "badge_animation_pending": True,
             })
+            upd_user = db.collection("users").document(student_id).get()
+            if upd_user.exists:
+                backup_document("users", student_id, upd_user.to_dict())
         except Exception as e:
             print(f"Badge save to user doc failed (batch): {e}")
 
     # Notify student
     if student_id:
-        notify_user(student_id, "Success! Your payments have been approved.", "payment_approved")
+        months_labels = []
+        for _, payment, _ in payment_docs:
+            month_num = payment.get("month", 1)
+            year_num = payment.get("year", "")
+            months_labels.append(f"{MONTHS_FULL[month_num - 1]} {year_num}")
+        months_str = ", ".join(months_labels)
+        is_plural = len(payment_docs) > 1
+        p_word = "payments" if is_plural else "payment"
+        v_word = "have" if is_plural else "has"
+        notify_user(
+            student_id,
+            f"Your tuition fee {p_word} for {months_str} {v_word} been approved. Thank you.",
+            "payment_approved",
+            title="Payment Approved"
+        )
 
     return {"message": "Payments approved in batch", "payment_ids": payment_ids}
 
@@ -278,9 +301,29 @@ def admin_reject_batch(req: BatchActionPayload, user=Depends(require_role("admin
         })
     db_batch.commit()
 
+    # Backup each rejected payment
+    for payment_ref, _, pid in payment_docs:
+        upd = payment_ref.get()
+        if upd.exists:
+            backup_document("payments", pid, upd.to_dict())
+
     # Notify student
     if student_id:
-        notify_user(student_id, "Payments rejected. Please contact your teacher for details.", "payment_rejected")
+        months_labels = []
+        for _, payment, _ in payment_docs:
+            month_num = payment.get("month", 1)
+            year_num = payment.get("year", "")
+            months_labels.append(f"{MONTHS_FULL[month_num - 1]} {year_num}")
+        months_str = ", ".join(months_labels)
+        is_plural = len(payment_docs) > 1
+        p_word = "payments" if is_plural else "payment"
+        v_word = "were" if is_plural else "was"
+        notify_user(
+            student_id,
+            f"Your tuition fee {p_word} for {months_str} {v_word} rejected. Please contact your teacher for details.",
+            "payment_rejected",
+            title="Payment Rejected"
+        )
 
     return {"message": "Payments rejected in batch", "payment_ids": payment_ids}
 
@@ -356,6 +399,9 @@ def admin_approve(payment_id: str, user=Depends(require_role("admin"))):
         "screenshot_public_id": None,
         "updated_at": ts_now(),
     })
+    upd_payment = payment_ref.get()
+    if upd_payment.exists:
+        backup_document("payments", payment_id, upd_payment.to_dict())
 
     # Save badge on the student's user doc (AuthContext picks this up real-time)
     student_id = payment.get("student_id")
@@ -367,12 +413,23 @@ def admin_approve(payment_id: str, user=Depends(require_role("admin"))):
                 "badge_year": payment.get("year"),
                 "badge_animation_pending": True,
             })
+            upd_user = db.collection("users").document(student_id).get()
+            if upd_user.exists:
+                backup_document("users", student_id, upd_user.to_dict())
         except Exception as e:
             print(f"Badge save to user doc failed: {e}")
 
     # Notify student
     if student_id:
-        notify_user(student_id, "Success! Your payment has been approved.", "payment_approved")
+        month_num = payment.get("month", 1)
+        year_num = payment.get("year", "")
+        month_str = f"{MONTHS_FULL[month_num - 1]} {year_num}"
+        notify_user(
+            student_id,
+            f"Your tuition fee payment for {month_str} has been approved. Thank you.",
+            "payment_approved",
+            title="Payment Approved"
+        )
 
     return {"message": "Payment approved", "payment_id": payment_id, "badge_tier": badge_tier}
 
@@ -404,11 +461,22 @@ def admin_reject(payment_id: str, user=Depends(require_role("admin"))):
         "screenshot_public_id": None,
         "updated_at": ts_now(),
     })
+    upd_payment = payment_ref.get()
+    if upd_payment.exists:
+        backup_document("payments", payment_id, upd_payment.to_dict())
 
     # Notify student
     student_id = payment.get("student_id")
     if student_id:
-        notify_user(student_id, "Payment rejected. Please contact your teacher for details.", "payment_rejected")
+        month_num = payment.get("month", 1)
+        year_num = payment.get("year", "")
+        month_str = f"{MONTHS_FULL[month_num - 1]} {year_num}"
+        notify_user(
+            student_id,
+            f"Your tuition fee payment for {month_str} was rejected. Please contact your teacher for details.",
+            "payment_rejected",
+            title="Payment Rejected"
+        )
 
     return {"message": "Payment rejected", "payment_id": payment_id}
 
@@ -455,6 +523,9 @@ def admin_delete_user_profile_pic(uid: str, user=Depends(require_role("admin")))
         "profile_pic_url": None,
         "pic_version": None,
     })
+    upd_user = db.collection("users").document(uid).get()
+    if upd_user.exists:
+        backup_document("users", uid, upd_user.to_dict())
 
     return {"message": f"Profile picture removed for user {uid}"}
 
@@ -477,6 +548,9 @@ def admin_delete_user_session(uid: str, session_id: str, user=Depends(require_ro
     db.collection("users").document(uid).update({
         "active_sessions": updated_sessions
     })
+    upd_user = db.collection("users").document(uid).get()
+    if upd_user.exists:
+        backup_document("users", uid, upd_user.to_dict())
 
     return {"message": "Session forcefully terminated"}
 
@@ -530,6 +604,7 @@ def admin_create_batch(req: BatchCreate, user=Depends(require_role("admin"))):
     if req.batch_fee is not None:
         batch_data["batch_fee"] = req.batch_fee
     _, doc_ref = db.collection("batches").add(batch_data)
+    backup_document("batches", doc_ref.id, batch_data, "create")
     return {"id": doc_ref.id, "message": f"Batch '{batch_name_clean}' created"}
 
 
@@ -557,6 +632,9 @@ def admin_update_batch(batch_id: str, req: BatchCreate, user=Depends(require_rol
     else:
         update_data["batch_fee"] = firestore.DELETE_FIELD
     batch_ref.update(update_data)
+    upd_batch = batch_ref.get()
+    if upd_batch.exists:
+        backup_document("batches", batch_id, upd_batch.to_dict())
     return {"message": f"Batch '{batch_name_clean}' updated"}
 
 
@@ -594,6 +672,7 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
         
         # Delete Student document
         db.collection("users").document(uid).delete()
+        delete_document_backup("users", uid)
 
     # 2. CLEANUP PAYMENTS
     # Find all payments in this batch
@@ -610,17 +689,20 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
         
         # Delete payment document
         db.collection("payments").document(p.id).delete()
+        delete_document_backup("payments", p.id)
 
     # 3. CLEANUP DISTRIBUTION SNAPSHOTS
     snapshots = db.collection("distribution_snapshots").where(filter=FieldFilter("batch_id", "==", batch_id)).stream()
     for snap in snapshots:
         db.collection("distribution_snapshots").document(snap.id).delete()
+        delete_document_backup("distribution_snapshots", snap.id)
 
     # 4. CLEANUP NOTES
     # Delete all Firestore note documents for this batch
     notes = db.collection("notes").where(filter=FieldFilter("batch_id", "==", batch_id)).stream()
     for note in notes:
         db.collection("notes").document(note.id).delete()
+        delete_document_backup("notes", note.id)
 
     # Delete the entire batch folder from Google Drive (contains all uploaded files)
     if batch_name:
@@ -631,6 +713,7 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
 
     # 5. FINALIZE: Delete the batch itself
     batch_ref.delete()
+    delete_document_backup("batches", batch_id)
 
     return {"message": "Batch and all associated data deleted successfully"}
 
@@ -692,7 +775,7 @@ def _auto_generate_for_student(student_id: str, student_name: str, batch_id: str
         if existing:
             continue
 
-        db.collection("payments").add({
+        pay_data = {
             "student_id": student_id,
             "student_name": student_name,
             "batch_id": batch_id,
@@ -706,7 +789,9 @@ def _auto_generate_for_student(student_id: str, student_name: str, batch_id: str
             "status": "Unpaid",
             "created_at": ts_now(),
             "updated_at": ts_now(),
-        })
+        }
+        _, doc_ref = db.collection("payments").add(pay_data)
+        backup_document("payments", doc_ref.id, pay_data, "create")
         created += 1
 
     return created
@@ -772,12 +857,16 @@ def admin_add_student(req: StudentCreate, user=Depends(require_role("admin"))):
         "created_at": ts_now(),
     }
     db.collection("users").document(fb_user.uid).set(user_doc)
+    backup_document("users", fb_user.uid, user_doc, "create")
 
     # Increment the denormalized student_count on the batch document
     if req.batch_id:
         db.collection("batches").document(req.batch_id).update({
             "student_count": firestore.Increment(1)
         })
+        upd_batch = db.collection("batches").document(req.batch_id).get()
+        if upd_batch.exists:
+            backup_document("batches", req.batch_id, upd_batch.to_dict())
 
     # NOTE: We do NOT auto-generate past billing records for newly added students.
     # New students are only billed starting from the next billing cycle generated
@@ -825,6 +914,9 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
 
     if update_data:
         user_ref.update(update_data)
+        upd_user = user_ref.get()
+        if upd_user.exists:
+            backup_document("users", uid, upd_user.to_dict())
 
     # Sync all Unpaid payment records to the new fee
     if fee_changed and new_effective_fee is not None:
@@ -837,6 +929,9 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
                 "amount": new_effective_fee,
                 "updated_at": ts_now(),
             })
+            upd_pay = db.collection("payments").document(p.id).get()
+            if upd_pay.exists:
+                backup_document("payments", p.id, upd_pay.to_dict())
 
     # Update student_count on batch documents if batch changed
     new_batch_id = req.batch_id
@@ -847,9 +942,15 @@ def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role
             db.collection("batches").document(old_batch_id).update({
                 "student_count": firestore.Increment(-1)
             })
+            upd_old = db.collection("batches").document(old_batch_id).get()
+            if upd_old.exists:
+                backup_document("batches", old_batch_id, upd_old.to_dict())
         db.collection("batches").document(new_batch_id).update({
             "student_count": firestore.Increment(1)
         })
+        upd_new = db.collection("batches").document(new_batch_id).get()
+        if upd_new.exists:
+            backup_document("batches", new_batch_id, upd_new.to_dict())
         # NOTE: We do NOT auto-generate past billing records when a student is
         # moved to a new batch. They will be billed from the next billing cycle
         # generated after the transfer.
@@ -890,6 +991,9 @@ def admin_update_student_status(uid: str, req: StudentStatusUpdate, user=Depends
         update_data["active_sessions"] = []
 
     user_ref.update(update_data)
+    upd_user = user_ref.get()
+    if upd_user.exists:
+        backup_document("users", uid, upd_user.to_dict())
 
     # Update Firebase Auth status
     try:
@@ -961,6 +1065,7 @@ def admin_add_teacher(req: TeacherCreate, user=Depends(require_role("admin"))):
         "created_at": ts_now(),
     }
     db.collection("users").document(fb_user.uid).set(user_doc)
+    backup_document("users", fb_user.uid, user_doc, "create")
 
     # Assign to batches
     for batch_id in req.batch_ids:
@@ -972,6 +1077,9 @@ def admin_add_teacher(req: TeacherCreate, user=Depends(require_role("admin"))):
             if fb_user.uid not in teacher_ids:
                 teacher_ids.append(fb_user.uid)
                 batch_ref.update({"teacher_ids": teacher_ids})
+                upd_batch = batch_ref.get()
+                if upd_batch.exists:
+                    backup_document("batches", batch_id, upd_batch.to_dict())
 
     return {"uid": fb_user.uid, "message": f"Teacher '{req.name}' added"}
 
@@ -995,6 +1103,9 @@ def admin_update_teacher(uid: str, req: TeacherUpdate, user=Depends(require_role
 
     if update_data:
         user_ref.update(update_data)
+        upd_user = user_ref.get()
+        if upd_user.exists:
+            backup_document("users", uid, upd_user.to_dict())
 
     # Handle batch reassignment
     if req.batch_ids is not None:
@@ -1006,6 +1117,9 @@ def admin_update_teacher(uid: str, req: TeacherUpdate, user=Depends(require_role
             batch_data = b.to_dict()
             teacher_ids = [tid for tid in batch_data.get("teacher_ids", []) if tid != uid]
             db.collection("batches").document(b.id).update({"teacher_ids": teacher_ids})
+            upd_b = db.collection("batches").document(b.id).get()
+            if upd_b.exists:
+                backup_document("batches", b.id, upd_b.to_dict())
 
         # Add teacher to new batches
         for batch_id in req.batch_ids:
@@ -1017,6 +1131,9 @@ def admin_update_teacher(uid: str, req: TeacherUpdate, user=Depends(require_role
                 if uid not in teacher_ids:
                     teacher_ids.append(uid)
                     batch_ref.update({"teacher_ids": teacher_ids})
+                    upd_nb = batch_ref.get()
+                    if upd_nb.exists:
+                        backup_document("batches", batch_id, upd_nb.to_dict())
 
     # Update Firebase Auth (username/email, password, display_name)
     auth_updates = {}
@@ -1050,9 +1167,13 @@ def admin_remove_teacher(uid: str, user=Depends(require_role("admin"))):
         teacher_ids = batch_data.get("teacher_ids", [])
         teacher_ids = [tid for tid in teacher_ids if tid != uid]
         db.collection("batches").document(b.id).update({"teacher_ids": teacher_ids})
+        upd_b = db.collection("batches").document(b.id).get()
+        if upd_b.exists:
+            backup_document("batches", b.id, upd_b.to_dict())
 
     # Delete Firestore doc
     db.collection("users").document(uid).delete()
+    delete_document_backup("users", uid)
 
     # Delete from Firebase Auth
     try:
@@ -1130,6 +1251,9 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
                 "badge_month": None,
                 "badge_year": None,
             })
+            upd_s = db.collection("users").document(s.id).get()
+            if upd_s.exists:
+                backup_document("users", s.id, upd_s.to_dict())
             badges_reset += 1
     if badges_reset > 0:
         print(f"Badge reset: cleared {badges_reset} student badge(s)")
@@ -1200,7 +1324,8 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
             "created_at": ts_now(),
             "updated_at": ts_now(),
         }
-        db.collection("payments").add(payment_data)
+        _, doc_ref = db.collection("payments").add(payment_data)
+        backup_document("payments", doc_ref.id, payment_data, "create")
         created += 1
         
         # Track for notifications using already fetched data
@@ -1242,6 +1367,9 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
             db.collection("batches").document(req.batch_id).update({
                 "generated_months": firestore.ArrayUnion([month_entry])
             })
+            upd_b = db.collection("batches").document(req.batch_id).get()
+            if upd_b.exists:
+                backup_document("batches", req.batch_id, upd_b.to_dict())
         else:
             # All batches that received new payment records
             affected_batch_ids = {
@@ -1253,6 +1381,9 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
                 db.collection("batches").document(bid).update({
                     "generated_months": firestore.ArrayUnion([month_entry])
                 })
+                upd_bid = db.collection("batches").document(bid).get()
+                if upd_bid.exists:
+                    backup_document("batches", bid, upd_bid.to_dict())
 
     return {
         "message": f"Generated {created} payment records{batch_label}, skipped {skipped} existing",
@@ -1278,6 +1409,7 @@ def admin_undo_monthly(req: UndoMonthly, user=Depends(require_role("admin"))):
     deleted = 0
     for doc in docs:
         doc.reference.delete()
+        delete_document_backup("payments", doc.id)
         deleted += 1
 
     MONTH_NAMES = [
@@ -1308,6 +1440,9 @@ def admin_undo_monthly(req: UndoMonthly, user=Depends(require_role("admin"))):
             db.collection("batches").document(req.batch_id).update({
                 "generated_months": firestore.ArrayRemove([{"month": req.month, "year": req.year}])
             })
+            upd_b = db.collection("batches").document(req.batch_id).get()
+            if upd_b.exists:
+                backup_document("batches", req.batch_id, upd_b.to_dict())
 
     return {
         "message": f"Removed {deleted} unpaid record(s) for {month_name} {req.year}{batch_label}",
@@ -1339,6 +1474,9 @@ def admin_fee_override(req: FeeOverride, user=Depends(require_role("admin"))):
     if req.mode == "all-time":
         # 1. Update the student's profile custom_fee
         student_ref.update({"custom_fee": req.amount})
+        upd_student = student_ref.get()
+        if upd_student.exists:
+            backup_document("users", req.student_id, upd_student.to_dict())
 
         # 2. Sync all Unpaid payment records
         unpaid_payments = list(
@@ -1354,6 +1492,9 @@ def admin_fee_override(req: FeeOverride, user=Depends(require_role("admin"))):
                 "amount": req.amount,
                 "updated_at": ts_now(),
             })
+            upd_p = db.collection("payments").document(p.id).get()
+            if upd_p.exists:
+                backup_document("payments", p.id, upd_p.to_dict())
             updated_count += 1
 
         return {
@@ -1405,6 +1546,9 @@ def admin_fee_override(req: FeeOverride, user=Depends(require_role("admin"))):
         "amount": req.amount,
         "updated_at": ts_now(),
     })
+    upd_p = db.collection("payments").document(payment.id).get()
+    if upd_p.exists:
+        backup_document("payments", payment.id, upd_p.to_dict())
 
     MONTHS = [
         "January", "February", "March", "April", "May", "June",
@@ -1702,7 +1846,8 @@ def admin_settle_distribution(req: SettleDistribution, user=Depends(require_role
         "settled_at": ts_now(),
         "permanently_settled": True,
     }
-    db.collection("distribution_snapshots").add(snapshot_data)
+    _, snap_ref = db.collection("distribution_snapshots").add(snapshot_data)
+    backup_document("distribution_snapshots", snap_ref.id, snapshot_data, "create")
 
     # Resolve batch name for notification
     batch_name = "All Batches"
@@ -2614,14 +2759,16 @@ def seed_default_admin(req: AdminSeed):
 
     firebase_auth.set_custom_user_claims(fb_user.uid, {"role": "admin"})
 
-    db.collection("users").document(fb_user.uid).set({
+    admin_doc = {
         "name": req.name,
         "username": req.username.strip().lower(),
         "email": email,
         "role": "admin",
         "batch_id": None,
         "created_at": ts_now(),
-    })
+    }
+    db.collection("users").document(fb_user.uid).set(admin_doc)
+    backup_document("users", fb_user.uid, admin_doc, "create")
 
     return {
         "message": "Admin account created",
@@ -2652,51 +2799,13 @@ def reset_admin_account(req: EmergencyReset):
         except Exception:
             pass # Just in case it was already deleted in auth
         db.collection("users").document(uid).delete()
+        delete_document_backup("users", uid)
         deleted_count += 1
         
     return {"message": f"Successfully deleted {deleted_count} admin accounts. The system is ready to be seeded again."}
 
 
-# ──────────────────────────────────────────────
-#  DATABASE BACKUP & RESTORE
-# ──────────────────────────────────────────────
-
-@router.get("/backup/export")
-def admin_backup_export(mode: str = "full", user=Depends(require_role("admin"))):
-    """Export the database as a JSON backup (full or incremental)."""
-    if mode not in ["full", "incremental"]:
-        raise HTTPException(status_code=400, detail="Invalid backup mode. Must be 'full' or 'incremental'.")
-    try:
-        data = export_database(mode)
-        return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@router.post("/backup/import")
-async def admin_backup_import(file: UploadFile = File(...), user=Depends(require_role("admin"))):
-    """Import and restore database from a JSON backup file."""
-    import json
-    try:
-        contents = await file.read()
-        backup_data = json.loads(contents.decode("utf-8"))
-        
-        # Simple schema validation
-        if "data" not in backup_data or not isinstance(backup_data["data"], dict):
-            raise HTTPException(status_code=400, detail="Invalid backup file format. Missing 'data' object.")
-            
-        restored_count = import_database(backup_data)
-        return {"message": f"Backup restored successfully. {restored_count} documents updated/created."}
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON file format.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
-
-
-@router.get("/backup/info")
-def admin_backup_info(user=Depends(require_role("admin"))):
-    """Get metadata about the last backup."""
-    last_time = get_last_backup_time()
-    return {"last_backup_time": last_time}
 
 

@@ -6,8 +6,8 @@ All notices automatically expire (filtered from retrieval) after 7 days.
 """
 
 from typing import Optional
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from pydantic import BaseModel
 
 from database import db
@@ -15,6 +15,7 @@ from dependencies import require_role
 from utils import ts_now, serialize_doc, IST
 from notifications import notify_users
 from google.cloud.firestore_v1.base_query import FieldFilter
+from backup_service import backup_document, delete_document_backup
 
 router = APIRouter(prefix="/api/notices", tags=["Notices"])
 
@@ -26,11 +27,61 @@ class NoticeCreate(BaseModel):
     is_important: Optional[bool] = False
 
 
+def cleanup_expired_notices() -> int:
+    """Delete notices older than 7 days from the database."""
+    cutoff_dt = datetime.now(IST) - timedelta(days=7)
+    cutoff_str = cutoff_dt.isoformat()
+    
+    # Retrieve all notices (since the notices collection size is small,
+    # client-side filtering prevents Firestore type query mismatch/missing index issues)
+    notices_stream = db.collection("notices").stream()
+    
+    batch = db.batch()
+    count = 0
+    deleted_count = 0
+    
+    for doc in notices_stream:
+        d = doc.to_dict()
+        created_at_val = d.get("created_at")
+        is_expired = False
+        
+        if not created_at_val:
+            is_expired = True
+        elif hasattr(created_at_val, "isoformat"):
+            # It's a Datetime/Timestamp object
+            val_dt = created_at_val
+            if val_dt.tzinfo is None:
+                val_dt = val_dt.replace(tzinfo=timezone.utc)
+            is_expired = val_dt < cutoff_dt
+        else:
+            # It's a string
+            is_expired = str(created_at_val) < cutoff_str
+            
+        if is_expired:
+            batch.delete(doc.reference)
+            delete_document_backup("notices", doc.id)
+            count += 1
+            deleted_count += 1
+            if count >= 500:
+                batch.commit()
+                batch = db.batch()
+                count = 0
+                
+    if count > 0:
+        batch.commit()
+        
+    return deleted_count
+
+
 # ──────────────────────────────────────────────
 # POST /api/notices/
 # ──────────────────────────────────────────────
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def create_notice(req: NoticeCreate, user=Depends(require_role("teacher"))):
+def create_notice(
+    req: NoticeCreate,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_role("teacher"))
+):
     """Publish a text-based notice to a single batch. Only assigned teachers allowed."""
     # 1. Verify batch exists
     batch_doc = db.collection("batches").document(req.batch_id).get()
@@ -59,6 +110,7 @@ def create_notice(req: NoticeCreate, user=Depends(require_role("teacher"))):
 
     _, doc_ref = db.collection("notices").add(notice_data)
     notice_data["id"] = doc_ref.id
+    backup_document("notices", doc_ref.id, notice_data, "create")
 
     # 4. Notify students and other teachers of this batch
     # Query students in this batch
@@ -88,6 +140,9 @@ def create_notice(req: NoticeCreate, user=Depends(require_role("teacher"))):
             notif_type="notice",
             title=batch_data.get("batch_name", "Unknown Batch")
         )
+
+    # Clean up expired notices in the background
+    background_tasks.add_task(cleanup_expired_notices)
 
     return {"message": "Notice published successfully", "notice": notice_data}
 
@@ -271,6 +326,10 @@ def mark_notice_as_read(notice_id: str, user=Depends(require_role("student", "te
             "read_by": read_by,
             "readers": readers
         })
+        updated_data = notice_doc.to_dict()
+        updated_data["read_by"] = read_by
+        updated_data["readers"] = readers
+        backup_document("notices", notice_id, updated_data)
 
     # For student role, only return their own read status to prevent leaking other students' read status
     if user.get("role") == "student":
@@ -281,6 +340,16 @@ def mark_notice_as_read(notice_id: str, user=Depends(require_role("student", "te
         return {"message": "Notice marked as read", "read_by": []}
 
     return {"message": "Notice marked as read", "read_by": read_by}
+
+
+# ──────────────────────────────────────────────
+# DELETE /api/notices/cleanup/expired
+# ──────────────────────────────────────────────
+@router.delete("/cleanup/expired")
+def manual_cleanup_expired_notices(user=Depends(require_role("teacher", "admin"))):
+    """Manually clean up expired notices (older than 7 days) from the database."""
+    deleted_count = cleanup_expired_notices()
+    return {"message": "Cleanup completed", "deleted_count": deleted_count}
 
 
 # ──────────────────────────────────────────────
@@ -302,6 +371,7 @@ def delete_notice(notice_id: str, user=Depends(require_role("teacher"))):
         raise HTTPException(status_code=403, detail="You do not have permission to delete this notice")
 
     notice_ref.delete()
+    delete_document_backup("notices", notice_id)
     return {"message": "Notice deleted successfully"}
 
 
@@ -327,4 +397,5 @@ def toggle_like_notice(notice_id: str, user=Depends(require_role("student", "tea
         likes.append(uid)
 
     notice_ref.update({"likes": likes})
+    backup_document("notices", notice_id, {**notice_data, "likes": likes})
     return {"message": "Like updated", "likes": likes}

@@ -132,9 +132,12 @@ export default function BiometricLockScreen() {
         unlock();
     };
 
-    const showPrivacyOverlay = !isLocked && settings?.enabled && isAppBackgrounded && !!user;
+    const path = typeof window !== "undefined" ? window.location.pathname : "";
+    const isPublicPath = path === "/" || path === "/login" || path === "/welcome";
 
-    if (!user) return null;
+    const showPrivacyOverlay = !isLocked && settings?.enabled && isAppBackgrounded && !!user && !isPublicPath;
+
+    if (!user || isPublicPath) return null;
     if (!visible && !showPrivacyOverlay) return null;
 
     const isLight = theme === "light";

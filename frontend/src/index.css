@@ -978,10 +978,10 @@ select option {
 }
 
 /* Synchronize root body and html background color with theme attributes */
-html[data-theme="light"], body[data-theme="light"] {
+html[data-theme="light"], body[data-theme="light"], [data-theme="light"] body {
     background: #eef2ff !important;
 }
-html[data-theme="dark"], body[data-theme="dark"] {
+html[data-theme="dark"], body[data-theme="dark"], [data-theme="dark"] body {
     background: #0c0e17 !important;
 }
 

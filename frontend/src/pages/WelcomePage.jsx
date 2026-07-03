@@ -49,6 +49,17 @@ export default function WelcomePage() {
     }, []);
 
     useEffect(() => {
+        // Force dark theme on welcome page to avoid light flashes
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+            metaThemeColor.setAttribute("content", "#0c0e17");
+        }
+    }, []);
+
+    useEffect(() => {
         const mq = window.matchMedia("(max-width: 768px)");
         const handler = (e) => setIsMobile(e.matches);
         mq.addEventListener("change", handler);

@@ -6,6 +6,7 @@ from dependencies import require_role, require_role_flexible
 from utils import ts_now, serialize_doc
 from gdrive import upload_to_gdrive, delete_from_gdrive, download_from_gdrive, _download_sync
 from google.cloud.firestore_v1.base_query import FieldFilter
+from backup_service import backup_document, delete_document_backup
 
 router = APIRouter(prefix="/api/notes", tags=["Notes"])
 
@@ -76,6 +77,7 @@ async def upload_note(
     _, doc_ref = db.collection("notes").add(note_data)
     
     note_data["id"] = doc_ref.id
+    backup_document("notes", doc_ref.id, note_data, "create")
     return {"message": "Notes uploaded successfully", "note": note_data}
 
 
@@ -200,6 +202,7 @@ def delete_note(
         
     # Delete from Firestore
     note_ref.delete()
+    delete_document_backup("notes", note_id)
     
     return {"message": "Note deleted successfully"}
 
