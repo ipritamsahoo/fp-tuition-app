@@ -24,7 +24,7 @@ from routers import auth, student, teacher, admin, notes, notices
 app = FastAPI(
     title="FP Finance",
     description="Role-based fee management with Firebase backend",
-    version="1.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -153,6 +153,41 @@ async def daily_due_reminders(
     return {
         "status": "success",
         "message": f"Sent due reminder notifications to {notified_count} students. Cleaned up {deleted_count} expired notices."
+    }
+
+
+@app.post("/cron/release-notification")
+@app.get("/cron/release-notification")
+async def release_notification(
+    x_cron_secret: str = Header(None, alias="X-Cron-Secret")
+):
+    if x_cron_secret != CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+        
+    from database import db
+    from notifications import notify_user
+    
+    v = app.version
+    
+    users = db.collection("users").select(["fcm_tokens"]).stream()
+    notified_count = 0
+    
+    for doc in users:
+        d = doc.to_dict()
+        tokens = d.get("fcm_tokens") or []
+        if tokens:
+            notify_user(
+                uid=doc.id,
+                message=f"A new version {v} of FP Finance has been released! Please reload or reopen the app to check out the latest updates.",
+                notif_type="system_update",
+                title=f"New Version {v} Released!",
+                tokens=tokens
+            )
+            notified_count += 1
+            
+    return {
+        "status": "success",
+        "message": f"Sent release notification for version {v} to {notified_count} users."
     }
 
 

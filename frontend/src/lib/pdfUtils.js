@@ -156,6 +156,6 @@ export async function generateReceiptPDF(payment, user) {
     doc.text(`Downloaded on: ${downloadTime}`, pageWidth / 2, footerY + 14, { align: "center" });
 
     // ─── Save PDF ───
-    const fileName = `Fee_Receipt_${user.name.replace(/\s+/g, "_")}_${monthName}_${payment.year}.pdf`;
+    const fileName = `${monthName} ${payment.year} - ${user.name} - Fee Receipt.pdf`;
     doc.save(fileName);
 }

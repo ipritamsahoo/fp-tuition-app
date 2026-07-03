@@ -106,14 +106,14 @@ function ReportExportContent() {
             // Reconstruct filename locally to bypass browser CORS Content-Disposition blocks
             const batchName = batches.find((b) => b.id === batchId)?.batch_name || "Batch";
             const monthLabels = selectedMonths.map((m) => MONTHS[m - 1]);
-            const monthStr = monthLabels.join("-");
-            const safeBatch = batchName.replace(/\s+/g, "_");
+            const monthStr = monthLabels.join(" ");
+            const safeBatch = batchName;
 
             let filename = "";
             if (reportType === "teacher") {
-                filename = `${monthStr}_${year}_${safeBatch}_collection_and_distribution.pdf`;
+                filename = `${monthStr} ${year} - ${safeBatch} - Collection & Distribution Report.pdf`;
             } else {
-                filename = `${monthStr}_${year}_${safeBatch}_student_payments_report.pdf`;
+                filename = `${monthStr} ${year} - ${safeBatch} - Student Payments Report.pdf`;
             }
 
             const a = document.createElement("a");
@@ -125,7 +125,7 @@ function ReportExportContent() {
             URL.revokeObjectURL(blobUrl);
 
             const monthNames = selectedMonths.map((m) => MONTHS[m - 1]).join(", ");
-            const reportName = reportType === "teacher" ? "Teacher Report" : "Student Report";
+            const reportName = reportType === "teacher" ? "Collection & Distribution Report" : "Student Payments Report";
             setSuccess(`${reportName} exported: ${batchName} — ${monthNames} ${year}`);
         } catch (err) {
             if (!isSystemicError(err.message)) {

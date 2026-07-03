@@ -13,6 +13,7 @@ const TYPE_CONFIG = {
     bill_generated: { icon: "💰", accent: "text-blue-500", bg: "bg-blue-500/10", label: "Bill" },
     distribution_settled: { icon: "💸", accent: "text-violet-500", bg: "bg-violet-500/10", label: "Settled" },
     new_approval: { icon: "🔔", accent: "text-cyan-500", bg: "bg-cyan-500/10", label: "New Request" },
+    system_update: { icon: "🚀", accent: "text-pink-500", bg: "bg-pink-500/10", label: "Update" },
 };
 
 function getConfig(type, prefix = "--st-") {

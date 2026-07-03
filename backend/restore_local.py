@@ -2,7 +2,6 @@ import os
 import json
 from firebase_admin import auth as firebase_auth
 from database import db
-from utils import parse_iso_timestamps
 
 def run_local_restore():
     backup_root = "d:/My Projects/fp-tuition-app/FP Finance Database Backup"
@@ -65,7 +64,7 @@ def run_local_restore():
         if doc_fields is None:
             continue
 
-        cleaned_fields = parse_iso_timestamps(doc_fields)
+        cleaned_fields = doc_fields
         docs_by_col[col_name].append((doc_id, cleaned_fields))
 
     print("\nWriting restored documents to Firestore...")

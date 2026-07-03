@@ -13,6 +13,7 @@ function getConfig(type, prefix = "--st-") {
         bill_generated: { icon: "💰", accent: "text-blue-500", bg: "bg-blue-500/10", label: "Bill" },
         distribution_settled: { icon: "💸", accent: "text-violet-500", bg: "bg-violet-500/10", label: "Settled" },
         new_approval: { icon: "🔔", accent: "text-cyan-500", bg: "bg-cyan-500/10", label: "New Request" },
+        system_update: { icon: "🔧", accent: "text-pink-500", bg: "bg-pink-500/10", label: "Update" },
     };
     return config[type] || { icon: "🔔", accent: `text-[var(${prefix}text-muted)]`, bg: `bg-[var(${prefix}icon-bg)]`, label: "Alert" };
 }
@@ -45,10 +46,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
     const studentThemeContext = useStudentTheme();
     const teacherThemeContext = useTeacherTheme();
     const adminThemeContext = useAdminTheme();
-    
+
     const isTeacher = user?.role === "teacher";
     const isAdmin = user?.role === "admin";
-    
+
     // Choose appropriate theme
     let theme = "dark";
     if (isTeacher) {
@@ -61,7 +62,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
     const isLight = theme === "light";
     const prefix = isAdmin ? "--ad-" : (isTeacher ? "--tt-" : "--st-");
     const activeColor = isLight ? "#0d9488" : "#3861fb";
-    
+
     const panelRef = useRef(null);
 
     // Close on click outside
@@ -83,13 +84,13 @@ export default function NotificationPanel({ isOpen, onClose }) {
             ref={panelRef}
             data-theme={theme}
             className="fixed top-16 left-4 right-4 w-auto z-[100] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3 sm:w-96 sm:z-50 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up border"
-            style={{ 
+            style={{
                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(15, 17, 23, 0.95)',
                 borderColor: isLight ? 'rgba(255, 255, 255, 0.65)' : 'rgba(26, 31, 46, 0.6)',
                 backdropFilter: 'blur(40px) saturate(2.0)',
                 WebkitBackdropFilter: 'blur(40px) saturate(2.0)',
-                transform: "translateZ(0)", 
-                isolation: "isolate" 
+                transform: "translateZ(0)",
+                isolation: "isolate"
             }}
         >
             {/* Header */}
@@ -97,7 +98,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                 <div className="flex items-center gap-2">
                     <h3 className="font-extrabold text-sm tracking-tight" style={{ color: `var(${prefix}text-primary)`, fontFamily: "'Manrope', sans-serif" }}>Notifications</h3>
                     {unreadCount > 0 && (
-                        <span 
+                        <span
                             className="text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg"
                             style={{
                                 backgroundColor: activeColor,
@@ -148,10 +149,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 key={n.id}
                                 className={`group flex items-start gap-4 px-6 py-4 transition-all cursor-pointer relative
                                     ${n.is_read ? "opacity-60" : ""}`}
-                                style={{ 
+                                style={{
                                     borderBottom: `1px solid var(${prefix}divider)`,
-                                    backgroundColor: !n.is_read 
-                                        ? (isLight ? 'rgba(13, 148, 136, 0.05)' : 'rgba(56, 97, 251, 0.05)') 
+                                    backgroundColor: !n.is_read
+                                        ? (isLight ? 'rgba(13, 148, 136, 0.05)' : 'rgba(56, 97, 251, 0.05)')
                                         : 'transparent'
                                 }}
                                 onClick={() => !n.is_read && markRead(n.id)}
@@ -203,7 +204,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                     })
                 )}
             </div>
-            
+
             {/* View All Footer */}
             {notifications.length > 0 && (
                 <div className="p-3 text-center border-t" style={{ borderColor: `var(${prefix}divider)` }}>

@@ -2122,12 +2122,12 @@ def admin_backup(
     buffer = io.BytesIO(pdf_bytes)
     buffer.seek(0)
 
-    filename = f"FPFinance_{month_label}_{year}_Report.pdf"
+    filename = f"FP Finance - {month_label} {year} - Report.pdf"
 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -2317,10 +2317,11 @@ def admin_report_export(
         else:
             pdf.cell(0, 8, "Student Payments Report", align="C", new_x="LMARGIN", new_y="NEXT")
 
-        # Subtitle: "Batch: BATCH NAME | Month, Year"
+        # Subtitle
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 6, safe_str(f"Batch: {batch_name}  |  {month_label}, {year}"), align="C", new_x="LMARGIN", new_y="NEXT")
+        subtitle_text = f"Batch: {batch_name}  |  Month: {month_label}  |  Year: {year}"
+        pdf.cell(0, 6, safe_str(subtitle_text), align="C", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
 
         if report_type != "teacher":
@@ -2452,17 +2453,12 @@ def admin_report_export(
                             "cycles": val["cycles"]
                         })
 
-                    # Calculate total group height based on sum of student row heights (estimating cycle wrap lines)
+                    # Calculate total group height based on sum of student row heights (using exact wrap lines)
                     group_height = 0
                     for p in flat_group:
                         txt = ", ".join(p["cycles"]) if p["cycles"] else "-"
-                        cycle_len = len(txt)
-                        if cycle_len > 34:
-                            lines = 3
-                        elif cycle_len > 17:
-                            lines = 2
-                        else:
-                            lines = 1
+                        actual_lines = pdf.multi_cell(t3_cols[2], 6, txt=safe_str(txt), split_only=True)
+                        lines = len(actual_lines) if actual_lines else 1
                         group_height += lines * 6
 
                     # Page break check — if the group won't fit, start a new page
@@ -2490,13 +2486,8 @@ def admin_report_export(
                     current_y = group_start_y
                     for g_idx, p in enumerate(flat_group):
                         billing_cycle_text = ", ".join(p["cycles"]) if p["cycles"] else "-"
-                        cycle_len = len(billing_cycle_text)
-                        if cycle_len > 34:
-                            num_lines = 3
-                        elif cycle_len > 17:
-                            num_lines = 2
-                        else:
-                            num_lines = 1
+                        actual_lines = pdf.multi_cell(t3_cols[2], 6, txt=safe_str(billing_cycle_text), split_only=True)
+                        num_lines = len(actual_lines) if actual_lines else 1
                         student_row_h = num_lines * 6
 
                         # Position cursor to start of this student row
@@ -2528,8 +2519,13 @@ def admin_report_export(
                         # Draw dummy cell for background & border
                         pdf.cell(t3_cols[2], student_row_h, "", border=1, fill=True)
 
-                        # Draw wrapped text on top
-                        pdf.set_xy(cycle_x, cycle_y)
+                        # Calculate actual text height
+                        actual_text_h = num_lines * 6
+                        # Center vertically if student_row_h is greater than actual_text_h
+                        vertical_offset = (student_row_h - actual_text_h) / 2
+
+                        # Draw wrapped text on top (vertically centered)
+                        pdf.set_xy(cycle_x, cycle_y + vertical_offset)
                         pdf.set_font("Helvetica", "", 8)
                         pdf.multi_cell(t3_cols[2], 6, safe_str(billing_cycle_text), border=0, align="C", fill=False)
 
@@ -2713,18 +2709,18 @@ def admin_report_export(
     buffer.seek(0)
 
     month_labels = [MONTHS_FULL[m - 1] for m in month_list if 1 <= m <= 12]
-    month_str = "-".join(month_labels)
-    safe_batch = safe_str(batch_name).replace(" ", "_")
+    month_str = " ".join(month_labels)
+    safe_batch = safe_str(batch_name)
 
     if report_type == "teacher":
-        filename = f"{month_str}_{year}_{safe_batch}_collection_and_distribution.pdf"
+        filename = f"{month_str} {year} - {safe_batch} - Collection & Distribution Report.pdf"
     else:
-        filename = f"{month_str}_{year}_{safe_batch}_student_payments_report.pdf"
+        filename = f"{month_str} {year} - {safe_batch} - Student Payments Report.pdf"
 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
