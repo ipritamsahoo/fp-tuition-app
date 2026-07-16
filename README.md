@@ -1,6 +1,8 @@
-# FP Finance - Role-Based Fee Management Platform
+# 🎓 Future Point Finance (FP Finance)
 
-FP Finance is a comprehensive, role-based tuition fee management and center administration platform. It provides tailored dashboards and specific dashboards for **Administrators**, **Teachers**, and **Students**.
+### Role-Based Tuition & Fee Management Platform
+
+**FP Finance** is a comprehensive, role-based tuition fee management and center administration platform built specifically for the **Future Point** tuition center. It provides tailored portals and dedicated dashboards for **Administrators**, **Teachers**, and **Students** to streamline payment tracking, notes/notice sharing, and revenue settlements.
 
 ---
 

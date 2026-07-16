@@ -1,6 +1,6 @@
-# FP Finance - System Installation & Developer Setup Guide
+# 🛠️ Future Point Finance (FP Finance) - System Installation & Developer Setup Guide
 
-This document provides comprehensive instructions for installing, configuring, and deploying the **FP Finance** platform from scratch on a clean system, including local environment initialization and production hosting setup.
+This document provides comprehensive instructions for installing, configuring, and deploying the **FP Finance** platform (built for **Future Point** tuition center) from scratch on a clean system, including local environment initialization and production hosting setup.
 
 ---
 
