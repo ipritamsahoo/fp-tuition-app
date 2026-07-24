@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-.env
-serviceAccountKey.json
-uploads/
-*.db
-venv/
-.venv/

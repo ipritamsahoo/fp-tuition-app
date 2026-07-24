@@ -35,7 +35,7 @@ fp-tuition-app/
 │   ├── gdrive.py       # Google Drive upload/download service
 │   ├── Dockerfile      # Render deployment configuration
 │   └── requirements.txt
-├── frontend/           # Vite + React (JS + TailwindCSS v4)
+├── frontend/           # Vite + React
 │   ├── src/
 │   │   ├── components/ # Reusable UI components
 │   │   ├── context/    # Global state contexts (Auth, Theme, Notification, Biometrics)
@@ -63,8 +63,4 @@ It contains detailed setup steps for:
 6. Local virtual environments execution (FastAPI & React Dev server).
 7. Deploying to Render (Backend Docker) and Firebase Hosting (Frontend).
 
----
 
-## 📄 License
-
-This project is private and proprietary. Unauthorized copying, distribution, or execution is strictly prohibited.

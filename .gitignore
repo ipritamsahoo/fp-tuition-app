@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Environment & Secrets
+.env
+.env.local
+.env.production
+.env.*
+serviceAccountKey.json
+
+# Build & Compiled Output
+dist/
+build/
+__pycache__/
+*.pyc
+
+# Database & Uploads
+*.db
+uploads/
+
+# Firebase & Cloud Tools
+.firebase/
+.firebaserc
+.firebase.json
+
+# IDE & OS Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
