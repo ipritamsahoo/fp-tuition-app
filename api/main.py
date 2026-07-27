@@ -6,6 +6,7 @@ includes all routers, and starts the server.
 """
 
 from pathlib import Path
+from typing import Optional
 
 import uvicorn
 import cloudinary
