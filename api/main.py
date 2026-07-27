@@ -65,10 +65,32 @@ app.include_router(notices.router)
 async def root_health_check():
     return {"status": "ok", "message": "FP Finance Backend API is running."}
 
-@app.get("/health")
-async def health_check(x_cron_secret: str = Header(None, alias="X-Cron-Secret")):
-    if x_cron_secret != CRON_SECRET:
+def verify_cron_secret(
+    authorization: Optional[str] = Header(None),
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    x_vercel_cron: Optional[str] = Header(None, alias="x-vercel-cron")
+):
+    # 1. Allow Vercel Built-in Cron automatically
+    if x_vercel_cron == "1":
+        return
+
+    # 2. Allow Render / External Cron / Manual API Call with Secret Header
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+    elif x_cron_secret:
+        token = x_cron_secret
+
+    if token != CRON_SECRET:
         raise HTTPException(status_code=403, detail="Invalid cron secret")
+
+@app.get("/health")
+async def health_check(
+    authorization: Optional[str] = Header(None),
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    x_vercel_cron: Optional[str] = Header(None, alias="x-vercel-cron")
+):
+    verify_cron_secret(authorization, x_cron_secret, x_vercel_cron)
     return {"status": "ok", "message": "Server is active"}
 
 def _run_due_reminders() -> int:
@@ -134,10 +156,11 @@ def _run_due_reminders() -> int:
 @app.post("/cron/due-reminders")
 @app.get("/cron/due-reminders")
 async def daily_due_reminders(
-    x_cron_secret: str = Header(None, alias="X-Cron-Secret")
+    authorization: Optional[str] = Header(None),
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    x_vercel_cron: Optional[str] = Header(None, alias="x-vercel-cron")
 ):
-    if x_cron_secret != CRON_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid cron secret")
+    verify_cron_secret(authorization, x_cron_secret, x_vercel_cron)
         
     notified_count = _run_due_reminders()
     
@@ -159,10 +182,11 @@ async def daily_due_reminders(
 @app.post("/cron/release-notification")
 @app.get("/cron/release-notification")
 async def release_notification(
-    x_cron_secret: str = Header(None, alias="X-Cron-Secret")
+    authorization: Optional[str] = Header(None),
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    x_vercel_cron: Optional[str] = Header(None, alias="x-vercel-cron")
 ):
-    if x_cron_secret != CRON_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid cron secret")
+    verify_cron_secret(authorization, x_cron_secret, x_vercel_cron)
         
     from database import db
     from notifications import notify_user
