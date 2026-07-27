@@ -1,4 +1,10 @@
 import json
+import sys
+import os
+
+# Add the api/ directory to sys.path so we can import shared modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+
 from database import db
 from backup_service import COLLECTIONS, get_iso_now, upload_json_to_gdrive_sync
 from utils import serialize_value

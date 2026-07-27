@@ -1,0 +1,21 @@
+# Dependencies
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets
+.env
+serviceAccountKey.json
+
+# Docker (not needed for Vercel)
+Dockerfile
+.dockerignore
+
+# Utility scripts (not needed in production)
+add_students.py
+add_test_students.py
+check_db.py
+get_refresh_token.py
+restore_local.py
+backup_all.py

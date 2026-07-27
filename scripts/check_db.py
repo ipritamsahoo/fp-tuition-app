@@ -1,6 +1,13 @@
+import sys
+import os
+
+# Add the api/ directory to sys.path so we can import shared modules
+api_dir = os.path.join(os.path.dirname(__file__), '..', 'api')
+sys.path.insert(0, api_dir)
+
 import firebase_admin
 from firebase_admin import credentials, firestore
-cred = credentials.Certificate('serviceAccountKey.json')
+cred = credentials.Certificate(os.path.join(api_dir, 'serviceAccountKey.json'))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 users = db.collection('users').get()

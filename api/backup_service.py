@@ -12,22 +12,26 @@ Public API (for use in router files):
 """
 
 import io
+import os
 import json
 import time
 import threading
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from utils import serialize_value
 from gdrive import get_drive_service, _get_or_create_subfolder, GOOGLE_DRIVE_FOLDER_ID
 from googleapiclient.http import MediaIoBaseUpload
 
 
-from concurrent.futures import ThreadPoolExecutor
+# Detect serverless environment — Vercel automatically sets VERCEL=1
+IS_SERVERLESS = os.getenv("VERCEL") == "1"
 
 COLLECTIONS = ["users", "batches", "payments", "notes", "notices", "distribution_snapshots"]
 
-# Limit concurrent uploads/deletes to 3 workers to prevent memory exhaustion and Google Drive rate limits
-backup_executor = ThreadPoolExecutor(max_workers=3)
+# ThreadPoolExecutor only created for non-serverless (local/Docker) environments
+backup_executor = ThreadPoolExecutor(max_workers=3) if not IS_SERVERLESS else None
+
 
 def get_iso_now():
     """Returns ISO format timestamp with Z suffix."""
@@ -35,8 +39,20 @@ def get_iso_now():
 
 
 def run_in_background(func, *args, **kwargs):
-    """Utility to run blocking tasks in a thread pool executor."""
-    backup_executor.submit(func, *args, **kwargs)
+    """Environment-aware background task runner.
+    
+    - Serverless (Vercel): Runs inline/synchronously because background threads
+      are killed after the HTTP response is sent. Guarantees backup completion
+      at the cost of ~1-2s extra latency per write operation.
+    - Local/Docker: Uses ThreadPoolExecutor for non-blocking background execution.
+    """
+    if IS_SERVERLESS:
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            print(f"[Backup] Inline execution failed: {e}")
+    else:
+        backup_executor.submit(func, *args, **kwargs)
 
 
 def _find_existing_file(service, folder_id: str, filename: str) -> str | None:

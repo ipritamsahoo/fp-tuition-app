@@ -28,14 +28,16 @@
 
 ```text
 fp-tuition-app/
-├── backend/            # FastAPI + Uvicorn server (Python 3.11)
+├── api/                # FastAPI + Uvicorn server (Vercel & Docker compatible)
 │   ├── routers/        # Modular API route controllers
 │   ├── database.py     # Firebase SDK initialization
 │   ├── dependencies.py # Role verification middlewares
 │   ├── gdrive.py       # Google Drive upload/download service
-│   ├── Dockerfile      # Render deployment configuration
+│   ├── backup_service.py # Environment-aware automatic backups
+│   ├── vercel.json     # Vercel serverless deployment config
+│   ├── Dockerfile      # Docker deployment configuration
 │   └── requirements.txt
-├── frontend/           # Vite + React
+├── frontend/           # Vite + React Client
 │   ├── src/
 │   │   ├── components/ # Reusable UI components
 │   │   ├── context/    # Global state contexts (Auth, Theme, Notification, Biometrics)
@@ -43,6 +45,11 @@ fp-tuition-app/
 │   │   └── sw.js       # PWA service worker code
 │   ├── firebase.json   # Firebase Hosting routing config
 │   └── package.json
+├── scripts/            # Admin & database utility scripts
+│   ├── get_refresh_token.py  # OAuth refresh token generator
+│   ├── backup_all.py         # Full database backup tool
+│   ├── check_db.py           # DB inspection tool
+│   └── restore_local.py      # Local DB restore tool
 └── SETUP_GUIDE.md      # Step-by-step setup, seeding, and deployment manual
 ```
 

@@ -51,7 +51,7 @@ Make sure your machine has the following installed:
 7. **Service Account Key (for Backend)**:
    - Go to **Project Settings > Service accounts** tab.
    - Click **Generate new private key**.
-   - A JSON file will download. Rename it to `serviceAccountKey.json` and place it in the `backend/` directory.
+   - A JSON file will download. Rename it to `serviceAccountKey.json` and place it in the `api/` directory.
 
 ### Step 2.2: Firestore Security Rules Configuration
 Go to the **Rules** tab in your Firebase Console under Firestore Database and paste the following rules:
@@ -188,15 +188,15 @@ Our backup scripts and notes service upload files to Google Drive.
 
 1. Go to [Cloudinary](https://cloudinary.com/) and register for a free account.
 2. Go to the Console Dashboard.
-3. Copy your **Cloud Name**, **API Key**, and **API Secret**. You will add these to the backend `.env`.
+3. Copy your **Cloud Name**, **API Key**, and **API Secret**. You will add these to the `api/.env` file.
 
 ---
 
-## 6. Running Backend Locally
+## 6. Running Backend API Locally
 
-1. Open your terminal and navigate to the backend directory:
+1. Open your terminal and navigate to the `api` directory:
    ```bash
-   cd backend
+   cd api
    ```
 2. Create and activate a python virtual environment:
    - **Windows (Command Prompt / PowerShell)**:
@@ -213,8 +213,8 @@ Our backup scripts and notes service upload files to Google Drive.
    ```bash
    pip install -r requirements.txt
    ```
-4. Configure Backend Environment:
-   - Create a `.env` file in the `backend/` directory.
+4. Configure API Environment:
+   - Create a `.env` file in the `api/` directory.
    - Fill it in with the keys you gathered:
      ```ini
      FIREBASE_API_KEY="your-firebase-web-api-key"
@@ -238,15 +238,15 @@ Our backup scripts and notes service upload files to Google Drive.
      GOOGLE_DRIVE_FOLDER_ID="your-google-drive-folder-id"
      ```
 5. Get Google Drive Refresh Token:
-   - In your backend terminal (with the virtual environment activated), run:
+   - From the project root, run the OAuth script:
      ```bash
-     python get_refresh_token.py
+     python scripts/get_refresh_token.py
      ```
    - Input the Client ID and Client Secret you downloaded from Google Cloud Console.
    - A browser window will open. Login with your Gmail address (the one you added to "Test Users" in step 4).
    - Google will show a warning screen. Click **Advanced > Go to FP Drive Backup (unsafe)** to proceed.
    - Once success is shown in the browser, check your terminal. It will output your `GOOGLE_REFRESH_TOKEN`.
-   - Copy this token and update `GOOGLE_REFRESH_TOKEN` in `backend/.env`.
+   - Copy this token and update `GOOGLE_REFRESH_TOKEN` in `api/.env`.
 
 6. Run the Backend API:
    ```bash
@@ -339,20 +339,22 @@ This endpoint is unsecured (does not require authentication headers) but require
 
 ## 10. Hosting & Production Deployment
 
-### 10.1: Hosting the Backend (on Render)
-1. Commit your backend directory code to a GitHub repository (**Do NOT commit your `.env` or `serviceAccountKey.json` files!**).
-2. Go to [Render](https://render.com/) and create a new **Web Service**.
-3. Link your GitHub repository.
-4. Set the following fields:
-   - **Root Directory**: `backend`
-   - **Environment**: `Docker`
-5. Go to the **Environment** tab on Render and add all the variables from your local `.env`.
-6. Add one additional variable:
-   - **Key**: `FIREBASE_CREDENTIALS_JSON`
-   - **Value**: Open your `serviceAccountKey.json` file. Remove all line breaks so it is a single-line string, and paste it here.
-7. Save changes. Render will automatically build the container and deploy the backend.
+### 10.1: Hosting the API (Vercel Serverless - Recommended)
+1. Push your repository to GitHub (ensure `.env` and `serviceAccountKey.json` are ignored).
+2. Go to [Vercel Console](https://vercel.com/) and click **Add New > Project**.
+3. Import your GitHub repository.
+4. Set **Root Directory** to `api`.
+5. Under **Environment Variables**, add all environment variables from `api/.env`.
+6. Click **Deploy**. Vercel will automatically build and serve the FastAPI application serverless using `vercel.json`.
 
-### 10.2: Hosting the Frontend (on Firebase Hosting)
+### 10.2: Alternative Hosting (Render Docker Container)
+1. Link your GitHub repository in [Render](https://render.com/).
+2. Create a new **Web Service**.
+3. Set **Root Directory** to `api` and **Environment** to `Docker`.
+4. Add your environment variables in Render's dashboard.
+5. Deploy the web service.
+
+### 10.3: Hosting the Frontend (on Firebase Hosting)
 1. Open a terminal in the `frontend/` folder.
 2. Build the optimized static files:
    ```bash

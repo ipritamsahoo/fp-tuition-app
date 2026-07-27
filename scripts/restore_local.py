@@ -1,5 +1,10 @@
 import os
 import json
+import sys
+
+# Add the api/ directory to sys.path so we can import shared modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+
 from firebase_admin import auth as firebase_auth
 from database import db
 
