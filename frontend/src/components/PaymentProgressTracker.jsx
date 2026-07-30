@@ -45,7 +45,7 @@ function createConfetti(container, isLight) {
 }
 
 // ── Main Component ─────────────────────────────────────────
-export default function PaymentProgressTracker({ status, mode, month, year, paused }) {
+export default function PaymentProgressTracker({ status, mode, month, year, paused, actionSlot }) {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
 
@@ -90,7 +90,7 @@ export default function PaymentProgressTracker({ status, mode, month, year, paus
         const wPct = parseFloat(currentWidthStr);
 
         if (!fill.style.width) {
-            gsap.set(fill, { width: "0%" });
+            gsap.set(fill, { width: isRejected ? "50%" : "0%" });
         }
 
         const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
@@ -227,9 +227,20 @@ export default function PaymentProgressTracker({ status, mode, month, year, paus
                         const isCurrent = idx === visualStep && activeStep === visualStep;
                         const isApprovedDone = idx === 2 && visualStep >= 2;
                         
-                        const stageLabel = (isRejected && idx === 2) ? "Rejected" : stage.label;
-                        const stageSub = (isRejected && idx === 2) ? "Payment Declined" : stage.sub;
-                        const stageIcon = (isRejected && idx === 2) ? "close" : stage.icon;
+                        let stageLabel = stage.label;
+                        let stageSub = stage.sub;
+                        let stageIcon = stage.icon;
+
+                        if (idx === 1 && activeStep >= 2) {
+                            stageLabel = "Verified";
+                            stageSub = "Admin Verified";
+                        }
+
+                        if (isRejected && idx === 2) {
+                            stageLabel = "Rejected";
+                            stageSub = "Payment Declined";
+                            stageIcon = "close";
+                        }
 
                         let nodeStyle = {};
                         if (isActive && idx < 1) {
@@ -279,7 +290,7 @@ export default function PaymentProgressTracker({ status, mode, month, year, paus
                                 >
                                     {isActive ? (
                                         <span className="material-symbols-outlined text-white text-base sm:text-lg material-symbols-filled drop-shadow-md">
-                                            {idx === 1 && visualStep === 1 ? "hourglass_top" : (isRejected && idx === 2 ? "close" : "check")}
+                                            {idx === 1 && visualStep === 1 && !isRejected ? "hourglass_top" : (isRejected && idx === 2 ? "close" : "check")}
                                         </span>
                                     ) : (
                                         <span className="material-symbols-outlined text-base sm:text-lg" style={{ color: 'var(--st-tracker-label-inactive)' }}>
@@ -319,41 +330,50 @@ export default function PaymentProgressTracker({ status, mode, month, year, paus
 
             {/* ── Status Message ── */}
             {status === "Pending_Verification" && (
-                <div className="mt-3 flex items-start sm:items-center gap-2 px-1">
-                    <span className="material-symbols-outlined text-sm mt-0.5 sm:mt-0 shrink-0" style={{ color: labelActiveSubColor }}>info</span>
-                    <p className="text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--st-text-secondary)' }}>
-                        Your payment for{" "}
-                        <span className="font-semibold" style={{ color: 'var(--st-text-primary)' }}>
-                            {month} {year}
-                        </span>{" "}
-                        is undergoing verification. Track progress above.
-                    </p>
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                    <div className="flex items-start sm:items-center gap-2">
+                        <span className="material-symbols-outlined text-sm mt-0.5 sm:mt-0 shrink-0" style={{ color: labelActiveSubColor }}>info</span>
+                        <p className="text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--st-text-secondary)' }}>
+                            Your payment for{" "}
+                            <span className="font-semibold" style={{ color: 'var(--st-text-primary)' }}>
+                                {month} {year}
+                            </span>{" "}
+                            is undergoing verification. Track progress above.
+                        </p>
+                    </div>
+                    {actionSlot && <div className="shrink-0 self-end sm:self-auto">{actionSlot}</div>}
                 </div>
             )}
 
             {status === "Paid" && (
-                <div className="mt-3 flex items-start sm:items-center gap-2 px-1">
-                    <span className="material-symbols-outlined text-[15px] sm:text-base mt-0.5 sm:mt-0 shrink-0 material-symbols-filled" style={{ color: 'var(--st-accent)' }}>verified</span>
-                    <p className="text-[11px] sm:text-xs leading-relaxed font-medium" style={{ color: 'var(--st-accent)' }}>
-                        Payment for{" "}
-                        <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>
-                            {month} {year}
-                        </span>{" "}
-                        has been verified and settled!
-                    </p>
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[15px] sm:text-base shrink-0 material-symbols-filled" style={{ color: 'var(--st-accent)' }}>verified</span>
+                        <p className="text-[11px] sm:text-xs leading-relaxed font-medium" style={{ color: 'var(--st-accent)' }}>
+                            Payment for{" "}
+                            <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>
+                                {month} {year}
+                            </span>{" "}
+                            has been verified and settled!
+                        </p>
+                    </div>
+                    {actionSlot && <div className="shrink-0 self-end sm:self-auto">{actionSlot}</div>}
                 </div>
             )}
 
             {isRejected && (
-                <div className="mt-3 flex items-start sm:items-center gap-2 px-1">
-                    <span className="material-symbols-outlined text-[15px] sm:text-base mt-0.5 sm:mt-0 shrink-0 material-symbols-filled text-red-500">error</span>
-                    <p className="text-[11px] sm:text-xs leading-relaxed font-medium text-red-500">
-                        Payment for{" "}
-                        <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>
-                            {month} {year}
-                        </span>{" "}
-                        has been rejected. Please contact support.
-                    </p>
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                    <div className="flex items-start sm:items-center gap-2">
+                        <span className="material-symbols-outlined text-[15px] sm:text-base mt-0.5 sm:mt-0 shrink-0 material-symbols-filled text-red-500">error</span>
+                        <p className="text-[11px] sm:text-xs leading-relaxed font-medium text-red-500">
+                            Payment for{" "}
+                            <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>
+                                {month} {year}
+                            </span>{" "}
+                            has been rejected. Please contact support.
+                        </p>
+                    </div>
+                    {actionSlot && <div className="shrink-0 self-end sm:self-auto">{actionSlot}</div>}
                 </div>
             )}
         </div>

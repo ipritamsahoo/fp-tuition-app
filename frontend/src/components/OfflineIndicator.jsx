@@ -35,6 +35,18 @@ export default function OfflineIndicator() {
         };
     }, []);
 
+    // Lock body scrolling when offline modal is displayed
+    useEffect(() => {
+        if (!isOnline) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [isOnline]);
+
     if (isOnline) return null;
 
     const isLight = theme === "light";

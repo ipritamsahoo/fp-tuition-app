@@ -16,7 +16,7 @@ const easeOutBack = (x) => {
     return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 };
 const studentNav = [
-    { label: "Dashboard", href: "/student", icon: "dashboard" },
+    { label: "Home", href: "/student", icon: "home" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
     { label: "Notes", href: "/student/notes", icon: "edit_document" },
@@ -24,7 +24,7 @@ const studentNav = [
     { label: "Settings", href: "/student/settings", icon: "settings" },
 ];
 const studentBottomNav = [
-    { label: "Dashboard", href: "/student", icon: "dashboard" },
+    { label: "Home", href: "/student", icon: "home" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
     { label: "Notes", href: "/student/notes", icon: "edit_document" },
@@ -111,7 +111,14 @@ function useScrollBounce(isDisabled) {
             if (!isDraggingRef.current) return;
             isDraggingRef.current = false;
 
-            if (accumulatedBounceRef.current !== 0) {
+            if (accumulatedBounceRef.current > 45 && isAtTopRef.current) {
+                // Pull-to-refresh threshold reached! Reload page cleanly
+                el.style.transition = "transform 0.2s ease-out";
+                el.style.transform = "translate3d(0, 50px, 0)";
+                setTimeout(() => {
+                    window.location.reload();
+                }, 150);
+            } else if (accumulatedBounceRef.current !== 0) {
                 // Spring back
                 el.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
                 el.style.transform = "translate3d(0, 0, 0)";

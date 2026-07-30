@@ -75,28 +75,28 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                 </span>
             </div>
 
-            {/* Description */}
+            {/* Description Card */}
             <div
-                className="w-full px-6 py-5 md:px-4 md:py-3 rounded-[28px] md:rounded-[16px] text-left animate-slide-up"
+                className="w-full p-5 sm:p-6 md:p-4 rounded-3xl md:rounded-2xl text-center animate-slide-up"
                 style={{
-                    backgroundColor: isLight ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.01)",
-                    border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.05)"}`,
+                    backgroundColor: isLight ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.015)",
+                    border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.06)"}`,
                     backdropFilter: "blur(32px) saturate(2.0)",
                     WebkitBackdropFilter: "blur(32px) saturate(2.0)",
                     animationDelay: "300ms"
                 }}
             >
-                <p className="text-sm md:text-xs leading-relaxed text-left" style={{ color: `var(${prefix}text-secondary)` }}>
-                    The simplest way to pay, track, and manage your educational fees in one place. Stay updated with instant status alerts and keep your payment records organized effortlessly.
+                <p className="text-xs sm:text-sm md:text-xs leading-relaxed text-center font-medium" style={{ color: `var(${prefix}text-secondary)` }}>
+                    FP Finance is Future Point's official learning and tuition management platform for students and educators. Seamlessly access study materials & class notices, manage fee payments, track punctuality insights, and stay updated in one unified workspace.
                 </p>
             </div>
 
             {/* Developers */}
             <div
-                className="w-full px-6 py-5 md:px-4 md:py-3 rounded-[28px] md:rounded-[16px] text-left animate-slide-up"
+                className="w-full p-5 sm:p-6 md:p-4 rounded-3xl md:rounded-2xl text-left animate-slide-up"
                 style={{
-                    backgroundColor: isLight ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.005)",
-                    border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.4)" : "rgba(255, 255, 255, 0.03)"}`,
+                    backgroundColor: isLight ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.008)",
+                    border: `1px solid ${isLight ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.04)"}`,
                     backdropFilter: "blur(32px) saturate(2.0)",
                     WebkitBackdropFilter: "blur(32px) saturate(2.0)",
                     animationDelay: "400ms"

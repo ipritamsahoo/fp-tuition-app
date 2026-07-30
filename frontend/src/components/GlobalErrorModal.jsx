@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useError } from "@/context/ErrorContext";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
@@ -10,6 +11,18 @@ import { useAdminTheme } from "@/context/AdminThemeContext";
 export default function GlobalErrorModal() {
     const { error, clear } = useError();
     const { user } = useAuth();
+    
+    // Lock body scrolling when global error modal is open
+    useEffect(() => {
+        if (error) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [error]);
     
     const studentTheme = useStudentTheme();
     const teacherTheme = useTeacherTheme();

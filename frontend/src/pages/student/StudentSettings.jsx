@@ -168,6 +168,28 @@ function StudentSettingsContent() {
 
     const accentColor = isLight ? '#0d9488' : '#3b82f6';
 
+    // Lock body scrolling whenever any modal/popup is open
+    const isAnyModalOpen = Boolean(
+        picModalOpen ||
+        devicesModalOpen ||
+        aboutModalOpen ||
+        feedbackModalOpen ||
+        helpModalOpen ||
+        usernameModalOpen ||
+        passwordModalOpen
+    );
+
+    useEffect(() => {
+        if (isAnyModalOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [isAnyModalOpen]);
+
     return (
         <>
             {/* Sticky Scrolling Profile Header Navbar - rendered in portal to bypass will-change:transform ancestor */}

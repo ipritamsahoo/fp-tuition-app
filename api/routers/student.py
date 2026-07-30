@@ -521,3 +521,171 @@ def student_badge_celebrated(user=Depends(require_role("student"))):
     except Exception as e:
         print(f"Error clearing badge animation flag: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────
+# POST /api/student/calculate-fp-score
+# ──────────────────────────────────────────────
+def compute_student_fp_score(student_id: str) -> dict:
+    """
+    Computes FP Score (300 to 900) for a student based on post-paid payment history.
+    Post-Paid Rule: Billing cycle Month M is collected in Month M+1.
+    """
+    now = datetime.now(IST)
+    current_year = now.year
+    current_month = now.month
+    current_day = now.day
+
+    payments_ref = db.collection("payments").where(filter=FieldFilter("student_id", "==", student_id)).stream()
+    payment_docs = [p.to_dict() for p in payments_ref]
+
+    if not payment_docs:
+        return {
+            "fp_score": "N/A",
+            "fp_score_tier": "NO HISTORY",
+            "fp_score_color": "#9ca3af",
+            "updated_at": datetime.now(IST).strftime("%B %d, %Y")
+        }
+
+    scores = []
+    for p in payment_docs:
+        status = p.get("status", "Unpaid")
+        month = p.get("month", 1)
+        year = p.get("year", current_year)
+
+        # Target primary collection month is M+1
+        target_month = month + 1
+        target_year = year
+        if target_month > 12:
+            target_month = 1
+            target_year += 1
+
+        # Second collection month is M+2
+        month2 = month + 2
+        year2 = year
+        if month2 > 12:
+            month2 -= 12
+            year2 += 1
+
+        is_m1_window = (target_year == current_year and target_month == current_month)
+        is_m2_window = (year2 == current_year and month2 == current_month)
+
+        if status == "Paid":
+            paid_at = p.get("requested_at") or p.get("updated_at")
+            if paid_at:
+                try:
+                    if isinstance(paid_at, str):
+                        dt = datetime.fromisoformat(paid_at.replace("Z", "+00:00"))
+                    else:
+                        dt = paid_at
+                    paid_year = dt.year
+                    paid_month = dt.month
+                    paid_day = dt.day
+                except Exception:
+                    paid_year = target_year
+                    paid_month = target_month
+                    paid_day = 1
+            else:
+                paid_year = target_year
+                paid_month = target_month
+                paid_day = 1
+
+            if paid_year < target_year or (paid_year == target_year and paid_month < target_month):
+                scores.append(900)
+            elif paid_year == target_year and paid_month == target_month:
+                # Paid within Month 1 (M+1)
+                if paid_day <= 5:
+                    scores.append(900)
+                elif paid_day <= 10:
+                    scores.append(810)
+                elif paid_day <= 15:
+                    scores.append(730)
+                elif paid_day <= 20:
+                    scores.append(620)
+                else:
+                    scores.append(500)
+            elif paid_year == year2 and paid_month == month2:
+                # Paid within Month 2 (M+2) - Considerate Brackets
+                if paid_day <= 10:
+                    scores.append(600)
+                elif paid_day <= 20:
+                    scores.append(500)
+                else:
+                    scores.append(400)
+            else:
+                # Paid after 2 months (M+3 onwards)
+                scores.append(300)
+        else:
+            if is_m1_window:
+                if current_day <= 5:
+                    scores.append(900)
+                elif current_day <= 10:
+                    scores.append(810)
+                elif current_day <= 15:
+                    scores.append(730)
+                elif current_day <= 20:
+                    scores.append(620)
+                else:
+                    scores.append(500)
+            elif is_m2_window:
+                if current_day <= 10:
+                    scores.append(600)
+                elif current_day <= 20:
+                    scores.append(500)
+                else:
+                    scores.append(400)
+            else:
+                # Overdue past 2 months
+                scores.append(300)
+
+    overall_score = int(round(sum(scores) / len(scores))) if scores else 900
+    overall_score = max(300, min(900, overall_score))
+
+    if overall_score >= 850:
+        tier = "PERFECT"
+        tier_color = "#10b981"
+    elif overall_score >= 780:
+        tier = "VERY GOOD"
+        tier_color = "#3b82f6"
+    elif overall_score >= 700:
+        tier = "GOOD"
+        tier_color = "#eab308"
+    elif overall_score >= 600:
+        tier = "FAIR"
+        tier_color = "#f97316"
+    elif overall_score >= 500:
+        tier = "BELOW AVERAGE"
+        tier_color = "#f43f5e"
+    else:
+        tier = "POOR"
+        tier_color = "#ef4444"
+
+    return {
+        "fp_score": overall_score,
+        "fp_score_tier": tier,
+        "fp_score_color": tier_color,
+        "updated_at": datetime.now(IST).strftime("%B %d, %Y")
+    }
+
+
+@router.post("/calculate-fp-score")
+def calculate_fp_score(user=Depends(require_role("student"))):
+    """Calculates FP Score (300-900) and saves it to Firestore users/{uid} document."""
+    try:
+        score_data = compute_student_fp_score(user["uid"])
+        
+        user_ref = db.collection("users").document(user["uid"])
+        user_ref.update({
+            "fp_score": score_data["fp_score"],
+            "fp_score_tier": score_data["fp_score_tier"],
+            "fp_score_updated_at": score_data["updated_at"],
+        })
+        
+        updated = user_ref.get()
+        if updated.exists:
+            backup_document("users", user["uid"], updated.to_dict())
+            
+        return score_data
+    except Exception as e:
+        print(f"Error calculating FP Score: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

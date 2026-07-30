@@ -38,6 +38,18 @@ export default function PwaUpdateBanner({ show, mode = "update", currentVersion,
         };
     }, []);
 
+    // Lock body scrolling when update banner/modal is open
+    useEffect(() => {
+        if (show) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [show]);
+
     if (!show) return null;
 
     const handleUpdate = () => {

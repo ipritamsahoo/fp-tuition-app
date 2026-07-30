@@ -1,714 +1,54 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { QRCodeSVG } from "qrcode.react";
+import { Link, useNavigate } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import StudentLayout from "@/components/StudentLayout";
 import AnimatedGreeting from "@/components/AnimatedGreeting";
-import PaymentProgressTracker from "@/components/PaymentProgressTracker";
 import BadgeCelebrationOverlay from "@/components/BadgeCelebrationOverlay";
-import { api, apiFetch, isSystemicError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { generateReceiptPDF } from "@/lib/pdfUtils";
-import { getCache, setCache } from "@/lib/memoryCache";
+import { setCache } from "@/lib/memoryCache";
 import { StudentDashboardSkeleton } from "@/components/Skeletons";
-import { get, del } from "idb-keyval";
-import ModernSelect from "@/components/ModernSelect";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const FULL_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-function isMobile() {
-    if (typeof navigator === "undefined") return false;
-    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
-        || ("ontouchstart" in window && window.innerWidth < 768);
-}
-
-// ── Pay Now Modal (Nebula Theme) ──
-function PayNowModal({ payment, unpaidPayments = [], onClose, onProceed, initialFile }) {
-    const [file, setFile] = useState(initialFile || null);
-    const [preview, setPreview] = useState(initialFile ? URL.createObjectURL(initialFile) : null);
-    const [submitting, setSubmitting] = useState(false);
-    const [upiNotice, setUpiNotice] = useState(payment?.status === "Rejected");
-    const [upiAppUnavailable, setUpiAppUnavailable] = useState(false);
-    const [showPreviewModal, setShowPreviewModal] = useState(false);
-    const { theme } = useStudentTheme();
-    const isLight = theme === "light";
-
-    // Checklist state: initialize with the clicked payment
-    const [selectedIds, setSelectedIds] = useState(new Set([payment.id]));
-    const [upiData, setUpiData] = useState(null);
-    const [loadingUpi, setLoadingUpi] = useState(false);
-
-    // Calculate total amount and selected list dynamically
-    const selectedPayments = unpaidPayments.length > 0
-        ? unpaidPayments.filter(p => selectedIds.has(p.id))
-        : [payment];
-    const totalAmount = selectedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-
-    const handleToggle = (id) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                if (next.size > 1) {
-                    next.delete(id);
-                }
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    };
-
-    // Load UPI data dynamically when total amount changes
-    useEffect(() => {
-        let active = true;
-        const fetchUpi = async () => {
-            setLoadingUpi(true);
-            try {
-                const data = await api.get(`/api/student/upi-link?amount=${totalAmount}`);
-                if (active) {
-                    setUpiData(data);
-                }
-            } catch (err) {
-                console.error("Failed to fetch UPI link:", err);
-            } finally {
-                if (active) setLoadingUpi(false);
-            }
-        };
-
-        fetchUpi();
-        return () => { active = false; };
-    }, [totalAmount]);
-
-    const handleFileChange = (e) => {
-        const selected = e.target.files?.[0];
-        if (!selected) return;
-        setFile(selected);
-        const url = URL.createObjectURL(selected);
-        setPreview(url);
-    };
-
-    const handleRemoveFile = () => {
-        if (preview) URL.revokeObjectURL(preview);
-        setFile(null);
-        setPreview(null);
-    };
-
-    const handleSubmit = async () => {
-        if (!file) return;
-        setSubmitting(true);
-        try {
-            await onProceed(Array.from(selectedIds), file);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    useEffect(() => {
-        return () => { if (preview) URL.revokeObjectURL(preview); };
-    }, [preview]);
-
-    if (!payment) return null;
-
-    return createPortal(
-        <div
-            data-theme={theme}
-            className="fixed inset-0 z-[100] flex flex-col sm:items-center sm:justify-center"
-            onClick={onClose}
-            style={{
-                backgroundColor: isLight ? 'rgba(238,242,255,0.85)' : 'rgba(12,14,23,0.85)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                transform: "translateZ(0)", isolation: "isolate"
-            }}
-        >
-            <div
-                className="relative w-full h-full sm:h-auto sm:max-h-[85dvh] sm:max-w-md sm:rounded-[28px] flex flex-col overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                    backgroundColor: isLight ? 'rgba(255,255,255,0.45)' : 'rgba(12,14,23,0.7)',
-                    border: isLight ? '1px solid rgba(255,255,255,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: isLight
-                        ? '0 24px 48px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)'
-                        : '0 24px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(32px) saturate(1.8)',
-                    WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
-                    transform: "translateZ(0)", isolation: "isolate"
-                }}
-            >
-                {/* ── Header Bar ── */}
-                <div
-                    className="flex items-center gap-3 px-4 h-16 shrink-0"
-                    style={{
-                        borderBottom: `1px solid var(--st-divider)`,
-                        background: isLight
-                            ? 'linear-gradient(to right, rgba(255,255,255,0.2), rgba(240,244,255,0.4), rgba(255,255,255,0.2))'
-                            : 'linear-gradient(to right, rgba(12,14,23,0.4), rgba(17,20,39,0.6), rgba(12,14,23,0.4))',
-                    }}
-                >
-                    <button onClick={onClose}
-                        className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-all cursor-pointer"
-                        style={{ color: 'var(--st-text-secondary)' }}
-                    >
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <div className="flex-1 flex items-center justify-between">
-                        <div>
-                            <h3 className="font-bold text-lg leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Secure Checkout</h3>
-                            <p className="text-[10px] font-medium tracking-wide flex items-center gap-1" style={{ color: 'var(--st-accent)', marginTop: '2px' }}>
-                                <span className="material-symbols-outlined text-[11px] material-symbols-filled">verified</span> 100% SECURE
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <h3 className="font-extrabold text-xl leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>₹{totalAmount}</h3>
-                            <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
-                                {selectedPayments.length === 1 
-                                    ? `${FULL_MONTHS[selectedPayments[0].month - 1]} ${selectedPayments[0].year}`
-                                    : `${selectedPayments.length} Months`}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Scrollable Content ── */}
-                <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-4">
-
-                {unpaidPayments.length > 1 && (
-                    <div 
-                        className="mb-5 p-4 rounded-2xl border flex flex-col gap-2" 
-                        style={{ 
-                            borderColor: 'var(--st-divider)', 
-                            backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)' 
-                        }}
-                    >
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="material-symbols-outlined text-sm" style={{ color: 'var(--st-accent)' }}>event_repeat</span>
-                            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
-                                Pay for Multiple Months
-                            </label>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                            {unpaidPayments.map(p => {
-                                const isChecked = selectedIds.has(p.id);
-                                return (
-                                    <label key={p.id} className="flex items-center justify-between p-2 rounded-xl border cursor-pointer select-none transition-colors"
-                                        style={{
-                                            borderColor: isChecked ? 'var(--st-accent)' : 'var(--st-divider)',
-                                            backgroundColor: isChecked 
-                                                ? (isLight ? 'rgba(59,130,246,0.05)' : 'rgba(74,248,227,0.03)')
-                                                : 'transparent'
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-2.5">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isChecked}
-                                                onChange={() => handleToggle(p.id)}
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                                                style={{ accentColor: "var(--st-accent)" }}
-                                            />
-                                            <span className="text-xs font-semibold" style={{ color: 'var(--st-text-primary)' }}>
-                                                {FULL_MONTHS[p.month - 1]} {p.year}
-                                            </span>
-                                        </div>
-                                        <span className="text-xs font-bold" style={{ color: 'var(--st-text-secondary)' }}>
-                                            ₹{p.amount}
-                                        </span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                        <p className="text-[10px]" style={{ color: 'var(--st-text-muted)' }}>
-                            Check the months you want to pay for. Total amount will update automatically.
-                        </p>
-                    </div>
-                )}
-
-                {/* Divider */}
-                <div className="mb-4" style={{ borderTop: `1px solid var(--st-divider)` }} />
-
-                {/* Step 1: Make Payment */}
-                <div>
-                    <p className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--st-text-primary)' }}>
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold" style={{ backgroundColor: 'var(--st-blue-bg)', color: 'var(--st-blue)' }}>1</span>
-                        Make Payment
-                    </p>
-
-                    {loadingUpi ? (
-                        <div className="flex items-center justify-center py-6">
-                            <div className="w-6 h-6 border-3 border-[#3b82f6]/30 border-t-[#3b82f6] rounded-full animate-spin" />
-                            <span className="text-sm ml-3" style={{ color: 'var(--st-text-secondary)' }}>Loading payment info...</span>
-                        </div>
-                    ) : upiData ? (
-                        <div className="text-center mb-5 mt-2">
-                            <div className="relative inline-block mx-auto">
-                                {/* Glowing backdrop */}
-                                <div className="absolute -inset-1 bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] rounded-[1.25rem] blur opacity-40"></div>
-                                {/* QR Container */}
-                                <div
-                                    className="relative p-3.5 rounded-2xl shadow-xl flex flex-col items-center backdrop-blur-md"
-                                    style={{
-                                        backgroundColor: isLight ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.05)',
-                                        border: `1px solid ${isLight ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.1)'}`
-                                    }}
-                                >
-                                    <div className="flex items-center justify-center bg-white p-2.5 rounded-xl border border-gray-200">
-                                        <QRCodeSVG value={upiData.upi_link} size={150} level="H" includeMargin={false} />
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-3 pt-3 w-full justify-center" style={{ borderTop: `1px solid var(--st-divider)` }}>
-                                        <span className="text-[11px] font-extrabold tracking-wider" style={{ color: 'var(--st-text-muted)' }}>BHIM UPI</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <p className="text-[13px] mt-4 font-medium" style={{ color: 'var(--st-text-muted)' }}>Scan with any UPI app to pay</p>
-                        </div>
-                    ) : (
-                        <div className="text-center py-6 text-xs text-rose-500">
-                            Failed to load UPI payment details.
-                        </div>
-                    )}
-
-                    {isMobile() && upiData && !loadingUpi && (
-                        <>
-                            <button
-                                onClick={() => setUpiAppUnavailable(true)}
-                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl text-sm font-medium transition-all mb-2 cursor-pointer"
-                                style={{
-                                    backgroundColor: 'var(--st-blue-bg)',
-                                    borderWidth: 1, borderStyle: 'solid',
-                                    borderColor: isLight ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.2)',
-                                    color: 'var(--st-blue)',
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-lg">credit_card</span>
-                                Open UPI App
-                            </button>
-
-                            {upiAppUnavailable && (
-                                <div
-                                    className="mb-4 mt-1 p-3 rounded-2xl text-xs leading-relaxed relative"
-                                    style={{
-                                        backgroundColor: isLight ? 'rgba(245,158,11,0.08)' : 'rgba(251,191,36,0.1)',
-                                        border: `1px solid ${isLight ? 'rgba(245,158,11,0.2)' : 'rgba(251,191,36,0.2)'}`,
-                                        color: isLight ? '#b45309' : '#fde68a'
-                                    }}
-                                >
-                                    <span className="font-bold flex items-center gap-1 mb-1" style={{ color: isLight ? '#d97706' : '#fbbf24' }}>
-                                        <span className="material-symbols-outlined text-sm">info</span> Service Unavailable
-                                    </span>
-                                    This service is currently unavailable. Please pay either by scanning the QR code displayed on your screen, or by paying Mr. Soumya Sengupta directly via your UPI app, and then submit the screenshot here.
-                                    <button onClick={() => setUpiAppUnavailable(false)} className="absolute top-2 right-2 cursor-pointer w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5" style={{ color: isLight ? '#d97706' : '#fbbf24' }}>
-                                        <span className="material-symbols-outlined text-sm font-bold">close</span>
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {upiNotice && (
-                        <div
-                            className="mb-4 p-3 rounded-2xl text-xs leading-relaxed"
-                            style={{
-                                backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,110,132,0.1)',
-                                border: `1px solid ${isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)'}`,
-                                color: isLight ? '#b91c1c' : '#ff9dac'
-                            }}
-                        >
-                            <span className="font-semibold" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>⚠️ Payment Rejected!</span><br />
-                            Your previous submission was rejected. Please ensure you upload a clear screenshot of the transaction showing the UTR/Transaction ID.
-                            <button onClick={() => setUpiNotice(false)} className="ml-2 cursor-pointer font-bold" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>✕</button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Divider */}
-                <div className="my-4" style={{ borderTop: `1px solid var(--st-divider)` }} />
-
-                {/* Step 2: Upload Screenshot */}
-                <div>
-                    <p className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--st-text-primary)' }}>
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold" style={{ backgroundColor: 'var(--st-blue-bg)', color: 'var(--st-blue)' }}>2</span>
-                        Upload Payment Screenshot
-                    </p>
-
-                    {!preview ? (
-                        <label
-                            className="flex flex-col items-center justify-center w-full py-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer"
-                            style={{
-                                borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
-                                backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)',
-                            }}
-                        >
-                            <span className="material-symbols-outlined text-4xl mb-2" style={{ color: 'var(--st-text-secondary)' }}>cloud_upload</span>
-                            <span className="text-sm" style={{ color: 'var(--st-text-secondary)' }}>Tap to upload screenshot</span>
-                            <span className="text-xs mt-1" style={{ color: 'var(--st-text-muted)' }}>PNG, JPG up to 5MB</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                        </label>
-                    ) : (
-                        <div className="relative">
-                            <div
-                                className="relative group p-1 rounded-2xl transition-all cursor-zoom-in"
-                                onClick={() => setShowPreviewModal(true)}
-                                style={{
-                                    backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)',
-                                    borderWidth: 1, borderStyle: 'solid',
-                                    borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                                }}
-                            >
-                                <img
-                                    src={preview}
-                                    alt="Payment screenshot preview"
-                                    className="w-full h-auto max-h-48 object-cover rounded-xl"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl pointer-events-none">
-                                    <span className="material-symbols-outlined text-white text-3xl">zoom_in</span>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleRemoveFile}
-                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#ff6e84]/80 text-white flex items-center justify-center text-xs hover:bg-[#ff6e84] cursor-pointer"
-                            >
-                                <span className="material-symbols-outlined text-sm">close</span>
-                            </button>
-                            <p className="text-xs mt-2 text-center flex items-center justify-center gap-1" style={{ color: 'var(--st-accent)' }}>
-                                <span className="material-symbols-outlined text-sm material-symbols-filled">check_circle</span>
-                                Screenshot selected — review it above
-                            </p>
-                        </div>
-                    )}
-                </div>
-                </div>
-
-                {/* ── Sticky Proceed Button ── */}
-                <div
-                    className="p-5 pt-3 shrink-0"
-                    style={{
-                        borderTop: `1px solid var(--st-divider)`,
-                        backgroundColor: isLight ? 'rgba(255,255,255,0.2)' : 'rgba(12,14,23,0.4)',
-                    }}
-                >
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!file || submitting}
-                        className={`w-full py-3 rounded-full font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95 border shadow-lg ${
-                            isLight
-                                ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
-                                : 'bg-[#4af8e3]/10 border-[#4af8e3]/30 text-[#4af8e3] hover:bg-[#4af8e3]/20'
-                        }`}
-                        style={{
-                            backdropFilter: 'blur(24px) saturate(2)',
-                            WebkitBackdropFilter: 'blur(24px) saturate(2)',
-                            transform: "translateZ(0)", isolation: "isolate"
-                        }}
-                    >
-                        {submitting ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Sending...
-                            </span>
-                        ) : (
-                            "Proceed — Send for Verification"
-                        )}
-                    </button>
-                    {!file && (
-                        <p className="text-xs text-center mt-1.5" style={{ color: 'var(--st-text-muted)' }}>Upload a screenshot to enable proceed</p>
-                    )}
-                </div>
-
-                {/* ── Fullscreen Image Preview Modal ── */}
-                {showPreviewModal && preview && createPortal(
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setShowPreviewModal(false)} style={{ touchAction: "none" }}>
-                        <div className="relative max-w-2xl w-full max-h-[80vh] flex justify-center" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => setShowPreviewModal(false)}
-                                className="absolute -top-10 sm:-top-4 right-1 sm:-right-4 w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer z-10 transition-colors shadow-xl"
-                                style={{
-                                    backgroundColor: 'var(--st-icon-bg)',
-                                    borderColor: 'var(--st-input-border)',
-                                    color: 'var(--st-text-primary)'
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-lg">close</span>
-                            </button>
-                            <img src={preview} alt="Fullscreen Preview" className="max-h-[80vh] w-auto max-w-full object-contain block shadow-2xl shadow-black/80" />
-                        </div>
-                    </div>,
-                    document.body
-                )}
-            </div>
-        </div>,
-        document.body
-    );
-}
-
-
-// ── Main Dashboard Content ──
 function StudentDashboardContent() {
     const { user, refreshUser } = useAuth();
     const { theme } = useStudentTheme();
+    const navigate = useNavigate();
     const isLight = theme === "light";
-    
-    useEffect(() => {
-        document.documentElement.classList.add("allow-overscroll");
-        document.body.classList.add("allow-overscroll");
-        return () => {
-            document.documentElement.classList.remove("allow-overscroll");
-            document.body.classList.remove("allow-overscroll");
-        };
-    }, []);
-    
-    // In-Memory Caching for instant load (Shared with Payments History)
-    const cacheKey = `student_global_payments_${user?.uid}`;
-    const cachedPayments = getCache(cacheKey);
-    
-    const [payments, setPayments] = useState(cachedPayments || []);
-    const [loading, setLoading] = useState(!cachedPayments);
-    const [success, setSuccess] = useState("");
-    const [error, setError] = useState("");
-    const [previewImg, setPreviewImg] = useState(null);
-    const [sharedFile, setSharedFile] = useState(null);
-    const [showBadgeCelebration, setShowBadgeCelebration] = useState(() => 
+
+    const [notices, setNotices] = useState([]);
+    const [showBadgeCelebration, setShowBadgeCelebration] = useState(() =>
         !!(user?.badgeAnimationPending && user?.currentBadge)
     );
 
-    // Persist seen approvals across sessions to guarantee the student sees the animation
-    const [seenApprovals, setSeenApprovals] = useState(new Set());
-    const [seenRejections, setSeenRejections] = useState(new Set());
-
-    const [isVisible, setIsVisible] = useState(document.visibilityState === "visible");
-
-    useEffect(() => {
-        const handleVisibilityChange = () => setIsVisible(document.visibilityState === "visible");
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-        return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-    }, []);
-
-    // Load seen states from localStorage once user.uid is available
-    useEffect(() => {
-        if (user?.uid) {
-            try {
-                const sR = localStorage.getItem(`fp_seen_rejections_${user.uid}`);
-                const sA = localStorage.getItem(`fp_seen_approvals_${user.uid}`);
-                if (sR) setSeenRejections(new Set(JSON.parse(sR)));
-                if (sA) setSeenApprovals(new Set(JSON.parse(sA)));
-            } catch (e) { console.error("Cache load error", e); }
-        }
-    }, [user?.uid]);
-
-    // AUTO-SYNC: If a payment's status moves away from terminal (Paid/Rejected), 
-    // remove it from seen sets so the student sees the new state.
-    useEffect(() => {
-        if (!user?.uid || payments.length === 0) return;
-
-        let changedS = false;
-        let newSR = new Set(seenRejections);
-        let newSA = new Set(seenApprovals);
-
-        payments.forEach(p => {
-            if (p.status !== "Rejected" && newSR.has(p.id)) {
-                newSR.delete(p.id);
-                changedS = true;
-            }
-            if (p.status !== "Paid" && newSA.has(p.id)) {
-                newSA.delete(p.id);
-                changedS = true;
-            }
-        });
-
-        if (changedS) {
-            setSeenRejections(newSR);
-            localStorage.setItem(`fp_seen_rejections_${user.uid}`, JSON.stringify(Array.from(newSR)));
-            setSeenApprovals(newSA);
-            localStorage.setItem(`fp_seen_approvals_${user.uid}`, JSON.stringify(Array.from(newSA)));
-        }
-    }, [payments, user?.uid]);
-
-    // Pay Now modal state
-    const [payModalPayment, setPayModalPayment] = useState(null);
-    const [payModalAllowMultiple, setPayModalAllowMultiple] = useState(false);
-
-    const fetchPayments = useCallback(async () => {
+    // Background fetch notices without blocking dashboard UI render
+    const loadDashboardData = useCallback(async () => {
         try {
-            const data = await api.get("/api/student/payments");
-            
-            // Optimization: Update state and cache only if data has changed
-            const currentCache = getCache(cacheKey);
-            if (JSON.stringify(currentCache) !== JSON.stringify(data)) {
-                setPayments(data);
-                setCache(cacheKey, data);
+            const batchId = user?.batchId || user?.batch_id;
+            if (batchId) {
+                const noticeData = await api.get(`/api/notices/batch/${batchId}?limit=2`);
+                setNotices(noticeData?.notices || noticeData || []);
             }
         } catch (err) {
-            if (!isSystemicError(err.message)) {
-                // Handled globally for systemic, but we could set error here if needed
-            }
-        } finally {
-            setLoading(false);
+            console.error("Dashboard notice load error:", err);
         }
-    }, [cacheKey]); // Stable dependencies (loading removed)
+    }, [user?.batchId, user?.batch_id]);
 
     useEffect(() => {
         if (user?.uid) {
-            fetchPayments();
+            loadDashboardData();
         }
-        const handleOnline = () => {
-            if (user?.uid) fetchPayments();
-        };
-        window.addEventListener("online", handleOnline);
-        return () => window.removeEventListener("online", handleOnline);
-    }, [user?.uid, fetchPayments]);
+    }, [user?.uid, loadDashboardData]);
 
-    // Real-time: auto-refresh when payment status changes in Firestore
     useEffect(() => {
-        if (!user?.uid) return;
-        let isFirstSnapshot = true; // Skip initial snapshot — fetchPayments() already called on mount
-        const q = query(
-            collection(db, "payments"),
-            where("student_id", "==", user.uid)
-        );
-        const unsubscribe = onSnapshot(q, () => {
-            if (isFirstSnapshot) { isFirstSnapshot = false; return; }
-            fetchPayments();
-        });
-        return () => unsubscribe();
-    }, [user?.uid, fetchPayments]);
-
-    // Handle manual dismissal of "Paid" payments
-    const handleDismissPaid = useCallback((paymentId) => {
-        if (!user?.uid) return;
-        setSeenApprovals(prev => {
-            const newSet = new Set(prev);
-            newSet.add(paymentId);
-            localStorage.setItem(`fp_seen_approvals_${user.uid}`, JSON.stringify([...newSet]));
-            return newSet;
-        });
-    }, [user?.uid]);
-
-    // Handle manual dismissal of "Rejected" payments — marks as seen so tracker disappears
-    const handleDismissRejected = useCallback(async (paymentId) => {
-        if (!user?.uid) return;
-        
-        setSeenRejections(prev => {
-            const newSet = new Set(prev);
-            newSet.add(paymentId);
-            localStorage.setItem(`fp_seen_rejections_${user.uid}`, JSON.stringify([...newSet]));
-            return newSet;
-        });
-
-        try {
-            await api.post(`/api/student/payments/${paymentId}/acknowledge-rejection`);
-            fetchPayments();
-        } catch (err) {
-            console.error("Failed to acknowledge rejection:", err);
-        }
-    }, [user?.uid, fetchPayments]);
-
-    // Open Pay Now modal
-    const openPayModal = (payment) => {
-        setPayModalPayment(payment);
-        setPayModalAllowMultiple(false);
-    };
-
-    const openPayMultipleModal = () => {
-        const unpaid = payments.filter((p) => p.status === "Unpaid");
-        if (unpaid.length > 0) {
-            const sortedUnpaid = [...unpaid].sort((a, b) => {
-                if (a.year !== b.year) return a.year - b.year;
-                return a.month - b.month;
-            });
-            setPayModalPayment(sortedUnpaid[0]);
-            setPayModalAllowMultiple(true);
-        }
-    };
-
-    const closePayModal = () => {
-        setPayModalPayment(null);
-        setPayModalAllowMultiple(false);
-    };
-
-    const handleProceed = async (paymentIds, file) => {
-        setError("");
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("payment_ids_json", JSON.stringify(paymentIds));
-            await apiFetch(`/api/student/payments/batch/upload`, {
-                method: "POST",
-                body: formData,
-            });
-            setSuccess("Verification request sent successfully! 🎉");
-            closePayModal();
-        } catch (err) {
-            if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-        }
-    };
-
-    const totalDue = payments.filter((p) => p.status === "Unpaid").reduce((s, p) => s + (p.amount || 0), 0);
-    const totalPaid = payments.filter((p) => p.status === "Paid").reduce((s, p) => s + (p.amount || 0), 0);
-    const actionPayments = payments.filter((p) => 
-        p.status === "Unpaid" || 
-        p.status === "Pending_Verification" ||
-        (p.status === "Paid" && !seenApprovals.has(p.id)) ||
-        (p.status === "Rejected" && !seenRejections.has(p.id))
-    );
-    const paidProgress = totalPaid > 0 && (totalPaid + totalDue) > 0 ? (totalPaid / (totalPaid + totalDue)) * 100 : (totalDue === 0 && totalPaid > 0 ? 100 : 0);
-
-    // Badge celebration trigger (must be before any early returns — Rules of Hooks)
-    useEffect(() => {
-        console.log("[BADGE_CELEB] user.badgeAnimationPending =", user?.badgeAnimationPending, "| user.currentBadge =", user?.currentBadge, "| showBadgeCelebration =", showBadgeCelebration);
         if (user?.badgeAnimationPending && user?.currentBadge) {
-            console.log("[BADGE_CELEB] ✅ Triggering celebration!");
             setShowBadgeCelebration(true);
         }
     }, [user?.badgeAnimationPending, user?.currentBadge]);
 
-    // Check for shared payment screenshot from PWA Share Target
-    useEffect(() => {
-        if (loading || payments.length === 0) return;
-
-        const handleSharedFile = async () => {
-            try {
-                const file = await get("shared_payment_screenshot");
-                if (file) {
-                    const unpaid = payments.filter((p) => p.status === "Unpaid");
-                    if (unpaid.length > 1) {
-                        setSharedFile(file);
-                        const sortedUnpaid = [...unpaid].sort((a, b) => {
-                            if (a.year !== b.year) return a.year - b.year;
-                            return a.month - b.month;
-                        });
-                        setPayModalPayment(sortedUnpaid[0]);
-                        setPayModalAllowMultiple(true);
-                    } else if (unpaid.length === 1) {
-                        setSharedFile(file);
-                        openPayModal(unpaid[0]);
-                    } else {
-                        alert("You don't have any unpaid fees to verify!");
-                    }
-                    // Delete immediately to prevent re-opening on manual page refresh
-                    await del("shared_payment_screenshot");
-                }
-            } catch (err) {
-                console.error("Failed to check shared screenshot:", err);
-            }
-        };
-
-        handleSharedFile();
-    }, [loading, payments]);
-
-    if (loading) {
-        return (
-            <div>
-                <StudentDashboardSkeleton />
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 pb-6">
             {/* Badge Celebration Overlay */}
             {showBadgeCelebration && user?.currentBadge && (
                 <BadgeCelebrationOverlay
@@ -720,290 +60,480 @@ function StudentDashboardContent() {
                     }}
                 />
             )}
-            {/* ── Welcome Section ── */}
-            <section className="space-y-1">
-                <h1
-                    className="text-2xl md:text-3xl font-extrabold tracking-tight"
-                    style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}
-                >
-                    <AnimatedGreeting name={user?.name || "Student"} />
-                </h1>
-            </section>
 
-            {/* ── Alerts ── */}
-            {success && (
-                <div
-                    className="p-3 rounded-2xl text-sm flex items-center justify-between"
-                    style={{
-                        backgroundColor: 'var(--st-accent-bg)',
-                        borderWidth: 1, borderStyle: 'solid',
-                        borderColor: isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)',
-                        color: 'var(--st-accent)',
-                    }}
-                >
-                    <span>{success}</span>
-                    <button onClick={() => setSuccess("")} className="ml-2 cursor-pointer" style={{ color: 'var(--st-accent)' }}>
-                        <span className="material-symbols-outlined text-lg">close</span>
-                    </button>
-                </div>
-            )}
-
-            {error && (
-                <div
-                    className="p-3 rounded-2xl text-sm flex items-center justify-between"
-                    style={{
-                        backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,110,132,0.1)',
-                        borderWidth: 1, borderStyle: 'solid',
-                        borderColor: isLight ? 'rgba(239,68,68,0.2)' : 'rgba(255,110,132,0.2)',
-                        color: isLight ? '#b91c1c' : '#ff9dac',
-                    }}
-                >
-                    <span>{error}</span>
-                    <button onClick={() => setError("")} className="ml-2 cursor-pointer" style={{ color: isLight ? '#b91c1c' : '#ff9dac' }}>
-                        <span className="material-symbols-outlined text-lg">close</span>
-                    </button>
-                </div>
-            )}
-
-            {/* ── Summary Cards ── */}
-            <section className="grid grid-cols-1 gap-4">
-                {/* Total Paid Card */}
-                <div className="glass-card-student rounded-[32px] p-6 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-15 group-hover:opacity-30 transition-opacity">
-                        <span className="material-symbols-outlined text-6xl" style={{ fontVariationSettings: "'FILL' 1", color: 'var(--st-accent)' }}>check_circle</span>
-                    </div>
-                    <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-accent)' }}>payments</span>
-                            <span className="font-medium" style={{ color: 'var(--st-text-secondary)' }}>Total Paid</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>₹{totalPaid.toLocaleString("en-IN")}</span>
-                            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--st-accent)' }}>
-                                {totalDue === 0 && totalPaid > 0 ? "Settled" : "Partial"}
-                            </span>
-                        </div>
-                        <div className="h-1 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--st-progress-bg)' }}>
-                            <div
-                                className="h-full rounded-full transition-all duration-700"
-                                style={{
-                                    width: `${paidProgress}%`,
-                                    background: isLight
-                                        ? 'linear-gradient(to right, #0d9488, #3b82f6)'
-                                        : 'linear-gradient(to right, #4af8e3, #006a60)',
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Due Amount Card */}
-                <div className="glass-card-student rounded-[32px] p-6 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-15 group-hover:opacity-30 transition-opacity">
-                        <span className="material-symbols-outlined text-6xl" style={{ color: 'var(--st-text-secondary)' }}>hourglass_empty</span>
-                    </div>
-                    <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined" style={{ color: 'var(--st-blue)' }}>info</span>
-                            <span className="font-medium" style={{ color: 'var(--st-text-secondary)' }}>Due Amount</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>₹{totalDue.toLocaleString("en-IN")}</span>
-                            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--st-accent)' }}>
-                                {totalDue === 0 ? "No Action Needed" : `${actionPayments.filter(p => p.status === "Unpaid").length} Pending`}
-                            </span>
-                        </div>
-                        <div className="h-1 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--st-progress-bg)' }}>
-                            <div
-                                className="h-full rounded-full transition-all duration-700"
-                                style={{
-                                    width: totalDue > 0 ? "100%" : "0%",
-                                    background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-                                }}
-                            />
-                        </div>
-                    </div>
+            {/* ── Top Header Bar (Greetings & Subtitle) ── */}
+            <section className="flex items-center justify-between gap-4 pt-2">
+                <div>
+                    <h1
+                        className="text-2xl md:text-3xl font-extrabold tracking-tight"
+                        style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}
+                    >
+                        <AnimatedGreeting name={user?.name || "Student"} />
+                    </h1>
+                    <p className="text-sm md:text-base font-semibold mt-1.5" style={{ color: isLight ? '#64748b' : 'var(--st-text-secondary)' }}>
+                        Level up your skills with <span className="font-bold text-[#6366f1]">Future Point</span>
+                    </p>
                 </div>
             </section>
 
-            {/* ── Action Required Section ── */}
-            {actionPayments.length > 0 && (
-                <section className="space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                        <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
-                            Action Required
+            {/* ── Hero Banner Card ("Learn Smarter") ── */}
+            <section
+                className="relative rounded-[32px] p-6 sm:p-8 overflow-hidden transition-all duration-300 shadow-[0_12px_32px_-8px_rgba(99,102,241,0.12)] border"
+                style={{
+                    background: isLight
+                        ? 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #ede9fe 100%)'
+                        : 'linear-gradient(135deg, rgba(30,27,75,0.8) 0%, rgba(49,46,129,0.5) 50%, rgba(12,14,23,0.9) 100%)',
+                    borderColor: isLight ? 'rgba(199,210,254,0.6)' : 'rgba(99,102,241,0.2)',
+                }}
+            >
+                {/* 3D Sphere / Glass Ring Art Accent */}
+                <div className="absolute top-1/2 -right-10 -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 pointer-events-none opacity-80 sm:opacity-100">
+                    <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#818cf8]/30 to-[#c084fc]/30 blur-2xl animate-pulse" />
+                    <div className="absolute inset-4 rounded-full border-[8px] border-white/20 backdrop-blur-md transform rotate-45" />
+                </div>
+
+                <div className="relative z-10 max-w-sm space-y-4">
+                    <div className="space-y-1">
+                        <h2 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#1e1b4b' : '#ffffff' }}>
+                            Learn Smarter with Expert Guidance
                         </h2>
-                        {payments.filter((p) => p.status === "Unpaid").length > 1 && (
-                            <button
-                                onClick={openPayMultipleModal}
-                                className="select-pay-animate px-4 py-2.5 sm:py-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-full font-bold text-xs shadow-[0_4px_20px_rgba(59,130,246,0.4)] transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 uppercase tracking-wider"
-                                style={{ fontFamily: "'Inter', sans-serif" }}
-                            >
-                                <span className="hidden sm:inline-flex items-center">
-                                    <span className="material-symbols-outlined text-sm">event_repeat</span>
-                                </span>
-                                Select & Pay
-                            </button>
-                        )}
+                        <p className="text-xs sm:text-sm font-medium opacity-80" style={{ color: isLight ? '#475569' : '#cbd5e1' }}>
+                            Access study notes, notices and track your fees payments.
+                        </p>
                     </div>
 
-                    <div className="space-y-4">
-                        {actionPayments.map((p, idx) => (
-                            <div key={p.id}
-                                className="glass-card-student rounded-[32px]"
-                            >
-                                {p.status === "Unpaid" ? (
-                                    /* ── Unpaid: Original horizontal layout with Pay Now ── */
-                                    <div className="p-5 flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div
-                                                className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                                                style={{
-                                                    backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,110,132,0.1)',
-                                                    borderWidth: 1, borderStyle: 'solid',
-                                                    borderColor: isLight ? 'rgba(239,68,68,0.15)' : 'rgba(255,110,132,0.2)',
-                                                }}
-                                            >
-                                                <span className="material-symbols-outlined" style={{ color: isLight ? '#ef4444' : '#ff6e84' }}>calendar_today</span>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <h3 className="text-xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
-                                                    {MONTHS[p.month - 1]} {p.year}
-                                                </h3>
-                                                <span
-                                                    className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase rounded"
-                                                    style={{
-                                                        backgroundColor: isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,110,132,0.1)',
-                                                        color: isLight ? '#ef4444' : '#ff6e84',
-                                                    }}
-                                                >
-                                                    UNPAID
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => openPayModal(p)}
-                                            className="px-6 py-2.5 bg-[#3b82f6] text-white rounded-full font-bold text-sm shadow-[0_4px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-transform cursor-pointer whitespace-nowrap"
-                                        >
-                                            Pay Now
-                                        </button>
-                                    </div>
-                                ) : (
-                                    /* ── Pending Verification / Paid / Rejected: Vertical layout with Progress Tracker ── */
-                                    <div className="p-5 space-y-3 relative">
-                                        {p.status === "Paid" && (
-                                            <button
-                                                onClick={() => handleDismissPaid(p.id)}
-                                                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full transition-colors cursor-pointer z-10"
-                                                style={{
-                                                    backgroundColor: 'var(--st-icon-bg)',
-                                                    borderWidth: 1, borderStyle: 'solid',
-                                                    borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                                                    color: 'var(--st-text-secondary)',
-                                                }}
-                                                title="Dismiss"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px]">close</span>
-                                            </button>
-                                        )}
-                                        {p.status === "Rejected" && (
-                                            <button
-                                                onClick={() => handleDismissRejected(p.id)}
-                                                className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all cursor-pointer z-10 active:scale-95"
-                                                style={{
-                                                    backgroundColor: isLight ? 'rgba(239,68,68,0.1)' : 'rgba(255,107,129,0.12)',
-                                                    borderWidth: 1, borderStyle: 'solid',
-                                                    borderColor: isLight ? 'rgba(239,68,68,0.25)' : 'rgba(255,107,129,0.25)',
-                                                    color: isLight ? '#ef4444' : '#ff6b81',
-                                                }}
-                                                title="Acknowledge & Dismiss"
-                                            >
-                                                <span className="material-symbols-outlined text-[14px]">check</span>
-                                                <span className="text-[11px] font-semibold">Got it</span>
-                                            </button>
-                                        )}
-                                        <div className="flex items-center gap-3 pr-8">
-                                            <div
-                                                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                                                style={{
-                                                    backgroundColor: p.status === "Rejected"
-                                                        ? (isLight ? 'rgba(239,68,68,0.08)' : 'rgba(255,107,129,0.1)')
-                                                        : 'var(--st-accent-bg)',
-                                                    borderWidth: 1, borderStyle: 'solid',
-                                                    borderColor: p.status === "Rejected"
-                                                        ? (isLight ? 'rgba(239,68,68,0.15)' : 'rgba(255,107,129,0.2)')
-                                                        : (isLight ? 'rgba(13,148,136,0.15)' : 'rgba(74,248,227,0.2)'),
-                                                }}
-                                            >
-                                                <span
-                                                    className="material-symbols-outlined text-lg"
-                                                    style={{ color: p.status === "Rejected" ? (isLight ? '#ef4444' : '#ff6b81') : 'var(--st-accent)' }}
-                                                >
-                                                    {p.status === "Rejected" ? "error" : "history"}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
-                                                    {MONTHS[p.month - 1]} {p.year}
-                                                </h3>
-                                                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: p.status === "Rejected" ? (isLight ? '#ef4444' : '#ff6b84') : 'var(--st-accent)', opacity: 1.0 }}>
-                                                    ₹{p.amount?.toLocaleString("en-IN")} • {p.status === "Paid" ? "Approved" : p.status === "Rejected" ? "REJECTED" : "In Progress"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <PaymentProgressTracker
-                                            status={p.status}
-                                            mode={p.mode}
-                                            month={MONTHS[p.month - 1]}
-                                            year={p.year}
-                                            paused={showBadgeCelebration}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-
-
-            {/* No payments */}
-            {payments.length === 0 && (
-                <div className="glass-card-student rounded-[32px] p-8 text-center">
-                    <span className="material-symbols-outlined text-5xl mb-3 block" style={{ color: 'var(--st-text-muted)' }}>receipt_long</span>
-                    <p className="text-lg font-medium" style={{ color: 'var(--st-text-secondary)' }}>No payment records yet</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--st-text-muted)' }}>Your payment history will appear here</p>
+                    <button
+                        onClick={() => navigate("/student/notices")}
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-xs sm:text-sm text-white shadow-lg active:scale-95 transition-all cursor-pointer"
+                        style={{
+                            backgroundColor: '#181829',
+                            boxShadow: '0 8px 20px rgba(24,24,41,0.25)',
+                        }}
+                    >
+                        <span>View Latest Notice</span>
+                        <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">➔</span>
+                    </button>
                 </div>
-            )}
+            </section>
 
-            {/* ── Image Preview Modal ── */}
-            {previewImg && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImg(null)}>
-                    <div className="relative max-w-2xl max-h-[80vh] mx-4" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => setPreviewImg(null)}
-                            className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 cursor-pointer z-10">
-                            <span className="material-symbols-outlined text-lg">close</span>
-                        </button>
-                        <img src={previewImg} alt="Receipt" className="rounded-2xl max-h-[80vh] object-contain border border-white/10" />
-                    </div>
-                </div>
-            )}
-
-            {/* ── Pay Now Modal ── */}
-            {payModalPayment && (
-                <PayNowModal
-                    payment={payModalPayment}
-                    unpaidPayments={payModalAllowMultiple ? payments.filter((p) => p.status === "Unpaid") : []}
-                    initialFile={sharedFile}
-                    onClose={() => {
-                        closePayModal();
-                        setSharedFile(null);
+            {/* ── 2 Mini Metric Cards (Side-by-Side Borderless Soft Glass Themes) ── */}
+            <section className="grid grid-cols-2 gap-3 sm:gap-4">
+                {/* Card 1: Study Notes (Borderless Soft Rose Tint) */}
+                <div
+                    onClick={() => navigate("/student/notes")}
+                    className="group rounded-[24px] sm:rounded-[28px] p-4 sm:p-5 flex flex-col justify-between h-32 sm:h-36 relative overflow-hidden cursor-pointer backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+                    style={{
+                        background: isLight
+                            ? 'linear-gradient(135deg, rgba(255, 241, 242, 0.65) 0%, rgba(255, 228, 230, 0.35) 100%)'
+                            : 'linear-gradient(135deg, rgba(136, 19, 55, 0.22) 0%, rgba(76, 5, 25, 0.12) 100%)',
+                        border: 'none',
+                        boxShadow: 'none'
                     }}
-                    onProceed={handleProceed}
-                />
-            )}
+                >
+                    {/* Decorative Ambient Background Glow */}
+                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-rose-400/10 blur-xl pointer-events-none" />
+
+                    <div className="flex items-center justify-between">
+                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-rose-500/15 text-[#f43f5e] shadow-xs">
+                            <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                menu_book
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-1.5 mt-1">
+                        <div>
+                            <span className="block text-xs sm:text-sm font-extrabold leading-tight" style={{ color: 'var(--st-text-primary)' }}>Study Notes</span>
+                            <span className="block text-[10px] sm:text-xs font-semibold leading-tight" style={{ color: 'var(--st-text-muted)' }}>Class Materials</span>
+                        </div>
+                        <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f43f5e] text-white flex items-center justify-center group-hover:scale-110 transition-all shadow-md shrink-0">
+                            <span className="material-symbols-outlined text-xs sm:text-sm font-bold">north_east</span>
+                        </span>
+                    </div>
+                </div>
+
+                {/* Card 2: Leaderboard (Borderless Soft Amber Tint) */}
+                <div
+                    onClick={() => navigate("/student/leaderboard")}
+                    className="group rounded-[24px] sm:rounded-[28px] p-4 sm:p-5 flex flex-col justify-between h-32 sm:h-36 relative overflow-hidden cursor-pointer backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+                    style={{
+                        background: isLight
+                            ? 'linear-gradient(135deg, rgba(254, 243, 199, 0.55) 0%, rgba(253, 230, 138, 0.25) 100%)'
+                            : 'linear-gradient(135deg, rgba(120, 53, 15, 0.22) 0%, rgba(69, 26, 3, 0.12) 100%)',
+                        border: 'none',
+                        boxShadow: 'none'
+                    }}
+                >
+                    {/* Decorative Ambient Background Glow */}
+                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-amber-400/10 blur-xl pointer-events-none" />
+
+                    <div className="flex items-center justify-between">
+                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-amber-500/15 text-[#d97706] dark:text-[#f59e0b] shadow-xs">
+                            <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                emoji_events
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-1.5 mt-1">
+                        <div>
+                            <span className="block text-xs sm:text-sm font-extrabold leading-tight" style={{ color: 'var(--st-text-primary)' }}>Leaderboard</span>
+                            <span className="block text-[10px] sm:text-xs font-semibold leading-tight" style={{ color: 'var(--st-text-muted)' }}>Top Students</span>
+                        </div>
+                        <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f59e0b] text-white flex items-center justify-center group-hover:scale-110 transition-all shadow-md shrink-0">
+                            <span className="material-symbols-outlined text-xs sm:text-sm font-bold">north_east</span>
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── CIBIL Speedometer Half-Circle Gauge Card (FP Score) ── */}
+            <FPScoreGaugeCard />
         </div>
+    );
+}
+
+// ── CIBIL-style Speedometer Gauge Meter Component for FP Score ──
+function FPScoreGaugeCard() {
+    const { user, refreshUser } = useAuth();
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+
+    const [calculating, setCalculating] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
+
+    // Check if score has been calculated/saved previously in Firestore
+    const hasInitialScore = Boolean(user?.fp_score_updated_at);
+
+    const [scoreData, setScoreData] = useState({
+        score: user?.fp_score ?? null,
+        tier: user?.fp_score_tier ?? null,
+        updatedAt: user?.fp_score_updated_at ?? null,
+        hasChecked: hasInitialScore
+    });
+
+    const handleCalculateScore = useCallback(async () => {
+        setCalculating(true);
+        try {
+            const data = await api.post("/api/student/calculate-fp-score");
+            setScoreData({
+                score: data.fp_score,
+                tier: data.fp_score_tier,
+                updatedAt: data.updated_at,
+                hasChecked: true
+            });
+            if (refreshUser) refreshUser();
+        } catch (err) {
+            console.error("Error calculating FP Score:", err);
+        } finally {
+            setCalculating(false);
+        }
+    }, [refreshUser]);
+
+    useEffect(() => {
+        const s = user?.fp_score;
+        const t = user?.fp_score_tier;
+        const d = user?.fp_score_updated_at;
+
+        if (s !== undefined && s !== null && d) {
+            setScoreData({
+                score: s,
+                tier: t || "PERFECT",
+                updatedAt: d,
+                hasChecked: true
+            });
+        }
+    }, [user?.fp_score, user?.fp_score_tier, user?.fp_score_updated_at]);
+
+    // Lock body scrolling when info popup modal is open
+    useEffect(() => {
+        if (showInfoModal) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [showInfoModal]);
+
+    const isChecked = scoreData.hasChecked;
+    const currentScore = isChecked ? scoreData.score : null;
+    const isNumericScore = typeof currentScore === "number";
+    const frac = isChecked && isNumericScore ? Math.max(0, Math.min(1, (currentScore - 300) / 600)) : 0.5;
+
+    const radius = 80;
+    const strokeWidth = 13;
+
+    // Helper to generate SVG arc path given start & end angles in degrees (from left = 180deg to right = 0deg)
+    const getArcPath = (startDeg, endDeg) => {
+        const startRad = (startDeg * Math.PI) / 180;
+        const endRad = (endDeg * Math.PI) / 180;
+        const x1 = 100 + radius * Math.cos(startRad);
+        const y1 = 100 - radius * Math.sin(startRad);
+        const x2 = 100 + radius * Math.cos(endRad);
+        const y2 = 100 - radius * Math.sin(endRad);
+        return `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`;
+    };
+
+    // 4 Distinct Segments matching CIBIL gauge with 10deg wide white gaps
+    const segments = [
+        { color: "#ef4444", startDeg: 174, endDeg: 140 },    // Red (Poor / Risk)
+        { color: "#f97316", startDeg: 128, endDeg: 94 },     // Orange (Fair)
+        { color: "#eab308", startDeg: 82, endDeg: 48 },      // Yellow (Good)
+        { color: "#10b981", startDeg: 36, endDeg: 2 },       // Green (Excellent)
+    ];
+
+    const tierColors = {
+        PERFECT: "#10b981",
+        "VERY GOOD": "#3b82f6",
+        GOOD: "#eab308",
+        FAIR: "#f97316",
+        "BELOW AVERAGE": "#f43f5e",
+        POOR: "#ef4444",
+        "NO HISTORY": "#94a3b8"
+    };
+    const tierColor = isChecked ? (tierColors[scoreData.tier] || "#94a3b8") : "#94a3b8";
+
+    // Compute indicator position along the arc (174deg on left down to 2deg on right)
+    const currentAngleDeg = 174 - frac * (174 - 2);
+    const currentAngleRad = (currentAngleDeg * Math.PI) / 180;
+    const indX = 100 + radius * Math.cos(currentAngleRad);
+    const indY = 100 - radius * Math.sin(currentAngleRad);
+
+    return (
+        <section className="mt-5 sm:mt-6">
+            <div
+                className="rounded-[28px] sm:rounded-[32px] p-5 sm:p-8 relative overflow-hidden border backdrop-blur-2xl transition-all duration-300"
+                style={{
+                    background: isLight
+                        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(243, 244, 246, 0.45) 100%)'
+                        : 'linear-gradient(135deg, rgba(28, 31, 43, 0.65) 0%, rgba(15, 23, 42, 0.45) 100%)',
+                    borderColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.12)',
+                    boxShadow: isLight
+                        ? '0 20px 40px -15px rgba(99, 102, 241, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.9)'
+                        : '0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
+                }}
+            >
+                {/* Decorative Ambient Glass Glow Orbs */}
+                <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-blue-500/10 blur-2xl pointer-events-none" />
+                <div className="absolute -bottom-12 -left-12 w-36 h-36 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-8">
+
+                    {/* ── Left Side: CIBIL Speedometer Half-Circle Arc Gauge ── */}
+                    <div className="flex flex-col items-center justify-center relative shrink-0">
+                        <div className="relative w-48 sm:w-56 h-28 sm:h-32 flex items-end justify-center overflow-visible">
+                            <svg viewBox="0 0 200 115" className="w-48 sm:w-56 h-28 sm:h-32 overflow-visible">
+                                {/* 4 Distinct Segmented Color Arcs with white gaps */}
+                                {segments.map((seg, idx) => (
+                                    <path
+                                        key={idx}
+                                        d={getArcPath(seg.startDeg, seg.endDeg)}
+                                        fill="none"
+                                        stroke={seg.color}
+                                        strokeWidth={strokeWidth}
+                                        strokeLinecap="round"
+                                        opacity={isChecked && isNumericScore ? 1 : 0.35}
+                                        className="transition-all duration-500"
+                                    />
+                                ))}
+
+                                {/* Dial Ring Indicator at current score position (only when checked and numeric) */}
+                                {isChecked && isNumericScore && (
+                                    <g className="transition-all duration-1000 ease-out">
+                                        <circle cx={indX} cy={indY} r="10" fill={tierColor} stroke="#ffffff" strokeWidth="3" className="drop-shadow-md" />
+                                        <circle cx={indX} cy={indY} r="3.5" fill="#ffffff" />
+                                    </g>
+                                )}
+                            </svg>
+
+                            {/* Center Score Number / N/A */}
+                            <div className="absolute bottom-1 flex flex-col items-center justify-center">
+                                <span 
+                                    className={currentScore === "N/A" ? "text-3xl sm:text-4xl md:text-5xl font-black tracking-tight" : "text-4xl sm:text-5xl md:text-6xl font-black tracking-tight"} 
+                                    style={{ fontFamily: "'Manrope', sans-serif", color: isChecked && !isNumericScore ? '#94a3b8' : 'var(--st-text-primary)' }}
+                                >
+                                    {isChecked ? currentScore : "---"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Min & Max Scale Numbers */}
+                        <div className="w-48 sm:w-56 flex justify-between text-xs sm:text-sm font-extrabold px-2 sm:px-3 mt-1" style={{ color: 'var(--st-text-muted)' }}>
+                            <span>300</span>
+                            <span>900</span>
+                        </div>
+                    </div>
+
+                    {/* ── Right Side: Score Rating & Action Details ── */}
+                    <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-2.5 sm:space-y-3.5 flex-1">
+                        <div className="space-y-1 sm:space-y-1.5">
+                            <div 
+                                onClick={() => setShowInfoModal(true)}
+                                className="flex items-center justify-center md:justify-start gap-2 cursor-pointer group/rating hover:opacity-90 transition-opacity"
+                                title="Click to understand FP Score rating"
+                            >
+                                <span className="text-xs sm:text-base font-extrabold uppercase tracking-wider" style={{ color: 'var(--st-text-secondary)' }}>
+                                    Rating:
+                                </span>
+                                {isChecked ? (
+                                    <span
+                                        className="text-xs sm:text-base font-black uppercase tracking-wider underline-offset-4 group-hover/rating:underline"
+                                        style={{ color: tierColor }}
+                                    >
+                                        {scoreData.tier}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs sm:text-base font-bold" style={{ color: 'var(--st-text-muted)' }}>
+                                        ---
+                                    </span>
+                                )}
+
+                                {/* Info (i) Button */}
+                                <button
+                                    type="button"
+                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 group-hover/rating:bg-[#3b82f6] group-hover/rating:text-white flex items-center justify-center transition-all shadow-xs border border-slate-200 dark:border-white/10 ml-0.5"
+                                >
+                                    <span className="material-symbols-outlined text-xs sm:text-sm font-bold">info</span>
+                                </button>
+                            </div>
+                            <p className="text-xs sm:text-sm font-semibold" style={{ color: 'var(--st-text-muted)' }}>
+                                Updated: <span className="font-bold" style={{ color: 'var(--st-text-primary)' }}>{isChecked ? scoreData.updatedAt : "Not Checked Yet"}</span>
+                            </p>
+                            <p className="text-[11px] sm:text-xs font-semibold tracking-wide opacity-85" style={{ color: 'var(--st-text-secondary)' }}>
+                                FP Score • Powered by Future Point
+                            </p>
+                        </div>
+
+                        {/* Refresh / Check Score Button */}
+                        <button
+                            onClick={handleCalculateScore}
+                            disabled={calculating}
+                            className="inline-flex items-center gap-2 px-6 sm:px-7 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-extrabold text-white bg-[#3b82f6] hover:bg-[#2563eb] active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                            style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                            <span className={`material-symbols-outlined text-sm sm:text-base ${calculating ? 'animate-spin' : ''}`}>
+                                {isChecked ? 'refresh' : 'insights'}
+                            </span>
+                            <span>{calculating ? "Analyzing..." : isChecked ? "Refresh Score" : "Check FP Score"}</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            {/* ── FP Score Info Breakdown Modal (GPay CIBIL Style Glassmorphism via React Portal) ── */}
+            {showInfoModal && createPortal(
+                <div 
+                    className="fixed inset-0 z-[99999] flex items-center justify-center p-4 backdrop-blur-md animate-fadeIn"
+                    style={{
+                        backgroundColor: isLight ? 'rgba(15, 23, 42, 0.22)' : 'rgba(0, 0, 0, 0.65)'
+                    }}
+                >
+                    <div 
+                        className="w-full max-w-md rounded-[32px] p-5 sm:p-6 space-y-3 relative overflow-hidden shadow-2xl border backdrop-blur-3xl transition-all"
+                        style={{
+                            background: isLight
+                                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(240, 244, 249, 0.72) 100%)'
+                                : 'linear-gradient(135deg, rgba(30, 35, 48, 0.82) 0%, rgba(15, 20, 32, 0.72) 100%)',
+                            borderColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.14)',
+                            boxShadow: isLight
+                                ? '0 30px 60px -12px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.9)'
+                                : '0 30px 60px -12px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
+                            color: isLight ? '#1f2937' : '#f3f4f6'
+                        }}
+                    >
+                        {/* Decorative Ambient Glass Glow Spheres */}
+                        <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-blue-500/10 blur-2xl pointer-events-none" />
+                        <div className="absolute -bottom-16 -left-16 w-36 h-36 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+
+                        {/* Modal Title & Intro Text */}
+                        <div className="space-y-1.5 relative z-10">
+                            <h3 className="text-xl sm:text-2xl font-black tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                                Understand FP score
+                            </h3>
+                            <p className="text-xs sm:text-sm leading-relaxed font-medium" style={{ color: isLight ? '#4b5563' : '#9ca3af' }}>
+                                Your FP score is a 3 digit number that appears on your tuition punctuality report. The usual range is between 300 and 900.
+                            </p>
+                        </div>
+
+                        {/* Score Ranges & Rating List */}
+                        <div className="space-y-2 pt-1 relative z-10">
+                            {/* Poor */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#ef4444] shrink-0" />
+                                    <span>300 – 499</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Poor</span>
+                            </div>
+
+                            {/* Below Average */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#f43f5e] shrink-0" />
+                                    <span>500 – 599</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Below average</span>
+                            </div>
+
+                            {/* Fair */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#f97316] shrink-0" />
+                                    <span>600 – 699</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Fair</span>
+                            </div>
+
+                            {/* Good */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#eab308] shrink-0" />
+                                    <span>700 – 779</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Good</span>
+                            </div>
+
+                            {/* Very Good */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#3b82f6] shrink-0" />
+                                    <span>780 – 849</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Very good</span>
+                            </div>
+
+                            {/* Perfect */}
+                            <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-3 h-3 rounded-full bg-[#10b981] shrink-0" />
+                                    <span>850 – 900</span>
+                                </div>
+                                <span style={{ color: isLight ? '#1f2937' : '#f3f4f6' }}>Perfect</span>
+                            </div>
+                        </div>
+
+                        {/* Disclaimer Text */}
+                        <p className="text-[11px] sm:text-xs leading-relaxed font-normal pt-1 opacity-80 relative z-10" style={{ color: isLight ? '#6b7280' : '#9ca3af' }}>
+                            The broad-classification of the FP scores within different ranges (i.e. perfect, very good, fair etc.) is solely based on tuition fee payment punctuality details (and not any other external parameters). These are based on Future Point's own criteria to classify student tuition payment timeliness for educational purposes.
+                        </p>
+
+                        {/* Got It Action Button (Bottom Right) */}
+                        <div className="flex justify-end pt-0 relative z-10">
+                            <button
+                                onClick={() => setShowInfoModal(false)}
+                                className="px-5 py-1.5 rounded-full font-extrabold text-sm text-[#2563eb] hover:bg-blue-500/10 active:scale-95 transition-all cursor-pointer"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </section>
     );
 }
 

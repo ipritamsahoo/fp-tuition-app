@@ -180,8 +180,8 @@ function StudentNoticesContent() {
                 </div>
             )}
 
-            {/* Feed Section Header */}
-            <div className="flex items-center justify-between">
+            {/* Feed Section Header (Hidden on mobile) */}
+            <div className="hidden md:flex items-center justify-between">
                 <h2 
                     className="text-base font-bold tracking-tight" 
                     style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}

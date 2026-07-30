@@ -86,17 +86,22 @@ export default function LoginPage() {
         >
             {/* Left Study Illustration (Desktop) / Top (Mobile) */}
             <div 
-                className={`relative w-full h-[44dvh] sm:h-[48dvh] md:h-full md:w-[50vw] lg:w-[60vw] flex-shrink-0 overflow-hidden ${
+                className={`relative w-full h-[44dvh] sm:h-[48dvh] md:h-full md:w-[50vw] lg:w-[60vw] flex-shrink-0 overflow-hidden select-none ${
                     isEntering ? "opacity-0 scale-105 filter blur-lg" : "opacity-100 scale-100 filter blur-0"
                 }`}
                 style={{
                     transition: "opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms cubic-bezier(0.16, 1, 0.3, 1)"
                 }}
+                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
             >
                 <img 
                     src={illustrationSrc} 
                     alt="Study Scene" 
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-cover object-center pointer-events-none select-none"
+                    draggable="false"
+                    onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                 />
                 {/* Vignette / Edge Shadow Overlay to dim image edges */}
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0c0a21]/15 via-transparent to-[#0c0a21]/20 pointer-events-none z-10" />
@@ -133,6 +138,8 @@ export default function LoginPage() {
                                     alt="FP Finance Logo" 
                                     className="w-full h-full object-cover scale-[1.25] pointer-events-none select-none" 
                                     draggable="false"
+                                    onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                    onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                                 />
                             </div>
                             <h1 
@@ -142,7 +149,13 @@ export default function LoginPage() {
                                 <span style={{ fontFamily: "'Playball', cursive", fontStyle: "normal", fontSize: "1.25em", marginRight: "0.15em" }}>FP</span> Finance
                             </h1>
                         </div>
-                        <p className="text-slate-300 text-[17px] font-light">Please Sign in to continue.</p>
+                        <p className="text-slate-300 text-[16px] sm:text-[17px] font-light">Please Sign in to continue.</p>
+                        
+                        {/* Future Point Exclusive Notice Banner (Flat Solid Style) */}
+                        <div className="mt-3 p-3 rounded-2xl bg-[#121326] border border-[#212442] flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+                            <span className="material-symbols-outlined text-base text-[#3861fb] shrink-0">verified</span>
+                            <span>Exclusively for <strong className="text-white font-bold">Future Point</strong> students & staff. Outsiders are not allowed.</span>
+                        </div>
                     </div>
 
                     {/* Error display - reserved space to prevent layout shifts */}

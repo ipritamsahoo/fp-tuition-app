@@ -5,65 +5,139 @@ export function StudentDashboardSkeleton() {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
 
-    const baseBg = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)';
-    const pulseBg = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)';
+    const baseBg = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)';
+    const pulseBg = isLight ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.12)';
 
     return (
-        <div className="space-y-8 animate-pulse">
-            {/* Welcome Section Skeleton */}
-            <section className="space-y-2">
-                <div className="h-8 w-48 rounded-lg" style={{ backgroundColor: pulseBg }}></div>
-                <div className="h-4 w-32 rounded-lg" style={{ backgroundColor: baseBg }}></div>
+        <div className="space-y-6 animate-pulse pb-8">
+            {/* Greeting Header Skeleton */}
+            <section className="space-y-2 pt-2">
+                <div className="h-8 w-56 rounded-xl" style={{ backgroundColor: pulseBg }} />
+                <div className="h-4 w-44 rounded-lg" style={{ backgroundColor: baseBg }} />
             </section>
 
-            {/* Summary Cards Skeleton */}
-            <section className="grid grid-cols-1 gap-4">
-                {/* Skeleton Card 1 */}
-                <div className="glass-card-student rounded-[32px] p-6 relative overflow-hidden">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full" style={{ backgroundColor: pulseBg }}></div>
-                            <div className="h-4 w-24 rounded-lg" style={{ backgroundColor: baseBg }}></div>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <div className="h-8 w-32 rounded-lg" style={{ backgroundColor: pulseBg }}></div>
-                            <div className="h-3 w-16 rounded-lg" style={{ backgroundColor: baseBg }}></div>
-                        </div>
-                        <div className="h-1 w-full rounded-full overflow-hidden" style={{ backgroundColor: baseBg }}></div>
-                    </div>
-                </div>
+            {/* Hero Banner Skeleton */}
+            <div className="rounded-[32px] p-6 sm:p-8 h-48 w-full" style={{ backgroundColor: pulseBg }} />
 
-                {/* Skeleton Card 2 */}
-                <div className="glass-card-student rounded-[32px] p-6 relative overflow-hidden">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full" style={{ backgroundColor: pulseBg }}></div>
-                            <div className="h-4 w-28 rounded-lg" style={{ backgroundColor: baseBg }}></div>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <div className="h-8 w-28 rounded-lg" style={{ backgroundColor: pulseBg }}></div>
-                            <div className="h-3 w-20 rounded-lg" style={{ backgroundColor: baseBg }}></div>
-                        </div>
-                        <div className="h-1 w-full rounded-full overflow-hidden" style={{ backgroundColor: baseBg }}></div>
+            {/* 2 Mini Metric Cards Skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-[28px] p-5 h-36 flex flex-col justify-between" style={{ backgroundColor: baseBg }}>
+                    <div className="w-11 h-11 rounded-2xl" style={{ backgroundColor: pulseBg }} />
+                    <div className="h-4 w-24 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                </div>
+                <div className="rounded-[28px] p-5 h-36 flex flex-col justify-between" style={{ backgroundColor: baseBg }}>
+                    <div className="w-11 h-11 rounded-2xl" style={{ backgroundColor: pulseBg }} />
+                    <div className="h-4 w-24 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                </div>
+            </div>
+
+            {/* FP Score Speedometer Gauge Card Skeleton */}
+            <div className="rounded-[32px] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6" style={{ backgroundColor: pulseBg }}>
+                <div className="w-48 h-28 rounded-t-full" style={{ backgroundColor: baseBg }} />
+                <div className="space-y-3 flex-1 w-full flex flex-col items-center md:items-start">
+                    <div className="h-5 w-32 rounded-lg" style={{ backgroundColor: baseBg }} />
+                    <div className="h-4 w-40 rounded-lg" style={{ backgroundColor: baseBg }} />
+                    <div className="h-9 w-32 rounded-full" style={{ backgroundColor: baseBg }} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function StudentPaymentsSkeleton() {
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+
+    const baseBg = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)';
+    const pulseBg = isLight ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.12)';
+
+    return (
+        <div className="space-y-8 animate-pulse pb-8">
+            {/* ── Page Header Skeleton ── */}
+            <div className="space-y-1 pt-2">
+                <div className="h-8 md:h-9 w-36 rounded-xl" style={{ backgroundColor: pulseBg }} />
+                <div className="h-4 w-52 rounded-lg" style={{ backgroundColor: baseBg }} />
+            </div>
+
+            {/* ── Summary Card (Due Amount Bento) Skeleton ── */}
+            <section>
+                <div
+                    className="rounded-[32px] p-6 md:p-8 relative overflow-hidden border backdrop-blur-xl shadow-lg"
+                    style={{
+                        background: isLight
+                            ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.45) 100%)'
+                            : 'linear-gradient(135deg, rgba(28, 31, 43, 0.8) 0%, rgba(28, 31, 43, 0.4) 100%)',
+                        borderColor: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.08)',
+                    }}
+                >
+                    <div className="space-y-3 max-w-sm">
+                        <div className="h-3.5 w-24 rounded-md" style={{ backgroundColor: pulseBg }} />
+                        <div className="h-12 md:h-14 w-48 rounded-2xl" style={{ backgroundColor: pulseBg }} />
+                        <div className="h-4 w-40 rounded-lg" style={{ backgroundColor: baseBg }} />
                     </div>
                 </div>
             </section>
 
-            {/* Action Required Section Skeleton */}
+            {/* ── Action Required Section Skeleton ── */}
             <section className="space-y-4">
-                <div className="h-8 w-40 rounded-lg" style={{ backgroundColor: pulseBg }}></div>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="h-7 w-40 rounded-xl" style={{ backgroundColor: pulseBg }} />
+                    <div className="h-10 w-28 rounded-full" style={{ backgroundColor: pulseBg }} />
+                </div>
 
                 <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                        <div key={i} className="glass-card-student rounded-[32px] p-5 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl" style={{ backgroundColor: pulseBg }}></div>
-                                <div className="space-y-2">
-                                    <div className="h-5 w-24 rounded-lg" style={{ backgroundColor: pulseBg }}></div>
-                                    <div className="h-3 w-16 rounded-lg" style={{ backgroundColor: baseBg }}></div>
-                                </div>
+                    {/* Unpaid Card Skeleton */}
+                    <div className="glass-card-student rounded-[32px] p-5 flex items-center justify-between">
+                        <div className="space-y-2">
+                            <div className="h-3 w-20 rounded" style={{ backgroundColor: baseBg }} />
+                            <div className="h-6 w-32 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="h-6 w-20 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                            <div className="h-4 w-14 rounded-full" style={{ backgroundColor: baseBg }} />
+                        </div>
+                    </div>
+
+                    {/* Pending / In-Progress Card Skeleton */}
+                    <div className="glass-card-student rounded-[32px] p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-2">
+                                <div className="h-3 w-20 rounded" style={{ backgroundColor: baseBg }} />
+                                <div className="h-6 w-36 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                                <div className="h-4 w-24 rounded-md" style={{ backgroundColor: baseBg }} />
                             </div>
-                            <div className="w-24 h-10 rounded-full" style={{ backgroundColor: pulseBg }}></div>
+                        </div>
+                        {/* Progress Tracker Bar Skeleton */}
+                        <div className="glass-tracker rounded-2xl sm:rounded-3xl p-5 sm:p-6 flex items-center justify-between relative">
+                            <div className="absolute top-1/2 left-[16%] right-[16%] h-[3px] -translate-y-1/2 rounded-full" style={{ backgroundColor: baseBg }} />
+                            {[1, 2, 3].map((n) => (
+                                <div key={n} className="flex flex-col items-center gap-2 z-10 w-1/3">
+                                    <div className="w-10 h-10 rounded-full" style={{ backgroundColor: pulseBg }} />
+                                    <div className="h-3 w-16 rounded" style={{ backgroundColor: baseBg }} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Payment History & Receipts Section Skeleton ── */}
+            <section className="space-y-4">
+                <div className="h-7 w-56 rounded-xl" style={{ backgroundColor: pulseBg }} />
+                <div className="space-y-4">
+                    {[1, 2].map((i) => (
+                        <div key={i} className="glass-card-student p-5 rounded-[32px] flex items-center justify-between">
+                            <div className="space-y-2">
+                                <div className="h-3 w-20 rounded" style={{ backgroundColor: baseBg }} />
+                                <div className="h-6 w-32 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex flex-col items-end gap-1.5">
+                                    <div className="h-6 w-20 rounded-lg" style={{ backgroundColor: pulseBg }} />
+                                    <div className="h-4 w-12 rounded-full" style={{ backgroundColor: baseBg }} />
+                                </div>
+                                <div className="w-9 h-9 rounded-full" style={{ backgroundColor: pulseBg }} />
+                            </div>
                         </div>
                     ))}
                 </div>

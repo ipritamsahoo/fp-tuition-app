@@ -76,6 +76,9 @@ export function AuthProvider({ children }) {
             profilePicDataUrl: cachedPicDataUrl,
             idToken,
             activeSessions: profile.active_sessions || [],
+            fp_score: profile.fp_score ?? profile.fpScore ?? 900,
+            fp_score_tier: profile.fp_score_tier ?? profile.fpScoreTier ?? "PERFECT",
+            fp_score_updated_at: profile.fp_score_updated_at ?? profile.fpScoreUpdatedAt ?? null,
         };
     }, []);
 
