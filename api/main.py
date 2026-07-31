@@ -25,7 +25,7 @@ from routers import auth, student, teacher, admin, notes, notices
 app = FastAPI(
     title="FP Finance",
     description="Role-based fee management with Firebase backend",
-    version="2.1.1",
+    version="2.2.0",
 )
 
 app.add_middleware(

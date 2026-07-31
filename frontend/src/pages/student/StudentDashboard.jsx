@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import StudentLayout from "@/components/StudentLayout";
 import AnimatedGreeting from "@/components/AnimatedGreeting";
-import BadgeCelebrationOverlay from "@/components/BadgeCelebrationOverlay";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
@@ -12,15 +11,12 @@ import { setCache } from "@/lib/memoryCache";
 import { StudentDashboardSkeleton } from "@/components/Skeletons";
 
 function StudentDashboardContent() {
-    const { user, refreshUser } = useAuth();
+    const { user } = useAuth();
     const { theme } = useStudentTheme();
     const navigate = useNavigate();
     const isLight = theme === "light";
 
     const [notices, setNotices] = useState([]);
-    const [showBadgeCelebration, setShowBadgeCelebration] = useState(() =>
-        !!(user?.badgeAnimationPending && user?.currentBadge)
-    );
 
     // Background fetch notices without blocking dashboard UI render
     const loadDashboardData = useCallback(async () => {
@@ -41,25 +37,8 @@ function StudentDashboardContent() {
         }
     }, [user?.uid, loadDashboardData]);
 
-    useEffect(() => {
-        if (user?.badgeAnimationPending && user?.currentBadge) {
-            setShowBadgeCelebration(true);
-        }
-    }, [user?.badgeAnimationPending, user?.currentBadge]);
-
     return (
         <div className="space-y-6 pb-6">
-            {/* Badge Celebration Overlay */}
-            {showBadgeCelebration && user?.currentBadge && (
-                <BadgeCelebrationOverlay
-                    badgeTier={user.currentBadge}
-                    user={user}
-                    onComplete={() => {
-                        setShowBadgeCelebration(false);
-                        refreshUser();
-                    }}
-                />
-            )}
 
             {/* ── Top Header Bar (Greetings & Subtitle) ── */}
             <section className="flex items-center justify-between gap-4 pt-2">

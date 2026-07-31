@@ -432,55 +432,91 @@ function TeacherDashboardContent() {
             {/* ── Summary Cards ── */}
             <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {/* Total Students - Full width on mobile, 1 col on desktop */}
-                <GlassCard className="col-span-2 md:col-span-1 p-6 relative overflow-hidden group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: 'var(--tt-text-secondary)' }}>
-                                Total
-                            </p>
-                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
-                                {totalStudents}
-                            </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--tt-accent-bg)' }}>
-                            <span className="material-symbols-outlined text-2xl" style={{ color: 'var(--tt-primary)' }}>group</span>
+                <div 
+                    className="col-span-2 md:col-span-1 p-5 sm:p-6 rounded-[28px] flex flex-col justify-between h-36 transition-all duration-300 border shadow-sm relative overflow-hidden group hover:scale-[1.02]"
+                    style={{
+                        background: isLight ? 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)' : 'linear-gradient(135deg, rgba(14, 116, 144, 0.25) 0%, rgba(30, 58, 138, 0.25) 100%)',
+                        borderColor: isLight ? 'rgba(186, 230, 253, 0.8)' : 'rgba(56, 189, 248, 0.2)',
+                    }}
+                >
+                    {/* Top Row: Icon Badge */}
+                    <div className="flex items-center justify-between relative z-10">
+                        <div 
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                            style={{ backgroundColor: isLight ? '#3b82f6' : '#2563eb', color: '#ffffff' }}
+                        >
+                            <span className="material-symbols-outlined text-xl font-bold">group</span>
                         </div>
                     </div>
-                </GlassCard>
+
+                    {/* Bottom Row: Title on Left, Count Value on Right */}
+                    <div className="flex items-end justify-between relative z-10">
+                        <div className="text-xs sm:text-sm font-bold tracking-wide pr-2" style={{ fontFamily: "'Inter', sans-serif", color: isLight ? '#1e3a8a' : '#93c5fd' }}>
+                            Total Students
+                        </div>
+                        <div className="text-4xl sm:text-5xl font-black tracking-tight shrink-0" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#1e40af' : '#60a5fa' }}>
+                            {totalStudents}
+                        </div>
+                    </div>
+                </div>
 
                 {/* Paid - Side by side on mobile */}
-                <GlassCard className="col-span-1 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
-                                Paid
-                            </p>
-                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
-                                {paidCount}
-                            </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.1)' : 'rgba(74, 248, 227, 0.1)' }}>
-                            <span className="material-symbols-outlined text-2xl" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>check_circle</span>
+                <div 
+                    className="col-span-1 p-5 sm:p-6 rounded-[28px] flex flex-col justify-between h-36 transition-all duration-300 border shadow-sm relative overflow-hidden group hover:scale-[1.02]"
+                    style={{
+                        background: isLight ? 'linear-gradient(135deg, #ccfbf1 0%, #d1fae5 100%)' : 'linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(6, 95, 70, 0.25) 100%)',
+                        borderColor: isLight ? 'rgba(153, 246, 228, 0.8)' : 'rgba(45, 212, 191, 0.2)',
+                    }}
+                >
+                    {/* Top Row: Icon Badge */}
+                    <div className="flex items-center justify-between relative z-10">
+                        <div 
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                            style={{ backgroundColor: isLight ? '#10b981' : '#059669', color: '#ffffff' }}
+                        >
+                            <span className="material-symbols-outlined text-xl font-bold">check_circle</span>
                         </div>
                     </div>
-                </GlassCard>
+
+                    {/* Bottom Row: Title on Left, Count Value on Right */}
+                    <div className="flex items-end justify-between relative z-10">
+                        <div className="text-xs sm:text-sm font-bold tracking-wide pr-2" style={{ fontFamily: "'Inter', sans-serif", color: isLight ? '#065f46' : '#a7f3d0' }}>
+                            Paid
+                        </div>
+                        <div className="text-4xl sm:text-5xl font-black tracking-tight shrink-0" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#0f766e' : '#34d399' }}>
+                            {paidCount}
+                        </div>
+                    </div>
+                </div>
 
                 {/* Unpaid - Side by side on mobile */}
-                <GlassCard className="col-span-1 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: 'var(--tt-error)' }}>
-                                Unpaid
-                            </p>
-                            <p className="text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
-                                {unpaidCount}
-                            </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--tt-error-bg, rgba(239, 68, 68, 0.1))' }}>
-                            <span className="material-symbols-outlined text-2xl" style={{ color: 'var(--tt-error)' }}>cancel</span>
+                <div 
+                    className="col-span-1 p-5 sm:p-6 rounded-[28px] flex flex-col justify-between h-36 transition-all duration-300 border shadow-sm relative overflow-hidden group hover:scale-[1.02]"
+                    style={{
+                        background: isLight ? 'linear-gradient(135deg, #ffe4e6 0%, #ffedd5 100%)' : 'linear-gradient(135deg, rgba(225, 29, 72, 0.25) 0%, rgba(159, 18, 57, 0.25) 100%)',
+                        borderColor: isLight ? 'rgba(254, 205, 211, 0.8)' : 'rgba(251, 113, 133, 0.2)',
+                    }}
+                >
+                    {/* Top Row: Icon Badge */}
+                    <div className="flex items-center justify-between relative z-10">
+                        <div 
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                            style={{ backgroundColor: isLight ? '#f43f5e' : '#e11d48', color: '#ffffff' }}
+                        >
+                            <span className="material-symbols-outlined text-xl font-bold">cancel</span>
                         </div>
                     </div>
-                </GlassCard>
+
+                    {/* Bottom Row: Title on Left, Count Value on Right */}
+                    <div className="flex items-end justify-between relative z-10">
+                        <div className="text-xs sm:text-sm font-bold tracking-wide pr-2" style={{ fontFamily: "'Inter', sans-serif", color: isLight ? '#881337' : '#fecdd3' }}>
+                            Unpaid
+                        </div>
+                        <div className="text-4xl sm:text-5xl font-black tracking-tight shrink-0" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#9f1239' : '#fb7185' }}>
+                            {unpaidCount}
+                        </div>
+                    </div>
+                </div>
             </section>
 
             {/* ── Alerts ── */}

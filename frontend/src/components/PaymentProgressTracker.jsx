@@ -44,8 +44,41 @@ function createConfetti(container, isLight) {
     );
 }
 
+function formatNodeDateTime(rawTs) {
+    if (!rawTs) return null;
+    try {
+        let d;
+        if (typeof rawTs === "string") {
+            d = new Date(rawTs);
+        } else if (typeof rawTs === "number") {
+            d = new Date(rawTs);
+        } else if (rawTs && typeof rawTs === "object" && rawTs.seconds) {
+            d = new Date(rawTs.seconds * 1000);
+        } else if (rawTs && typeof rawTs === "object" && rawTs._seconds) {
+            d = new Date(rawTs._seconds * 1000);
+        } else {
+            d = new Date(rawTs);
+        }
+        
+        if (isNaN(d.getTime())) return null;
+        
+        const dateStr = d.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short"
+        });
+        const timeStr = d.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        });
+        return `${dateStr}, ${timeStr}`;
+    } catch {
+        return null;
+    }
+}
+
 // ── Main Component ─────────────────────────────────────────
-export default function PaymentProgressTracker({ status, mode, month, year, paused, actionSlot }) {
+export default function PaymentProgressTracker({ status, mode, month, year, paused, actionSlot, requestedAt, updatedAt, rejectedAt }) {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
 
@@ -322,6 +355,25 @@ export default function PaymentProgressTracker({ status, mode, month, year, paus
                                         ? (mode === "offline" ? "Offline Mode" : "Screenshot Uploaded")
                                         : stageSub}
                                 </span>
+
+                                {/* Date & Time Timestamp */}
+                                {isActive && (
+                                    <span
+                                        className="text-[8px] sm:text-[9.5px] font-semibold leading-tight text-center mt-1 tracking-tight"
+                                        style={{
+                                            color: isRejected && idx === 2 
+                                                ? (isLight ? '#dc2626' : '#ff9dac') 
+                                                : (isLight ? 'var(--st-text-secondary)' : 'rgba(255,255,255,0.7)'),
+                                            opacity: 0.85
+                                        }}
+                                    >
+                                        {idx === 0 && formatNodeDateTime(requestedAt || updatedAt)}
+                                        {idx === 1 && status === "Paid" && formatNodeDateTime(updatedAt || requestedAt)}
+                                        {idx === 1 && isRejected && formatNodeDateTime(rejectedAt || updatedAt)}
+                                        {idx === 2 && status === "Paid" && formatNodeDateTime(updatedAt || requestedAt)}
+                                        {idx === 2 && isRejected && formatNodeDateTime(rejectedAt || updatedAt)}
+                                    </span>
+                                )}
                             </div>
                         );
                     })}

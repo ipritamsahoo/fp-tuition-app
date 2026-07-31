@@ -22,18 +22,16 @@ function SkeletonBentoCard() {
     const { theme } = useAdminTheme();
     const isLight = theme === "light";
     return (
-        <div className="backdrop-blur-[20px] p-5 rounded-3xl flex flex-col justify-between h-36 animate-pulse border"
+        <div className="p-5 sm:p-6 rounded-[28px] flex flex-col justify-between h-36 animate-pulse border backdrop-blur-md"
              style={{
-                 backgroundColor: 'var(--ad-card-bg)',
-                 borderColor: 'var(--ad-card-border)'
+                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 41, 59, 0.6)',
+                 borderColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)'
              }}
         >
-            <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl" style={{ backgroundColor: 'var(--ad-icon-bg)' }}></div>
-            </div>
+            <div className="w-10 h-10 rounded-2xl bg-slate-300/40 dark:bg-slate-700/40"></div>
             <div>
-                <div className="h-8 w-16 rounded mt-2" style={{ backgroundColor: 'var(--ad-icon-bg)' }}></div>
-                <div className="h-4 w-20 rounded mt-1" style={{ backgroundColor: 'var(--ad-icon-bg)' }}></div>
+                <div className="h-3 w-16 rounded bg-slate-300/40 dark:bg-slate-700/40 mb-2"></div>
+                <div className="h-8 w-12 rounded-lg bg-slate-300/40 dark:bg-slate-700/40"></div>
             </div>
         </div>
     );
@@ -42,33 +40,82 @@ function SkeletonBentoCard() {
 function BentoStatCard({ label, value, icon }) {
     const { theme } = useAdminTheme();
     const isLight = theme === "light";
-    
-    const colorMap = {
-        Students: { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' },
-        Teachers: { bg: isLight ? 'rgba(13, 148, 136, 0.1)' : 'rgba(74, 248, 227, 0.15)', text: isLight ? '#0d9488' : '#4af8e3' },
-        Batches: { bg: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 157, 172, 0.15)', text: isLight ? '#ef4444' : '#ff9dac' },
-        Pending: { bg: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 110, 132, 0.15)', text: isLight ? '#ef4444' : '#ff6e84' },
+
+    const configMap = {
+        Students: {
+            bgLight: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
+            bgDark: 'linear-gradient(135deg, rgba(14, 116, 144, 0.25) 0%, rgba(30, 58, 138, 0.25) 100%)',
+            borderLight: 'rgba(186, 230, 253, 0.8)',
+            borderDark: 'rgba(56, 189, 248, 0.2)',
+            iconBgLight: '#3b82f6',
+            iconBgDark: '#2563eb',
+            iconColor: '#ffffff',
+            accentColor: isLight ? '#1e40af' : '#60a5fa',
+            subtextColor: isLight ? '#1e3a8a' : '#93c5fd',
+        },
+        Teachers: {
+            bgLight: 'linear-gradient(135deg, #f3e8ff 0%, #fae8ff 100%)',
+            bgDark: 'linear-gradient(135deg, rgba(126, 34, 206, 0.25) 0%, rgba(88, 28, 135, 0.25) 100%)',
+            borderLight: 'rgba(233, 213, 255, 0.8)',
+            borderDark: 'rgba(192, 132, 252, 0.2)',
+            iconBgLight: '#a855f7',
+            iconBgDark: '#9333ea',
+            iconColor: '#ffffff',
+            accentColor: isLight ? '#6b21a8' : '#c084fc',
+            subtextColor: isLight ? '#581c87' : '#e9d5ff',
+        },
+        Batches: {
+            bgLight: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
+            bgDark: 'linear-gradient(135deg, rgba(180, 83, 9, 0.25) 0%, rgba(120, 53, 15, 0.25) 100%)',
+            borderLight: 'rgba(253, 230, 138, 0.8)',
+            borderDark: 'rgba(251, 191, 36, 0.2)',
+            iconBgLight: '#f59e0b',
+            iconBgDark: '#d97706',
+            iconColor: '#ffffff',
+            accentColor: isLight ? '#92400e' : '#fbbf24',
+            subtextColor: isLight ? '#78350f' : '#fde68a',
+        },
+        Pending: {
+            bgLight: 'linear-gradient(135deg, #ffe4e6 0%, #ffedd5 100%)',
+            bgDark: 'linear-gradient(135deg, rgba(225, 29, 72, 0.25) 0%, rgba(159, 18, 57, 0.25) 100%)',
+            borderLight: 'rgba(254, 205, 211, 0.8)',
+            borderDark: 'rgba(251, 113, 133, 0.2)',
+            iconBgLight: '#f43f5e',
+            iconBgDark: '#e11d48',
+            iconColor: '#ffffff',
+            accentColor: isLight ? '#9f1239' : '#fb7185',
+            subtextColor: isLight ? '#881337' : '#fecdd3',
+        }
     };
-    
-    const colors = colorMap[label] || { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' };
-    
+
+    const cfg = configMap[label] || configMap.Students;
+
     return (
-        <div className="backdrop-blur-[20px] p-5 rounded-3xl flex flex-col justify-between h-36 transition-all duration-300 border shadow-[0_8px_30px_rgba(0,0,0,0.01)]"
-             style={{
-                 backgroundColor: 'var(--ad-card-bg)',
-                 borderColor: 'var(--ad-card-border)'
-             }}
+        <div 
+            className="p-5 sm:p-6 rounded-[28px] flex flex-col justify-between h-36 transition-all duration-300 border shadow-sm relative overflow-hidden group hover:scale-[1.02]"
+            style={{
+                background: isLight ? cfg.bgLight : cfg.bgDark,
+                borderColor: isLight ? cfg.borderLight : cfg.borderDark,
+            }}
         >
-            <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                     style={{ backgroundColor: colors.bg, color: colors.text }}
+            {/* Top Row: Icon Badge */}
+            <div className="flex items-center justify-between relative z-10">
+                <div 
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                    style={{ backgroundColor: isLight ? cfg.iconBgLight : cfg.iconBgDark, color: cfg.iconColor }}
                 >
-                    <span className="material-symbols-outlined">{icon}</span>
+                    <span className="material-symbols-outlined text-xl font-bold">{icon}</span>
                 </div>
             </div>
-            <div>
-                <div className="text-2xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>{value}</div>
-                <div className="text-xs font-medium uppercase tracking-widest mt-1" style={{ fontFamily: "'Inter', sans-serif", color: 'var(--ad-text-secondary)' }}>{label}</div>
+
+            {/* Bottom Row: Title on Left, Count Value on Right */}
+            <div className="flex items-end justify-between relative z-10">
+                <div className="text-xs sm:text-sm font-bold tracking-wide pr-2" style={{ fontFamily: "'Inter', sans-serif", color: cfg.subtextColor }}>
+                    {label === "Students" ? "Total Students" : label === "Teachers" ? "Active Teachers" : label === "Batches" ? "Total Batches" : "Pending Approvals"}
+                </div>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight shrink-0" style={{ fontFamily: "'Manrope', sans-serif", color: cfg.accentColor }}>
+                    {value}
+                </div>
             </div>
         </div>
     );
@@ -273,20 +320,27 @@ function AdminDashboardContent() {
             </section>
 
             {/* Payments Panel */}
-            <section className="backdrop-blur-[20px] border rounded-[2rem] p-6 md:p-8 space-y-6 relative overflow-hidden"
-                     style={{
-                         backgroundColor: 'var(--ad-card-bg)',
-                         borderColor: 'var(--ad-card-border)',
-                         boxShadow: 'var(--ad-card-shadow)',
-                     }}
+            <section 
+                className="backdrop-blur-[24px] border rounded-[2.25rem] p-6 md:p-8 space-y-6 relative overflow-hidden transition-all duration-300 shadow-xl"
+                style={{
+                    background: isLight 
+                        ? 'linear-gradient(135deg, rgba(238, 242, 255, 0.85) 0%, rgba(243, 232, 255, 0.85) 50%, rgba(224, 242, 254, 0.85) 100%)' 
+                        : 'linear-gradient(135deg, rgba(23, 25, 36, 0.85) 0%, rgba(30, 27, 75, 0.6) 50%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderColor: isLight ? 'rgba(199, 210, 254, 0.8)' : 'rgba(99, 102, 241, 0.25)',
+                    boxShadow: isLight ? '0 20px 40px -15px rgba(99, 102, 241, 0.12)' : '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
+                }}
             >
-                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none" style={{ color: 'var(--ad-text-secondary)' }}>
-                    <span className="material-symbols-outlined text-8xl md:text-6xl">payments</span>
+                <div className="flex items-center gap-3">
+                    <div 
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md text-white shrink-0"
+                        style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' }}
+                    >
+                        <span className="material-symbols-outlined text-xl">payments</span>
+                    </div>
+                    <h3 className="text-xl font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                        Generate Monthly Payments
+                    </h3>
                 </div>
-                
-                <h3 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
-                    Generate Monthly Payments
-                </h3>
 
                 <div className="space-y-5 relative z-10">
                     <div className="space-y-1.5">

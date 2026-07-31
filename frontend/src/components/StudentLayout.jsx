@@ -7,6 +7,7 @@ import { StudentThemeProvider, useStudentTheme } from "@/context/StudentThemeCon
 import ProfilePicture from "./ProfilePicture";
 import NotificationPanel from "./NotificationPanel";
 import ProfilePicUpload from "./ProfilePicUpload";
+import BadgeCelebrationOverlay from "./BadgeCelebrationOverlay";
 import { api } from "@/lib/api";
 
 // ── Springy easeOutBack solver for bottom bar indicators ──
@@ -111,14 +112,7 @@ function useScrollBounce(isDisabled) {
             if (!isDraggingRef.current) return;
             isDraggingRef.current = false;
 
-            if (accumulatedBounceRef.current > 45 && isAtTopRef.current) {
-                // Pull-to-refresh threshold reached! Reload page cleanly
-                el.style.transition = "transform 0.2s ease-out";
-                el.style.transform = "translate3d(0, 50px, 0)";
-                setTimeout(() => {
-                    window.location.reload();
-                }, 150);
-            } else if (accumulatedBounceRef.current !== 0) {
+            if (accumulatedBounceRef.current !== 0) {
                 // Spring back
                 el.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
                 el.style.transform = "translate3d(0, 0, 0)";
@@ -192,11 +186,18 @@ function StudentLayoutInner({ children }) {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const { unreadCount } = useNotifications();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const { theme } = useStudentTheme();
     const [notifOpen, setNotifOpen] = useState(false);
     const [unreadNotices, setUnreadNotices] = useState(0);
+    const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
     const hasFetchedOnMount = useRef(false);
+
+    useEffect(() => {
+        if (user?.badgeAnimationPending && user?.currentBadge) {
+            setShowBadgeCelebration(true);
+        }
+    }, [user?.badgeAnimationPending, user?.currentBadge]);
 
     useEffect(() => {
         if (!user || user.role !== "student") return;
@@ -357,6 +358,17 @@ function StudentLayoutInner({ children }) {
                 color: 'var(--st-text-primary)',
             }}
         >
+            {/* Global Badge Celebration Overlay — triggers on ANY student page when app is open */}
+            {showBadgeCelebration && user?.currentBadge && (
+                <BadgeCelebrationOverlay
+                    badgeTier={user.currentBadge}
+                    user={user}
+                    onComplete={() => {
+                        setShowBadgeCelebration(false);
+                        if (refreshUser) refreshUser();
+                    }}
+                />
+            )}
             {/* ── Ambient Backgrounds ── */}
             <div className="student-ambient-bg fixed inset-0 z-0 overflow-hidden pointer-events-none" style={{ transform: "translateZ(0)" }}>
                 {/* Blue blob — top-left */}

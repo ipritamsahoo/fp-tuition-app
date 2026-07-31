@@ -18,7 +18,6 @@ const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 const groupPayments = (payments) => {
     if (!payments) return [];
     const grouped = {};
-    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     payments.forEach(p => {
         const key = p.student_id || p.student_name;
@@ -30,7 +29,7 @@ const groupPayments = (payments) => {
             };
         }
         grouped[key].amount += (p.amount || 0);
-        const cycle = p.month ? `${MONTHS_SHORT[p.month - 1]} ${p.year}` : "N/A";
+        const cycle = p.month ? `${MONTHS[p.month - 1]} ${p.year}` : "N/A";
         grouped[key].billingCycles.push(cycle);
     });
 
@@ -437,31 +436,62 @@ function TeacherDistributionContent() {
  
                                                 {/* Expanded Content */}
                                                 <div className={`transition-all overflow-hidden ${isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                                                    <div className="px-5 pb-5 sm:px-6 sm:pb-6 border-t pt-4" style={{ borderTopColor: 'var(--tt-divider)', backgroundColor: 'var(--tt-input-bg)' }}>
-                                                        <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: isLight ? '#7c3aed' : '#c799ff' }}>
+                                                    <div className="border-t pt-4" style={{ borderTopColor: 'var(--tt-divider)' }}>
+                                                        <p className="px-5 sm:px-6 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: isLight ? '#7c3aed' : '#c799ff' }}>
                                                             <span className="material-symbols-outlined text-sm">group</span> Student Payments
                                                         </p>
-                                                        <div className="space-y-4">
-                                                            <div className="rounded-2xl overflow-hidden border" style={{ backgroundColor: 'var(--tt-hover-bg)', borderColor: 'var(--tt-divider)' }}>
-                                                                <table className="w-full text-left text-sm">
-                                                                    <thead style={{ backgroundColor: isLight ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.05)' }}>
-                                                                        <tr>
-                                                                            <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--tt-text-secondary)' }}>Student</th>
-                                                                            <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-center" style={{ color: 'var(--tt-text-secondary)' }}>Billing Cycle</th>
-                                                                            <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-right" style={{ color: 'var(--tt-text-secondary)' }}>Amount</th>
+                                                        
+                                                        {/* Full-Bleed Edge-to-Edge Table */}
+                                                        <div className="w-full overflow-hidden border-t bg-black/5" style={{ borderColor: 'var(--tt-divider)' }}>
+                                                            <div className="overflow-x-auto custom-scrollbar">
+                                                                <table className="w-full text-left text-xs sm:text-sm min-w-[340px] sm:min-w-full border-collapse">
+                                                                    <thead style={{ backgroundColor: isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.05)' }}>
+                                                                        <tr className="border-b" style={{ borderColor: 'var(--tt-divider)' }}>
+                                                                            <th 
+                                                                                className="sticky left-0 z-20 px-5 sm:px-6 py-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest whitespace-nowrap shadow-[3px_0_10px_rgba(0,0,0,0.03)] backdrop-blur-xl"
+                                                                                style={{ 
+                                                                                    backgroundColor: isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(23, 25, 36, 0.85)', 
+                                                                                    color: 'var(--tt-text-secondary)' 
+                                                                                }}
+                                                                            >
+                                                                                Student
+                                                                            </th>
+                                                                            <th className="px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-center whitespace-nowrap" style={{ color: 'var(--tt-text-secondary)' }}>Billing Cycle</th>
+                                                                            <th className="px-5 sm:px-6 py-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-right whitespace-nowrap" style={{ color: 'var(--tt-text-secondary)' }}>Amount</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody>
+                                                                    <tbody className="divide-y divide-[var(--tt-divider)]">
                                                                         {groupPayments(dist.payments).map((p, idx) => (
-                                                                            <tr key={idx} 
-                                                                                className="hover:bg-white/5 transition-colors border-b last:border-b-0"
-                                                                                style={{ borderColor: isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.08)' }}
-                                                                            >
-                                                                                <td className="px-4 py-3 font-bold" style={{ color: 'var(--tt-text-primary)' }}>{p.student_name}</td>
-                                                                                <td className="px-4 py-3 text-xs font-semibold text-center" style={{ color: 'var(--tt-text-secondary)' }}>
-                                                                                    {p.billingCycles.join(", ")}
+                                                                            <tr key={idx} className="hover:bg-white/5 transition-colors">
+                                                                                <td 
+                                                                                    className="sticky left-0 z-10 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-semibold whitespace-nowrap shadow-[3px_0_10px_rgba(0,0,0,0.03)] backdrop-blur-xl"
+                                                                                    style={{ 
+                                                                                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(23, 25, 36, 0.85)', 
+                                                                                        color: 'var(--tt-text-primary)' 
+                                                                                    }}
+                                                                                >
+                                                                                    {p.student_name}
                                                                                 </td>
-                                                                                <td className="px-4 py-3 font-bold text-right" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>₹{p.amount.toLocaleString()}</td>
+                                                                                <td className="px-4 sm:px-6 py-3.5 text-xs text-center" style={{ color: 'var(--tt-text-secondary)' }}>
+                                                                                    <div className="flex flex-wrap items-center justify-center gap-1">
+                                                                                        {p.billingCycles.map((cycle, cIdx) => (
+                                                                                            <span 
+                                                                                                key={cIdx} 
+                                                                                                className="inline-block px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border whitespace-nowrap"
+                                                                                                style={{
+                                                                                                    backgroundColor: isLight ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.05)',
+                                                                                                    borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+                                                                                                    color: 'var(--tt-text-secondary)'
+                                                                                                }}
+                                                                                            >
+                                                                                                {cycle}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td className="px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-extrabold text-right whitespace-nowrap" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                                                    ₹{p.amount.toLocaleString("en-IN")}
+                                                                                </td>
                                                                             </tr>
                                                                         ))}
                                                                     </tbody>
@@ -491,14 +521,11 @@ function TeacherDistributionContent() {
                                 <div 
                                     className="border rounded-3xl overflow-hidden shadow-xl" 
                                     style={{ 
-                                        maxHeight: "calc(100vh - 380px)", 
-                                        display: "flex", 
-                                        flexDirection: "column",
                                         background: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(23, 25, 36, 0.6)',
                                         borderColor: isLight ? 'rgba(255, 255, 255, 0.55)' : 'rgba(115, 117, 128, 0.1)',
                                     }}
                                 >
-                                    <div className="overflow-auto flex-1 custom-scrollbar">
+                                    <div className="overflow-x-auto custom-scrollbar">
                                         <table className="w-full border-collapse min-w-[600px]">
                                             <thead style={{ backgroundColor: isLight ? 'rgba(238, 242, 255, 0.85)' : 'rgba(12, 14, 23, 0.85)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} className="sticky top-0 z-20">
                                                 <tr style={{ borderBottom: '1px solid var(--tt-divider)' }}>

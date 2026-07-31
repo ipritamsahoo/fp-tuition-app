@@ -222,7 +222,7 @@ function PayNowModal({ payment, unpaidPayments = [], onClose, onProceed, initial
                                 Pay for Multiple Months
                             </label>
                         </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <div className="space-y-2">
                             {unpaidPayments.map(p => {
                                 const isChecked = selectedIds.has(p.id);
                                 return (
@@ -731,23 +731,7 @@ function StudentPaymentsContent() {
                 </p>
             </div>
 
-            {/* ── Alerts ── */}
-            {success && (
-                <div
-                    className="p-3 rounded-2xl text-sm flex items-center justify-between animate-fade-in"
-                    style={{
-                        backgroundColor: 'var(--st-accent-bg)',
-                        borderWidth: 1, borderStyle: 'solid',
-                        borderColor: isLight ? 'rgba(13,148,136,0.2)' : 'rgba(74,248,227,0.2)',
-                        color: 'var(--st-accent)',
-                    }}
-                >
-                    <span>{success}</span>
-                    <button onClick={() => setSuccess("")} className="ml-2 cursor-pointer" style={{ color: 'var(--st-accent)' }}>
-                        <span className="material-symbols-outlined text-lg">close</span>
-                    </button>
-                </div>
-            )}
+
 
             {error && (
                 <div
@@ -874,22 +858,32 @@ function StudentPaymentsContent() {
                                                 <span className="text-[11px] font-semibold">Got it</span>
                                             </button>
                                         )}
-                                        <div className="flex items-center justify-between pr-8">
+                                        <div className="flex items-center justify-between pr-2">
                                             <div>
                                                 <span className="block text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--st-text-secondary)' }}>BILLING CYCLE</span>
                                                 <h3 className="text-lg font-bold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                                                     {MONTHS[p.month - 1]} {p.year}
                                                 </h3>
-                                                <span className="block mt-0.5 text-xs sm:text-sm font-extrabold tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: p.status === "Rejected" ? (isLight ? '#ef4444' : '#ff6b84') : 'var(--st-accent)' }}>
+                                                {p.status !== "Pending_Verification" && (
+                                                    <span className="block mt-0.5 text-xs sm:text-sm font-extrabold tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: p.status === "Rejected" ? (isLight ? '#ef4444' : '#ff6b84') : 'var(--st-accent)' }}>
+                                                        ₹{p.amount?.toLocaleString("en-IN")}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {p.status === "Pending_Verification" && (
+                                                <span className="text-lg sm:text-xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                                                     ₹{p.amount?.toLocaleString("en-IN")}
                                                 </span>
-                                            </div>
+                                            )}
                                         </div>
                                         <PaymentProgressTracker
                                             status={p.status}
                                             mode={p.mode}
                                             month={MONTHS[p.month - 1]}
                                             year={p.year}
+                                            requestedAt={p.requested_at || p.created_at || p.timestamp}
+                                            updatedAt={p.updated_at}
+                                            rejectedAt={p.rejected_at || p.updated_at}
                                         />
                                     </div>
                                 )}
@@ -955,6 +949,9 @@ function StudentPaymentsContent() {
                                             mode={p.mode}
                                             month={MONTHS[p.month - 1]}
                                             year={p.year}
+                                            requestedAt={p.requested_at || p.created_at || p.timestamp}
+                                            updatedAt={p.updated_at}
+                                            rejectedAt={p.rejected_at || p.updated_at}
                                             actionSlot={
                                                 <button
                                                     onClick={(e) => {

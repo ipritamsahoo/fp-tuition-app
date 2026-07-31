@@ -17,7 +17,6 @@ const MONTHS = [
 const groupPayments = (payments) => {
     if (!payments) return [];
     const grouped = {};
-    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     payments.forEach(p => {
         const key = p.student_id || p.student_name;
@@ -29,7 +28,7 @@ const groupPayments = (payments) => {
             };
         }
         grouped[key].amount += (p.amount || 0);
-        const cycle = p.month ? `${MONTHS_SHORT[p.month - 1]} ${p.year}` : "N/A";
+        const cycle = p.month ? `${MONTHS[p.month - 1]} ${p.year}` : "N/A";
         grouped[key].billingCycles.push(cycle);
     });
 
@@ -508,8 +507,8 @@ function DistributionContent() {
 
                                                     {/* Expanded teacher breakdown */}
                                                     <div className={`transition-all overflow-hidden ${isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                                                        <div className="px-5 pb-5 sm:px-6 sm:pb-6 border-t pt-4" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                            <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: isLight ? '#7c3aed' : '#c799ff' }}>
+                                                        <div className="border-t pt-4" style={{ borderColor: 'var(--ad-divider)' }}>
+                                                            <p className="px-5 sm:px-6 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: isLight ? '#7c3aed' : '#c799ff' }}>
                                                                 <span className="material-symbols-outlined text-sm">group</span> Student Payments
                                                                 {dist.settled && (
                                                                     <span className="lowercase font-semibold text-[10px] px-2 py-0.5 rounded-full border ml-2 shadow-sm"
@@ -524,34 +523,67 @@ function DistributionContent() {
                                                                 )}
                                                             </p>
 
-                                                            <div className="rounded-2xl overflow-hidden border bg-black/5" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                                <table className="w-full text-left text-sm">
-                                                                    <thead style={{ backgroundColor: 'var(--ad-surface)' }}>
-                                                                        <tr className="border-b border-[var(--ad-divider)]">
-                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>Student</th>
-                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-center" style={{ color: 'var(--ad-text-secondary)' }}>Billing Cycle</th>
-                                                                            <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>Amount</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="divide-y divide-[var(--ad-divider)]">
-                                                                        {dist.payments && groupPayments(dist.payments).map((p, idx) => (
-                                                                            <tr key={idx} className="transition-colors hover:bg-white/[0.01]">
-                                                                                <td className="px-4 py-3.5 text-sm font-medium" style={{ color: 'var(--ad-text-primary)' }}>{p.student_name}</td>
-                                                                                <td className="px-4 py-3.5 text-xs font-semibold text-center" style={{ color: 'var(--ad-text-secondary)' }}>
-                                                                                    {p.billingCycles.join(", ")}
-                                                                                </td>
-                                                                                <td className="px-4 py-3.5 text-sm font-bold text-right" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
-                                                                                    ₹{p.amount.toLocaleString()}
-                                                                                </td>
+                                                            {/* Full-Bleed Table spanning edge-to-edge */}
+                                                            <div className="w-full overflow-hidden border-t bg-black/5" style={{ borderColor: 'var(--ad-divider)' }}>
+                                                                <div className="overflow-x-auto custom-scrollbar">
+                                                                    <table className="w-full text-left text-xs sm:text-sm min-w-[340px] sm:min-w-full border-collapse">
+                                                                        <thead style={{ backgroundColor: 'var(--ad-surface)' }}>
+                                                                            <tr className="border-b border-[var(--ad-divider)]">
+                                                                                <th 
+                                                                                    className="sticky left-0 z-20 px-5 sm:px-6 py-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest whitespace-nowrap shadow-[3px_0_10px_rgba(0,0,0,0.03)] backdrop-blur-xl" 
+                                                                                    style={{ 
+                                                                                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(15, 23, 42, 0.85)', 
+                                                                                        color: 'var(--ad-text-secondary)' 
+                                                                                    }}
+                                                                                >
+                                                                                    Student
+                                                                                </th>
+                                                                                <th className="px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-center whitespace-nowrap" style={{ color: 'var(--ad-text-secondary)' }}>Billing Cycle</th>
+                                                                                <th className="px-5 sm:px-6 py-3 text-right text-[10px] sm:text-[11px] font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: 'var(--ad-text-secondary)' }}>Amount</th>
                                                                             </tr>
-                                                                        ))}
-                                                                        {(!dist.payments || dist.payments.length === 0) && (
-                                                                            <tr>
-                                                                                <td colSpan="3" className="px-4 py-6 text-sm text-center bg-black/5 font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No payment details available.</td>
-                                                                            </tr>
-                                                                        )}
-                                                                    </tbody>
-                                                                </table>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-[var(--ad-divider)]">
+                                                                            {dist.payments && groupPayments(dist.payments).map((p, idx) => (
+                                                                                <tr key={idx} className="transition-colors hover:bg-white/[0.01]">
+                                                                                    <td 
+                                                                                        className="sticky left-0 z-10 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-semibold whitespace-nowrap shadow-[3px_0_10px_rgba(0,0,0,0.03)] backdrop-blur-xl" 
+                                                                                        style={{ 
+                                                                                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(15, 23, 42, 0.85)', 
+                                                                                            color: 'var(--ad-text-primary)' 
+                                                                                        }}
+                                                                                    >
+                                                                                        {p.student_name}
+                                                                                    </td>
+                                                                                    <td className="px-4 sm:px-6 py-3.5 text-xs text-center" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                                                        <div className="flex flex-wrap items-center justify-center gap-1">
+                                                                                            {p.billingCycles.map((cycle, cIdx) => (
+                                                                                                <span 
+                                                                                                    key={cIdx} 
+                                                                                                    className="inline-block px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border whitespace-nowrap"
+                                                                                                    style={{
+                                                                                                        backgroundColor: isLight ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.05)',
+                                                                                                        borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+                                                                                                        color: 'var(--ad-text-secondary)'
+                                                                                                    }}
+                                                                                                >
+                                                                                                    {cycle}
+                                                                                                </span>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td className="px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-extrabold text-right whitespace-nowrap" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                                                        ₹{p.amount.toLocaleString("en-IN")}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ))}
+                                                                            {(!dist.payments || dist.payments.length === 0) && (
+                                                                                <tr>
+                                                                                    <td colSpan="3" className="px-5 sm:px-6 py-6 text-sm text-center bg-black/5 font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No payment details available.</td>
+                                                                                </tr>
+                                                                            )}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -580,17 +612,14 @@ function DistributionContent() {
                         <div>
                             {sortedDates.length > 0 && allTeachers.length > 0 ? (
                                 <>
-                                    {/* Ledger table (scrollable on mobile) */}
+                                    {/* Ledger table (full vertical height, scrollable horizontally on mobile) */}
                                     <div className="backdrop-blur-[20px] border rounded-3xl overflow-hidden shadow-xl"
                                          style={{ 
-                                             maxHeight: "calc(100vh - 380px)", 
-                                             display: "flex", 
-                                             flexDirection: "column",
                                              backgroundColor: 'var(--ad-card-bg)',
                                              borderColor: 'var(--ad-card-border)'
                                          }}
                                     >
-                                        <div className="overflow-auto flex-1 custom-scrollbar">
+                                        <div className="overflow-x-auto custom-scrollbar">
                                             <table className="w-full border-collapse min-w-[600px]">
                                                 <thead className="sticky top-0 z-20 backdrop-blur-xl" style={{ backgroundColor: 'var(--ad-surface)', borderBottom: '1px solid var(--ad-divider)' }}>
                                                     {/* Summary row: Total Distributed per teacher for the month */}

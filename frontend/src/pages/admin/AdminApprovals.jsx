@@ -303,6 +303,40 @@ function ApprovalContent() {
         groups[key].payments.push(p);
     });
 
+    const formatDateTime = (rawTs) => {
+        if (!rawTs) return null;
+        try {
+            let d;
+            if (typeof rawTs === "string") {
+                d = new Date(rawTs);
+            } else if (typeof rawTs === "number") {
+                d = new Date(rawTs);
+            } else if (rawTs && typeof rawTs === "object" && rawTs.seconds) {
+                d = new Date(rawTs.seconds * 1000);
+            } else if (rawTs && typeof rawTs === "object" && rawTs._seconds) {
+                d = new Date(rawTs._seconds * 1000);
+            } else {
+                d = new Date(rawTs);
+            }
+            
+            if (isNaN(d.getTime())) return null;
+            
+            const dateStr = d.toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            });
+            const timeStr = d.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true
+            });
+            return `${dateStr}, ${timeStr}`;
+        } catch {
+            return null;
+        }
+    };
+
     groupedPending.forEach(group => {
         group.payments.sort((a, b) => {
             if (a.year !== b.year) return a.year - b.year;
@@ -311,6 +345,15 @@ function ApprovalContent() {
         
         group.totalAmount = group.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
         group.monthsLabel = group.payments.map(p => `${MONTHS[p.month - 1]} ${p.year}`).join(", ");
+
+        const latestTs = group.payments.reduce((latest, p) => {
+            const ts = p.requested_at || p.updated_at || p.created_at || p.timestamp;
+            if (!ts) return latest;
+            if (!latest) return ts;
+            return ts > latest ? ts : latest;
+        }, null);
+
+        group.requestDateTime = formatDateTime(latestTs);
     });
 
     return (
@@ -342,8 +385,8 @@ function ApprovalContent() {
                             onChange={(e) => setFilterMode(e.target.value)}
                             options={[
                                 { value: "", label: "All Modes" },
-                                { value: "online", label: "📱 Online" },
-                                { value: "offline", label: "💵 Offline" }
+                                { value: "online", label: "Online" },
+                                { value: "offline", label: "Offline" }
                             ]}
                             placeholder="All Modes"
                             className="w-full flex items-center justify-between border hover:border-[#3b82f6]/50 transition-colors rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 text-sm"
@@ -436,58 +479,65 @@ function ApprovalContent() {
                                 <h3 className="font-bold text-base sm:text-lg truncate flex-1 min-w-0" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                     {group.student_name || "Unknown Student"}
                                 </h3>
-                                <span className={`shrink-0 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border
-                                    ${group.mode === "online" ? "bg-[#c799ff]/10 text-[#c799ff] border-[#c799ff]/30" : "bg-[#ff9dac]/10 text-[#ff9dac] border-[#ff9dac]/30"}`}>
-                                    {group.mode === "online" ? "📱 Online" : "💵 Offline"}
+                                <span className={`shrink-0 text-xs sm:text-sm font-bold capitalize ${group.mode === "online" ? "text-[#c799ff]" : "text-[#ff9dac]"}`}>
+                                    {group.mode === "online" ? "Online" : "Offline"}
                                 </span>
                             </div>
 
                             {/* Details row */}
                             <div className="flex flex-wrap gap-3 mb-6">
                                 {/* Billing Cycle */}
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                                <div className="flex items-center px-3.5 py-2.5 rounded-2xl border"
                                      style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)' }}
                                 >
-                                    <span className="material-symbols-outlined text-[#c799ff] text-base shrink-0">calendar_today</span>
                                     <div className="flex flex-col leading-tight">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Billing Cycle</span>
-                                        <span className="text-xs font-semibold" style={{ color: 'var(--ad-text-primary)' }}>{group.monthsLabel}</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Billing Cycle</span>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--ad-text-primary)' }}>{group.monthsLabel}</span>
                                     </div>
                                 </div>
 
                                 {/* Amount */}
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                                <div className="flex items-center px-3.5 py-2.5 rounded-2xl border"
                                      style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)' }}
                                 >
-                                    <span className="material-symbols-outlined text-[#4af8e3] text-base shrink-0">payments</span>
                                     <div className="flex flex-col leading-tight">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Amount</span>
-                                        <span className="text-xs font-semibold" style={{ color: 'var(--ad-text-primary)' }}>₹{group.totalAmount}</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Amount</span>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--ad-text-primary)' }}>₹{group.totalAmount}</span>
                                     </div>
                                 </div>
 
                                 {/* Batch */}
                                 {group.batch_name && (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                                    <div className="flex items-center px-3.5 py-2.5 rounded-2xl border"
                                          style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)' }}
                                     >
-                                        <span className="material-symbols-outlined text-[#ff9dac] text-base shrink-0">group</span>
                                         <div className="flex flex-col leading-tight">
-                                            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Batch</span>
-                                            <span className="text-xs font-semibold" style={{ color: 'var(--ad-text-primary)' }}>{group.batch_name}</span>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Batch</span>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--ad-text-primary)' }}>{group.batch_name}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Requested Date & Time */}
+                                {group.requestDateTime && (
+                                    <div className="flex items-center px-3.5 py-2.5 rounded-2xl border"
+                                         style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)' }}
+                                    >
+                                        <div className="flex flex-col leading-tight">
+                                            <span className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Requested On</span>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--ad-text-primary)' }}>{group.requestDateTime}</span>
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Teacher Name — offline only */}
                                 {group.mode !== "online" && group.teacher_name && group.teacher_name !== "Instructor" && (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                                    <div className="flex items-center px-3.5 py-2.5 rounded-2xl border"
                                          style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)' }}
                                     >
-                                        <span className="material-symbols-outlined text-base shrink-0" style={{ color: isLight ? '#0d9488' : '#c799ff' }}>person</span>
                                         <div className="flex flex-col leading-tight">
-                                            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Requested By</span>
-                                            <span className="text-xs font-semibold" style={{ color: 'var(--ad-text-primary)' }}>{group.teacher_name}</span>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--ad-text-secondary)', opacity: 0.65 }}>Requested By</span>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--ad-text-primary)' }}>{group.teacher_name}</span>
                                         </div>
                                     </div>
                                 )}
