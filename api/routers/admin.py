@@ -22,7 +22,8 @@ from schemas import (
     RegisterRequest, BatchCreate, StudentCreate, TeacherCreate,
     StudentUpdate, TeacherUpdate, GenerateMonthly, UndoMonthly, FeeOverride,
     SettleDistribution, AdminSeed, to_firebase_email, StudentStatusUpdate,
-    EmergencyReset, BatchActionPayload,
+    EmergencyReset, BatchActionPayload, CheckUsernamesRequest, BulkStudentCreateItem,
+    BulkStudentCreate,
 )
 from dependencies import require_role
 from utils import ts_now, serialize_doc
@@ -875,6 +876,133 @@ def admin_add_student(req: StudentCreate, user=Depends(require_role("admin"))):
     return {"uid": fb_user.uid, "message": f"Student '{req.name}' added successfully."}
 
 
+@router.get("/check-username")
+def check_username(username: str, user=Depends(require_role("admin"))):
+    """Check if a username or mobile is already in use."""
+    clean_username = username.strip().lower()
+    if not clean_username:
+        return {"exists": False, "username": clean_username}
+    
+    # 1. Check Firestore
+    existing_user = db.collection("users").where(filter=FieldFilter("username", "==", clean_username)).limit(1).get()
+    if len(existing_user) > 0:
+        return {"exists": True, "username": clean_username}
+    
+    # 2. Check Firebase Auth by email
+    email = to_firebase_email(clean_username)
+    try:
+        firebase_auth.get_user_by_email(email)
+        return {"exists": True, "username": clean_username}
+    except firebase_auth.UserNotFoundError:
+        return {"exists": False, "username": clean_username}
+    except Exception:
+        return {"exists": False, "username": clean_username}
+
+
+@router.post("/check-usernames")
+def check_usernames(req: CheckUsernamesRequest, user=Depends(require_role("admin"))):
+    """Batch check a list of usernames against Firestore and Firebase Auth."""
+    existing = set()
+    cleaned = list(set([u.strip().lower() for u in req.usernames if u and u.strip()]))
+    if not cleaned:
+        return {"existing_usernames": []}
+    
+    # Batch check in Firestore (in operator up to 30 items)
+    for i in range(0, len(cleaned), 30):
+        chunk = cleaned[i:i+30]
+        docs = db.collection("users").where(filter=FieldFilter("username", "in", chunk)).stream()
+        for d in docs:
+            u_val = d.to_dict().get("username", "").strip().lower()
+            if u_val:
+                existing.add(u_val)
+                
+    # Check Firebase Auth for any not found in Firestore
+    for u in cleaned:
+        if u not in existing:
+            email = to_firebase_email(u)
+            try:
+                firebase_auth.get_user_by_email(email)
+                existing.add(u)
+            except Exception:
+                pass
+                
+    return {"existing_usernames": list(existing)}
+
+
+@router.post("/students/bulk")
+def admin_add_students_bulk(req: BulkStudentCreate, user=Depends(require_role("admin"))):
+    """Bulk create multiple student users in a batch."""
+    if not req.batch_id:
+        raise HTTPException(status_code=400, detail="Batch ID is required")
+        
+    batch_ref = db.collection("batches").document(req.batch_id)
+    if not batch_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Batch not found")
+        
+    created_count = 0
+    errors = []
+    
+    for idx, s in enumerate(req.students):
+        clean_name = s.name.strip()
+        clean_username = s.username.strip().lower()
+        password = s.password.strip()
+        
+        if not clean_name or not clean_username or not password:
+            errors.append(f"Row {idx+1}: Missing required fields.")
+            continue
+            
+        email = to_firebase_email(clean_username)
+        
+        try:
+            fb_user = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=clean_name,
+            )
+        except firebase_auth.EmailAlreadyExistsError:
+            errors.append(f"Row {idx+1} ('{clean_name}'): Username '{clean_username}' is already in use.")
+            continue
+        except Exception as e:
+            errors.append(f"Row {idx+1} ('{clean_name}'): {str(e)}")
+            continue
+            
+        try:
+            firebase_auth.set_custom_user_claims(fb_user.uid, {"role": "student"})
+        except Exception as e:
+            print(f"Failed custom claims for {fb_user.uid}: {e}")
+            
+        user_doc = {
+            "name": clean_name,
+            "username": clean_username,
+            "email": email,
+            "role": "student",
+            "batch_id": req.batch_id,
+            "created_at": ts_now(),
+            "is_disabled": False,
+        }
+        
+        db.collection("users").document(fb_user.uid).set(user_doc)
+        backup_document("users", fb_user.uid, user_doc, "create")
+        created_count += 1
+        
+    # Increment batch student_count by created_count
+    if created_count > 0:
+        batch_ref.update({
+            "student_count": firestore.Increment(created_count)
+        })
+        upd_batch = batch_ref.get()
+        if upd_batch.exists:
+            backup_document("batches", req.batch_id, upd_batch.to_dict())
+            
+    return {
+        "created_count": created_count,
+        "failed_count": len(errors),
+        "errors": errors,
+        "message": f"Successfully added {created_count} student(s)." + (f" ({len(errors)} failed)" if errors else "")
+    }
+
+
+
 @router.put("/students/{uid}")
 def admin_update_student(uid: str, req: StudentUpdate, user=Depends(require_role("admin"))):
     """Update a student's details. Optionally reset their password.
@@ -1229,32 +1357,39 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
 
     fallback_amount = req.amount or DEFAULT_FEE_AMOUNT
 
-    # ── Reset all student badges for the target scope ──
-    # Only target ACTIVE students
+    # ── Reset badges ONLY for students who haven't paid yet this month ──
+    # Students who already paid and earned a badge this cycle must NOT be touched.
     reset_query = db.collection("users") \
         .where(filter=FieldFilter("role", "==", "student"))
 
     if req.batch_id:
         reset_query = reset_query.where(filter=FieldFilter("batch_id", "==", req.batch_id))
 
-    # Note: We reset badges ONLY for active students to avoid unnecessary writes
-    # and because disabled students shouldn't be in the badge calculation loop.
     badges_reset = 0
     for s in reset_query.stream():
         data = s.to_dict()
         if data.get("is_disabled"):
             continue
+        if not data.get("current_badge"):
+            continue
 
-        if data.get("current_badge"):
-            db.collection("users").document(s.id).update({
-                "current_badge": None,
-                "badge_month": None,
-                "badge_year": None,
-            })
-            upd_s = db.collection("users").document(s.id).get()
-            if upd_s.exists:
-                backup_document("users", s.id, upd_s.to_dict())
-            badges_reset += 1
+        # Check badge_month/badge_year — if badge belongs to a different month/year, reset it.
+        # If badge belongs to THIS month/year, the student already paid → keep it.
+        badge_month = data.get("badge_month")
+        badge_year = data.get("badge_year")
+        if badge_month == req.month and badge_year == req.year:
+            # Student earned this badge for the current cycle — do NOT reset
+            continue
+
+        db.collection("users").document(s.id).update({
+            "current_badge": None,
+            "badge_month": None,
+            "badge_year": None,
+        })
+        upd_s = db.collection("users").document(s.id).get()
+        if upd_s.exists:
+            backup_document("users", s.id, upd_s.to_dict())
+        badges_reset += 1
     if badges_reset > 0:
         print(f"Badge reset: cleared {badges_reset} student badge(s)")
 

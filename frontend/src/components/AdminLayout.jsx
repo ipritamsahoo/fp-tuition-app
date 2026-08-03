@@ -776,14 +776,22 @@ export function AdminLayoutInner({ children }) {
             {/* ── Mobile: FAB Menu Drawer ── */}
             {fabOpen && !isSubPageMobile && (
                 <div 
-                    className="md:hidden fixed bottom-[176px] z-[60] w-48 flex flex-col gap-3 animate-menu-card-in" 
+                    className="md:hidden fixed bottom-[176px] z-[60] w-48 animate-menu-card-in rounded-3xl overflow-hidden" 
                     style={{ 
                         left: fabAlign === "left" ? "24px" : "auto",
                         right: fabAlign === "right" ? "24px" : "auto",
                         transformOrigin: fabAlign === "left" ? "bottom left" : "bottom right"
                     }}
                 >
-                    <div className="rounded-3xl p-3 shadow-2xl border space-y-1" style={{ isolation: "isolate", backgroundColor: 'var(--ad-sidebar-bg)', borderColor: 'var(--ad-divider)' }}>
+                    <div className="p-3 shadow-2xl border space-y-1"
+                        style={{
+                            isolation: "isolate",
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.92)' : 'var(--ad-sidebar-bg)',
+                            borderColor: 'var(--ad-divider)',
+                            backdropFilter: 'blur(64px)',
+                            WebkitBackdropFilter: 'blur(64px)'
+                        }}
+                    >
                         {adminFabNav.map((item) => (
                             <button 
                                 key={item.href}
@@ -946,14 +954,10 @@ export function AdminLayoutInner({ children }) {
                     from {
                         transform: scale(0.8) translateY(20px);
                         opacity: 0;
-                        backdrop-filter: blur(0px);
-                        -webkit-backdrop-filter: blur(0px);
                     }
                     to {
                         transform: scale(1) translateY(0);
                         opacity: 1;
-                        backdrop-filter: blur(64px);
-                        -webkit-backdrop-filter: blur(64px);
                     }
                 }
                 .animate-menu-card-in {

@@ -6,7 +6,7 @@ import UserDevicesModal from "@/components/UserDevicesModal";
 import { api, isSystemicError } from "@/lib/api";
 import { getYearOptions, getPreviousMonth } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
-import { getCache, setCache } from "@/lib/memoryCache";
+import { getCache, setCache, clearCache } from "@/lib/memoryCache";
 import { GenericListSkeleton } from "@/components/Skeletons";
 import { useAdminTheme } from "@/context/AdminThemeContext";
 
@@ -14,6 +14,32 @@ const MONTHS = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
 ];
+
+const generateUsernameFromName = (name) => {
+    if (!name) return "";
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+};
+
+const generatePasswordFromName = (name) => {
+    if (!name) return "";
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "";
+    const initials = words.map((w) => w[0].toLowerCase()).join("");
+    return `#${initials}@123`;
+};
+
+const createEmptyStudentRow = () => ({
+    id: Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 7),
+    name: "",
+    username: "",
+    password: "",
+    isUsernameEdited: false,
+    isPasswordEdited: false,
+    showPassword: false,
+});
 
 function StudentsContent() {
     const { theme } = useAdminTheme();
@@ -32,10 +58,12 @@ function StudentsContent() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    // ── Add-student form ─────────────────────────────────────────────────
-    const [form, setForm] = useState({ name: "", username: "", password: "", batch_id: "" });
-    const [formLoading, setFormLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+    // ── Multi-student Add state ──────────────────────────────────────────
+    const [addBatchId, setAddBatchId] = useState("");
+    const [studentRows, setStudentRows] = useState([createEmptyStudentRow()]);
+    const [existingUsernames, setExistingUsernames] = useState(new Set());
+    const [isCheckingUsernames, setIsCheckingUsernames] = useState(false);
+    const [addLoading, setAddLoading] = useState(false);
 
     // ── List tab state ───────────────────────────────────────────────────
     const [selectedListBatch, setSelectedListBatch] = useState("");
@@ -131,29 +159,202 @@ function StudentsContent() {
         };
     }, [editingStudent, overrideStudent, statusModalStudent, devicesStudent]);
 
-    // ── Add student ──────────────────────────────────────────────────────
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!form.batch_id) {
-            setError("Please select a batch for the new student.");
+    // ── Realtime username availability check ──────────────────────────────
+    useEffect(() => {
+        if (activeTab !== "add") return;
+
+        const usernamesToCheck = Array.from(new Set(
+            studentRows
+                .map((r) => r.username.trim().toLowerCase())
+                .filter(Boolean)
+        ));
+
+        if (usernamesToCheck.length === 0) {
+            setExistingUsernames(new Set());
             return;
         }
 
-        setFormLoading(true);
+        const timer = setTimeout(async () => {
+            setIsCheckingUsernames(true);
+            try {
+                const res = await api.post("/api/admin/check-usernames", { usernames: usernamesToCheck });
+                if (res && res.existing_usernames) {
+                    setExistingUsernames(new Set(res.existing_usernames.map((u) => u.toLowerCase())));
+                }
+            } catch (e) {
+                console.error("Failed to check usernames:", e);
+            } finally {
+                setIsCheckingUsernames(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [studentRows, activeTab]);
+
+    const getRowStatus = (row, index) => {
+        const cleanUsername = row.username.trim().toLowerCase();
+        if (!cleanUsername) return { status: "empty", msg: "" };
+
+        // Duplicate in current list
+        const isDuplicate = studentRows.some(
+            (r, i) => i !== index && r.username.trim().toLowerCase() === cleanUsername
+        );
+        if (isDuplicate) {
+            return { status: "duplicate", msg: "Duplicate in list" };
+        }
+
+        // Already exists in database
+        if (existingUsernames.has(cleanUsername)) {
+            return { status: "exists", msg: "Username already exists!" };
+        }
+
+        return { status: "available", msg: "Available" };
+    };
+
+    const handleRowNameChange = (id, newName) => {
+        setStudentRows((prev) =>
+            prev.map((r) => {
+                if (r.id !== id) return r;
+                const updated = { ...r, name: newName };
+                if (!r.isUsernameEdited) {
+                    updated.username = generateUsernameFromName(newName);
+                }
+                if (!r.isPasswordEdited) {
+                    updated.password = generatePasswordFromName(newName);
+                }
+                return updated;
+            })
+        );
+    };
+
+    const handleRowUsernameChange = (id, newUsername) => {
+        setStudentRows((prev) =>
+            prev.map((r) =>
+                r.id === id ? { ...r, username: newUsername, isUsernameEdited: true } : r
+            )
+        );
+    };
+
+    const handleRowPasswordChange = (id, newPassword) => {
+        setStudentRows((prev) =>
+            prev.map((r) =>
+                r.id === id ? { ...r, password: newPassword, isPasswordEdited: true } : r
+            )
+        );
+    };
+
+    const handleToggleRowPassword = (id) => {
+        setStudentRows((prev) =>
+            prev.map((r) => (r.id === id ? { ...r, showPassword: !r.showPassword } : r))
+        );
+    };
+
+    const handleResetRowCredentials = (id) => {
+        setStudentRows((prev) =>
+            prev.map((r) => {
+                if (r.id !== id) return r;
+                return {
+                    ...r,
+                    username: generateUsernameFromName(r.name),
+                    password: generatePasswordFromName(r.name),
+                    isUsernameEdited: false,
+                    isPasswordEdited: false,
+                };
+            })
+        );
+    };
+
+    const handleAddRow = () => {
+        setStudentRows((prev) => [...prev, createEmptyStudentRow()]);
+    };
+
+    const handleRemoveRow = (id) => {
+        setStudentRows((prev) => {
+            if (prev.length <= 1) return prev;
+            return prev.filter((r) => r.id !== id);
+        });
+    };
+
+    const handleClearRows = () => {
+        setStudentRows([createEmptyStudentRow()]);
+    };
+
+    const handleBulkSubmit = async (e) => {
+        e.preventDefault();
         setError("");
         setSuccess("");
+
+        if (!addBatchId) {
+            setError("Please select a batch for adding students.");
+            return;
+        }
+
+        const validRows = studentRows.filter(
+            (r) => r.name.trim() || r.username.trim() || r.password.trim()
+        );
+
+        if (validRows.length === 0) {
+            setError("Please enter at least one student.");
+            return;
+        }
+
+        for (let i = 0; i < validRows.length; i++) {
+            const r = validRows[i];
+            if (!r.name.trim()) {
+                setError(`Row ${i + 1}: Please enter Full Name.`);
+                return;
+            }
+            if (!r.username.trim()) {
+                setError(`Row ${i + 1} ('${r.name}'): Please enter Username.`);
+                return;
+            }
+            if (!r.password.trim() || r.password.trim().length < 6) {
+                setError(`Row ${i + 1} ('${r.name}'): Password must be at least 6 characters.`);
+                return;
+            }
+
+            const statusInfo = getRowStatus(r, studentRows.findIndex((row) => row.id === r.id));
+            if (statusInfo.status === "exists") {
+                setError(`Username '${r.username}' for '${r.name}' already exists in system. Please change it.`);
+                return;
+            }
+            if (statusInfo.status === "duplicate") {
+                setError(`Username '${r.username}' is duplicated in the entry list.`);
+                return;
+            }
+        }
+
+        setAddLoading(true);
+
         try {
-            await api.post("/api/admin/students", form);
-            setSuccess("Student added successfully!");
-            setForm({ name: "", username: "", password: "", batch_id: "" });
-            setShowPassword(false);
+            const payload = {
+                batch_id: addBatchId,
+                students: validRows.map((r) => ({
+                    name: r.name.trim(),
+                    username: r.username.trim().toLowerCase(),
+                    password: r.password.trim(),
+                })),
+            };
+
+            const res = await api.post("/api/admin/students/bulk", payload);
+            const addedCount = res.created_count || validRows.length;
+
+            setSuccess(`Successfully added ${addedCount} student(s) to batch!`);
+            setStudentRows([createEmptyStudentRow()]);
+
+            // Clear batch cache so counts stay fresh
+            clearCache(cacheKeyBatches);
+            fetchBatches();
+
+            // Switch to list tab and view added batch
+            setSelectedListBatch(addBatchId);
+            setActiveTab("list");
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setError(err.message);
             }
         } finally {
-            setFormLoading(false);
+            setAddLoading(false);
         }
     };
 
@@ -321,9 +522,9 @@ function StudentsContent() {
                         onClick={() => setActiveTab("list")}
                         className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
                         style={{
-                            backgroundColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
-                            color: activeTab === "list" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
-                            borderColor: activeTab === "list" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                            backgroundColor: activeTab === "list" ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                            color: activeTab === "list" ? (isLight ? '#0d9488' : '#c799ff') : 'var(--ad-text-secondary)',
+                            borderColor: activeTab === "list" ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
                         }}
                     >
                         <span className="material-symbols-outlined text-[16px]">group</span>
@@ -333,13 +534,13 @@ function StudentsContent() {
                         onClick={() => setActiveTab("add")}
                         className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center gap-2 border border-transparent"
                         style={{
-                            backgroundColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
-                            color: activeTab === "add" ? (isLight ? '#2563eb' : '#c799ff') : 'var(--ad-text-secondary)',
-                            borderColor: activeTab === "add" ? (isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
+                            backgroundColor: activeTab === "add" ? (isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)') : 'transparent',
+                            color: activeTab === "add" ? (isLight ? '#0d9488' : '#c799ff') : 'var(--ad-text-secondary)',
+                            borderColor: activeTab === "add" ? (isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(199, 153, 255, 0.25)') : 'transparent',
                         }}
                     >
                         <span className="material-symbols-outlined text-[16px]">person_add</span>
-                        Add Student
+                        Enroll Student
                     </button>
                 </div>
 
@@ -386,6 +587,24 @@ function StudentsContent() {
                                 )}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Batch Selector on Right for Add tab */}
+                {activeTab === "add" && (
+                    <div className="w-full sm:w-64">
+                        <ModernSelect
+                            value={addBatchId}
+                            onChange={(e) => setAddBatchId(e.target.value)}
+                            options={batches}
+                            placeholder="Select Batch"
+                            className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
+                        />
                     </div>
                 )}
             </div>
@@ -619,114 +838,253 @@ function StudentsContent() {
             )}
 
             {/* ═══════════════════════════════════════════════════════════
-                TAB 2 — ADD STUDENT
-                No student list, no counts — just the form.
+                TAB 2 — ADD STUDENT (BATCH MULTI-ENTRY)
             ══════════════════════════════════════════════════════════════ */}
             {activeTab === "add" && (
-                <form
-                    onSubmit={handleSubmit}
-                    className="backdrop-blur-[20px] border rounded-[2rem] p-6 sm:p-8 shadow-lg"
-                    style={{
-                        backgroundColor: 'var(--ad-card-bg)',
-                        borderColor: 'var(--ad-card-border)'
-                    }}
-                >
-                    <h3 className="font-bold mb-6 text-lg flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
-                        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-extrabold shadow-sm border"
-                              style={{
-                                  backgroundColor: 'var(--ad-accent-bg)',
-                                  borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
-                                  color: 'var(--ad-accent)'
-                              }}
+                <div className="space-y-6">
+                    {!addBatchId ? (
+                        /* Empty state — no batch selected */
+                        <div className="backdrop-blur-[20px] border rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
                         >
-                            <span className="material-symbols-outlined text-[16px]">person_add</span>
-                        </span>
-                        New Student
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-                        <input
-                            placeholder="Full Name"
-                            value={form.name}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            required
-                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                            style={{
-                                backgroundColor: 'var(--ad-input-bg)',
-                                borderColor: 'var(--ad-input-border)',
-                                color: 'var(--ad-text-primary)'
-                            }}
-                        />
-                        <input
-                            placeholder="Username or Mobile"
-                            type="text"
-                            value={form.username}
-                            onChange={(e) => setForm({ ...form, username: e.target.value })}
-                            required
-                            className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                            style={{
-                                backgroundColor: 'var(--ad-input-bg)',
-                                borderColor: 'var(--ad-input-border)',
-                                color: 'var(--ad-text-primary)'
-                            }}
-                        />
-                        <div className="relative w-full">
-                            <input
-                                placeholder="Password"
-                                type={showPassword ? "text" : "password"}
-                                value={form.password}
-                                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                                required
-                                minLength={6}
-                                className="w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                                style={{
-                                    backgroundColor: 'var(--ad-input-bg)',
-                                    borderColor: 'var(--ad-input-border)',
-                                    color: 'var(--ad-text-primary)'
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 rounded-full hover:bg-black/5 cursor-pointer"
-                                tabIndex="-1"
-                                style={{ color: 'var(--ad-text-secondary)' }}
-                            >
-                                <span className="material-symbols-outlined text-[20px]">
-                                    {showPassword ? "visibility_off" : "visibility"}
-                                </span>
-                            </button>
+                            <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--ad-text-secondary)' }}>group_add</span>
+                            <p className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>Select Batch</p>
+                            <p className="text-sm" style={{ color: 'var(--ad-text-secondary)' }}>Please select a batch to enroll students.</p>
                         </div>
-                        <ModernSelect
-                            value={form.batch_id}
-                            onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
-                            options={batches}
-                            placeholder="Select Batch"
-                            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                            style={{
-                                backgroundColor: 'var(--ad-input-bg)',
-                                borderColor: 'var(--ad-input-border)',
-                                color: 'var(--ad-text-primary)'
-                            }}
-                        />
+                    ) : (
+                        /* Form Card — shown when batch is selected */
+                        <div className="backdrop-blur-[20px] border rounded-2xl p-3.5 sm:p-6 shadow-lg space-y-4 sm:space-y-6"
+                             style={{
+                                 backgroundColor: 'var(--ad-card-bg)',
+                                 borderColor: 'var(--ad-card-border)'
+                             }}
+                        >
+                            <div className="border-b pb-3 sm:pb-4" style={{ borderColor: 'var(--ad-divider)' }}>
+                                <p className="text-xs" style={{ color: 'var(--ad-text-secondary)' }}>
+                                    Enrolling in <span className="font-bold" style={{ color: 'var(--ad-text-primary)' }}>{batches.find(b => b.id === addBatchId)?.batch_name || ""}</span>
+                                </p>
+                            </div>
+
+                        {/* Quick Actions Bar */}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                {isCheckingUsernames && (
+                                    <span className="flex items-center gap-1.5 text-xs text-[#3b82f6] font-medium animate-pulse">
+                                        <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                        Checking usernames...
+                                    </span>
+                                )}
+                            </div>
+
+                            {studentRows.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={handleClearRows}
+                                    className="hidden sm:block px-3 py-1.5 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all hover:text-[#ff6e84]"
+                                    style={{
+                                        backgroundColor: 'var(--ad-icon-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-secondary)'
+                                    }}
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Student Entry Rows */}
+                        <form onSubmit={handleBulkSubmit} className="space-y-4">
+                            <div className="space-y-4">
+                                {studentRows.map((row, index) => {
+                                    const statusInfo = getRowStatus(row, index);
+                                    const isRowError = statusInfo.status === "exists" || statusInfo.status === "duplicate";
+
+                                    return (
+                                        <div
+                                            key={row.id}
+                                            className={`p-3 sm:p-5 rounded-xl border transition-all relative ${
+                                                isRowError
+                                                    ? (isLight ? "border-red-300 bg-red-50/40" : "border-red-500/40 bg-red-950/20")
+                                                    : "border-[var(--ad-card-border)] hover:border-[#3b82f6]/30"
+                                            }`}
+                                            style={{
+                                                backgroundColor: isRowError ? undefined : 'var(--ad-surface)'
+                                            }}
+                                        >
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-black uppercase tracking-wider"
+                                                      style={{ color: 'var(--ad-text-secondary)' }}
+                                                >
+                                                    #{index + 1} Student
+                                                </span>
+
+                                                <div className="flex items-center gap-2">
+                                                    {(row.isUsernameEdited || row.isPasswordEdited) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleResetRowCredentials(row.id)}
+                                                            className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline transition-colors cursor-pointer"
+                                                            style={{ color: 'var(--ad-text-secondary)' }}
+                                                            title="Reset username & password to automatic prefill"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">restart_alt</span>
+                                                            Auto Prefill
+                                                        </button>
+                                                    )}
+                                                    {studentRows.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveRow(row.id)}
+                                                            className="p-1 rounded-lg hover:text-[#ff6e84] transition-colors cursor-pointer"
+                                                            style={{ color: 'var(--ad-text-secondary)' }}
+                                                            title="Remove this student"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                {/* Full Name */}
+                                                <div>
+                                                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                        Full Name <span className="text-[#ff6e84]">*</span>
+                                                    </label>
+                                                    <input
+                                                        placeholder="Full Name"
+                                                        value={row.name}
+                                                        onChange={(e) => handleRowNameChange(row.id, e.target.value)}
+                                                        required
+                                                        className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                                        style={{
+                                                            backgroundColor: 'var(--ad-input-bg)',
+                                                            borderColor: 'var(--ad-input-border)',
+                                                            color: 'var(--ad-text-primary)'
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {/* Username */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                            Username <span className="text-[#ff6e84]">*</span>
+                                                        </label>
+                                                        {isRowError && (
+                                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#ff6e84] flex items-center gap-0.5 animate-bounce">
+                                                                {statusInfo.msg}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input
+                                                            placeholder="Username or Mobile"
+                                                            type="text"
+                                                            value={row.username}
+                                                            onChange={(e) => handleRowUsernameChange(row.id, e.target.value)}
+                                                            required
+                                                            className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 transition-colors ${
+                                                                isRowError ? "border-[#ff6e84] focus:ring-[#ff6e84]/50" : "focus:ring-[#3b82f6]/50"
+                                                            }`}
+                                                            style={{
+                                                                backgroundColor: 'var(--ad-input-bg)',
+                                                                borderColor: isRowError ? '#ff6e84' : 'var(--ad-input-border)',
+                                                                color: 'var(--ad-text-primary)'
+                                                            }}
+                                                        />
+                                                        {statusInfo.status === "available" && (
+                                                            <span className="material-symbols-outlined text-[18px] text-[#4af8e3] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title="Username Available">
+                                                                check_circle
+                                                            </span>
+                                                        )}
+                                                        {isRowError && (
+                                                            <span className="material-symbols-outlined text-[18px] text-[#ff6e84] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title={statusInfo.msg}>
+                                                                warning
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Password */}
+                                                <div>
+                                                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                        Password <span className="text-[#ff6e84]">*</span>
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            placeholder="Password"
+                                                            type={row.showPassword ? "text" : "password"}
+                                                            value={row.password}
+                                                            onChange={(e) => handleRowPasswordChange(row.id, e.target.value)}
+                                                            required
+                                                            minLength={6}
+                                                            className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                                            style={{
+                                                                backgroundColor: 'var(--ad-input-bg)',
+                                                                borderColor: 'var(--ad-input-border)',
+                                                                color: 'var(--ad-text-primary)'
+                                                            }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleToggleRowPassword(row.id)}
+                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 cursor-pointer"
+                                                            tabIndex="-1"
+                                                            style={{ color: 'var(--ad-text-secondary)' }}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">
+                                                                {row.showPassword ? "visibility_off" : "visibility"}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Submit & Action Buttons */}
+                            <div className="pt-4 border-t flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3" style={{ borderColor: 'var(--ad-divider)' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleAddRow}
+                                    className="px-5 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-2 hover:opacity-85"
+                                    style={{
+                                        backgroundColor: 'var(--ad-icon-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">add</span>
+                                    Add Another Student
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={addLoading || isCheckingUsernames}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 border hover:opacity-85 shadow-md"
+                                    style={{
+                                        backgroundColor: 'var(--ad-accent-bg)',
+                                        borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                                        color: 'var(--ad-accent)'
+                                    }}
+                                >
+                                    {addLoading ? (
+                                        <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-[18px]">person_add</span>
+                                    )}
+                                    {addLoading ? "Enrolling..." : `Enroll ${studentRows.length} Student${studentRows.length > 1 ? "s" : ""}`}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={formLoading}
-                        className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 border hover:opacity-85"
-                        style={{
-                            backgroundColor: 'var(--ad-accent-bg)',
-                            borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
-                            color: 'var(--ad-accent)'
-                        }}
-                    >
-                        {formLoading ? (
-                            <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
-                        ) : (
-                            <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                        )}
-                        {formLoading ? "Adding..." : "Add Student"}
-                    </button>
-                </form>
+                    )}
+                </div>
             )}
 
             {/* ═══════════════════════════════════════════════════════════

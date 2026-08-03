@@ -157,3 +157,19 @@ class BatchActionPayload(BaseModel):
     payment_ids: list[str]
 
 
+class CheckUsernamesRequest(BaseModel):
+    usernames: list[str]
+
+
+class BulkStudentCreateItem(BaseModel):
+    name: str
+    username: str
+    password: str
+
+
+class BulkStudentCreate(BaseModel):
+    batch_id: str
+    students: list[BulkStudentCreateItem]
+
+
+
