@@ -122,12 +122,15 @@ def create_notice(
     student_recipients = [doc.id for doc in student_docs]
 
     # Send notifications to students (Title: Teacher's Name, Body: Notice Content)
+    # notice_id is included so the service worker can call POST /api/notices/{id}/read
+    # directly from the "Mark as Read" push notification action button (without opening the app)
     if student_recipients:
         notify_users(
             uids=student_recipients,
             message=req.content.strip(),
             notif_type="notice",
-            title=user.get("name", "Teacher")
+            title=user.get("name", "Teacher"),
+            extra_data={"notice_id": doc_ref.id}
         )
 
     # Query and send notifications to other teachers assigned to this batch (Title: Batch Name, Body: Teacher Name: Notice Content)

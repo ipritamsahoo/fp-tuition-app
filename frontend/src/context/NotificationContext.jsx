@@ -9,6 +9,32 @@ import { get, set, clear } from "idb-keyval";
 const NotificationContext = createContext(null);
 export const useNotifications = () => useContext(NotificationContext);
 
+// ── PWA App Badge helper — sends a message to the service worker ──
+function _sendBadgeToSW(count) {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready.then((reg) => {
+        if (reg.active) {
+            reg.active.postMessage(
+                typeof count === "number" && count > 0
+                    ? { type: "SET_BADGE", count }
+                    : { type: "CLEAR_BADGE" }
+            );
+        }
+    }).catch(() => {});
+}
+
+// Also set badge directly in page context when badge API is available
+function _setDirectBadge(count) {
+    try {
+        if (typeof count === "number" && count > 0) {
+            navigator.setAppBadge?.(count);
+        } else {
+            navigator.clearAppBadge?.();
+        }
+    } catch { /* not supported */ }
+    _sendBadgeToSW(count);
+}
+
 // ── IndexedDB helpers ──
 const STORAGE_KEY = "fpfinance_notifications";
 const MAX_NOTIFICATIONS = 50;
@@ -221,6 +247,23 @@ export function NotificationProvider({ children }) {
                     addNotification(notif);
                 }
             }
+
+            // SW sends this when user taps "✓ Mark as Read" on the push notification
+            if (event.data?.type === "NOTICE_MARKED_READ" && event.data.noticeId) {
+                const noticeId = event.data.noticeId;
+                setNotifications((prev) => {
+                    const updated = prev.map((n) =>
+                        n.notice_id === noticeId ? { ...n, is_read: true } : n
+                    );
+                    saveNotifs(updated);
+                    const newUnreadCount = updated.filter((n) => !n.is_read).length;
+                    setUnreadCount(newUnreadCount);
+                    _setDirectBadge(newUnreadCount);
+                    return updated;
+                });
+                // Also dispatch event so StudentNotices page refreshes its list
+                window.dispatchEvent(new CustomEvent("notices-read"));
+            }
         };
         navigator.serviceWorker?.addEventListener("message", handleSWMessage);
  
@@ -349,6 +392,7 @@ export function NotificationProvider({ children }) {
                 title: data.title || payload.notification?.title || "",
                 message: data.body || payload.notification?.body || "New notification",
                 type: data.type || "general",
+                notice_id: data.notice_id || null,
                 is_read: false,
                 created_at: new Date().toISOString(),
             };
@@ -361,15 +405,24 @@ export function NotificationProvider({ children }) {
             }
 
             // Force native push notification even when app is open
+            // Include action buttons and notice_id data so "Mark as Read" works
             if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {
                 navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification(data.title || "FP Finance", {
+                    const notifOptions = {
                         body: notif.message,
                         icon: "/pwa-192x192.png", // Must be PNG
                         badge: "/badge-icon-192x192.png", // Must be PNG (monochromatic)
                         tag: `fpfinance-fg-${Date.now()}`,
                         data: data,
-                    });
+                    };
+                    // Add Mark as Read action for notice-type notifications
+                    if (data.type === "notice" && data.notice_id) {
+                        notifOptions.actions = [
+                            { action: "mark_read", title: "✓ Mark as Read" },
+                            { action: "open_notices", title: "Open" },
+                        ];
+                    }
+                    registration.showNotification(data.title || "FP Finance", notifOptions);
                 });
             }
         }).then((unsub) => {
@@ -386,7 +439,9 @@ export function NotificationProvider({ children }) {
                 n.id === notifId ? { ...n, is_read: true } : n
             );
             saveNotifs(updated);
-            setUnreadCount(updated.filter((n) => !n.is_read).length);
+            const newUnreadCount = updated.filter((n) => !n.is_read).length;
+            setUnreadCount(newUnreadCount);
+            _setDirectBadge(newUnreadCount);
             return updated;
         });
     }, []);
@@ -396,6 +451,7 @@ export function NotificationProvider({ children }) {
             const updated = prev.map((n) => ({ ...n, is_read: true }));
             saveNotifs(updated);
             setUnreadCount(0);
+            _setDirectBadge(0);
             return updated;
         });
     }, []);
@@ -404,7 +460,9 @@ export function NotificationProvider({ children }) {
         setNotifications((prev) => {
             const updated = prev.filter((n) => n.id !== notifId);
             saveNotifs(updated);
-            setUnreadCount(updated.filter((n) => !n.is_read).length);
+            const newUnreadCount = updated.filter((n) => !n.is_read).length;
+            setUnreadCount(newUnreadCount);
+            _setDirectBadge(newUnreadCount);
             return updated;
         });
     }, []);
@@ -413,10 +471,13 @@ export function NotificationProvider({ children }) {
         setNotifications((prev) => {
             const updated = prev.filter((n) => !n.is_read);
             saveNotifs(updated);
-            setUnreadCount(updated.filter((n) => !n.is_read).length);
+            const newUnreadCount = updated.filter((n) => !n.is_read).length;
+            setUnreadCount(newUnreadCount);
+            _setDirectBadge(newUnreadCount);
             return updated;
         });
     }, []);
+
 
     return (
         <NotificationContext.Provider
