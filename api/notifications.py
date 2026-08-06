@@ -16,19 +16,23 @@ _ADMIN_CACHE = {
 }
 
 
-def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_uid: str = ""):
+def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_uid: str = "", target_url: str = ""):
     """Send FCM data-only push notification to a list of device tokens.
     Silently ignores invalid/expired tokens and cleans them up."""
     if not tokens:
         return
 
+    data_payload = {
+        "title": title,
+        "body": body,
+        "type": notif_type,
+        "target_uid": target_uid,
+    }
+    if target_url:
+        data_payload["target_url"] = target_url
+
     message = messaging.MulticastMessage(
-        data={
-            "title": title,
-            "body": body,
-            "type": notif_type,
-            "target_uid": target_uid,
-        },
+        data=data_payload,
         tokens=tokens,
     )
 
@@ -78,21 +82,21 @@ def _get_fcm_tokens(uid: str) -> list:
     return []
 
 
-def notify_user(uid: str, message: str, notif_type: str, title: str = "FP Finance", tokens: list = None):
+def notify_user(uid: str, message: str, notif_type: str, title: str = "FP Finance", tokens: list = None, target_url: str = ""):
     """Send FCM push notification to a single user."""
     if tokens is None:
         tokens = _get_fcm_tokens(uid)
     if tokens:
-        _send_fcm(tokens, title, message, notif_type, target_uid=uid)
+        _send_fcm(tokens, title, message, notif_type, target_uid=uid, target_url=target_url)
 
 
-def notify_users(uids: list, message: str, notif_type: str, title: str = "FP Finance"):
+def notify_users(uids: list, message: str, notif_type: str, title: str = "FP Finance", target_url: str = ""):
     """Send FCM push notification to multiple users.
     Sends individually to ensure each recipient gets their own target_uid."""
     for uid in uids:
         # Optimization: We could batch this, but since we need a distinct target_uid
         # per user, we call _send_fcm per user. Firebase Admin SDK handles this efficiently.
-        notify_user(uid, message, notif_type, title)
+        notify_user(uid, message, notif_type, title, target_url=target_url)
 
 
 def notify_admins(message: str, notif_type: str, title: str = "FP Finance"):

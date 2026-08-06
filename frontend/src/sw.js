@@ -60,18 +60,25 @@ messaging.onBackgroundMessage((payload) => {
     self.registration.showNotification(title, options);
 });
 
-// Handle notification click — focus or open the app
+// Handle notification click — focus or open the app at target URL
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
+    const data = event.notification.data || {};
+    const targetUrl = data.target_url || (data.type === "notice" ? "/student/notices" : "/");
+
     event.waitUntil(
         clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
                 if (client.url.includes(self.location.origin) && "focus" in client) {
-                    return client.focus();
+                    client.focus();
+                    if ("navigate" in client) {
+                        return client.navigate(targetUrl);
+                    }
+                    return;
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow("/");
+                return clients.openWindow(targetUrl);
             }
         })
     );

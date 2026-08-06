@@ -395,7 +395,13 @@ function TeacherLayoutInner({ children }) {
                     }}
                 >
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => {
+                            if (window.history.state && window.history.state.idx > 0) {
+                                navigate(-1);
+                            } else {
+                                navigate("/teacher", { replace: true });
+                            }
+                        }}
                         className="w-10 h-10 flex items-center justify-center rounded-xl active:scale-90 transition-all mr-3"
                         style={{
                             backgroundColor: 'var(--tt-icon-bg)',
@@ -550,7 +556,7 @@ function TeacherLayoutInner({ children }) {
 
             {/* ── Main Content ── */}
             <main
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
                 style={{ scrollbarGutter: "stable" }}
             >
                 <div ref={bounceRef} className="max-w-7xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>

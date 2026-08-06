@@ -9,7 +9,7 @@ import { StudentNoticesSkeleton } from "@/components/Skeletons";
 function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
-            className={`rounded-[24px] border border-white/[0.07] ${className}`}
+            className={`rounded-2xl border border-white/[0.07] ${className}`}
             style={{
                 background: "var(--st-card-bg, rgba(28, 31, 43, 0.6))",
                 backdropFilter: "blur(20px)",
@@ -39,17 +39,15 @@ function StudentNoticeCard({ notice, user, formatDateTime }) {
 
     return (
         <GlassCard 
-            className="p-5 flex flex-col gap-3 relative overflow-hidden group shadow-md hover:border-[#3b82f6]/30 transition-all duration-300"
+            className="p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden group shadow-sm hover:border-[#3b82f6]/30 transition-all duration-300"
         >
-            {/* Unread glow border overlay or important accent line */}
-            {notice.is_important ? (
+            {/* Important accent line */}
+            {notice.is_important && (
                 <div className="absolute top-0 left-0 bottom-0 w-1 bg-[#6366f1] rounded-l-2xl shadow-[0_0_15px_rgba(99,102,241,0.8)]" />
-            ) : isUnread ? (
-                <div className={`absolute top-0 left-0 bottom-0 w-1 animate-pulse ${accentLineClass}`} />
-            ) : null}
+            )}
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 pb-2.5 border-b" style={{ borderBottomColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)' }}>
                 <div className="min-w-0">
                     <div className="flex items-center flex-wrap gap-2">
                         <span className="font-extrabold text-[#f0f0fd] text-sm tracking-tight leading-none" style={{ color: "var(--st-text-primary)" }}>
@@ -172,7 +170,7 @@ function StudentNoticesContent() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-20">
+        <div className="max-w-4xl mx-auto space-y-3.5 pb-6">
             {/* Error Message */}
             {error && (
                 <div className="p-4 rounded-2xl bg-[#ff6e84]/15 border border-[#ff6e84]/20 text-[#ff6e84] text-sm">
@@ -192,7 +190,7 @@ function StudentNoticesContent() {
 
             {/* Content feed */}
             {!user?.batchId ? (
-                <div className="p-16 rounded-[24px] border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
+                <div className="p-16 rounded-2xl border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
                     <span className="material-symbols-outlined text-4xl text-[#aaaab7]/20">warning</span>
                     <h3 className="font-bold text-sm" style={{ color: "var(--st-text-primary)" }}>
                         No Batch Assigned
@@ -202,7 +200,7 @@ function StudentNoticesContent() {
                     </p>
                 </div>
             ) : notices.length === 0 ? (
-                <div className="p-16 rounded-[24px] border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
+                <div className="p-16 rounded-2xl border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
                     <span className="material-symbols-outlined text-4xl text-[#aaaab7]/25">campaign</span>
                     <h3 className="font-bold text-sm" style={{ color: "var(--st-text-primary)" }}>
                         No Active Notices
@@ -212,7 +210,7 @@ function StudentNoticesContent() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {notices.map((notice) => (
                         <StudentNoticeCard
                             key={notice.id}

@@ -10,7 +10,7 @@ import { TeacherNoticesPageSkeleton, TeacherNoticesSkeleton } from "@/components
 function GlassCard({ children, className = "", style = {}, ...props }) {
     return (
         <div
-            className={`rounded-[24px] border ${className}`}
+            className={`rounded-2xl border ${className}`}
             style={{
                 background: "var(--tt-card-bg, rgba(28, 31, 43, 0.6))",
                 borderColor: "var(--tt-card-border, rgba(255, 255, 255, 0.07))",
@@ -37,7 +37,7 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
 
     return (
         <GlassCard 
-            className="p-5 flex flex-col gap-3 relative overflow-hidden group shadow-md transition-all hover:bg-white/5"
+            className="p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden group shadow-sm transition-all hover:bg-white/5"
             style={{
                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(28, 31, 43, 0.6)',
                 borderColor: isLight ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.07)',
@@ -55,7 +55,7 @@ function NoticeCard({ notice, user, onDelete, onLike, deletingId, formatDateTime
             )}
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 pb-2.5 border-b" style={{ borderBottomColor: 'var(--tt-divider)' }}>
                 <div className="min-w-0">
                     <div className="flex items-center flex-wrap gap-2">
                         <span className="font-extrabold text-sm tracking-tight leading-none" style={{ color: 'var(--tt-text-primary)' }}>
@@ -449,7 +449,7 @@ function TeacherNoticesContent() {
                                                 <button
                                                     key={item}
                                                     onClick={() => fetchNotices(selectedBatch, item)}
-                                                    disabled={notesLoading}
+                                                    disabled={noticesLoading}
                                                     className="w-9 h-9 rounded-xl font-bold text-xs transition-all cursor-pointer active:scale-95"
                                                     style={{
                                                         backgroundColor: isActive 

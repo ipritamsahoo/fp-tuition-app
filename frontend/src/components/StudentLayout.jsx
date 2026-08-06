@@ -517,7 +517,13 @@ function StudentLayoutInner({ children }) {
                     }}
                 >
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => {
+                            if (window.history.state && window.history.state.idx > 0) {
+                                navigate(-1);
+                            } else {
+                                navigate("/student", { replace: true });
+                            }
+                        }}
                         className="w-10 h-10 flex items-center justify-center rounded-xl active:scale-90 transition-all mr-3"
                         style={{
                             backgroundColor: 'var(--st-icon-bg)',
@@ -615,7 +621,12 @@ function StudentLayoutInner({ children }) {
                                     <span style={{ fontFamily: "'Manrope', sans-serif" }}>{item.label}</span>
                                 </div>
                                 {item.href === "/student/notices" && unreadNotices > 0 && (
-                                    <span className="w-2.5 h-2.5 bg-[#ff6e84] rounded-full shadow-[0_0_8px_rgba(255,110,132,0.6)] animate-pulse" />
+                                    <span
+                                        className="min-w-[18px] h-[18px] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse shadow-[0_0_8px_rgba(255,110,132,0.6)]"
+                                        style={{ backgroundColor: '#ff6e84' }}
+                                    >
+                                        {unreadNotices > 9 ? "9+" : unreadNotices}
+                                    </span>
                                 )}
                             </Link>
                         );
@@ -672,7 +683,7 @@ function StudentLayoutInner({ children }) {
 
             {/* ── Main Content ── */}
             <main
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-6 md:px-12`}
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
                 style={{ scrollbarGutter: "stable" }}
             >
                 <div ref={bounceRef} className="max-w-4xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>
