@@ -182,10 +182,10 @@ self.addEventListener("fetch", (event) => {
                     if (imageFile) {
                         await set("shared_payment_screenshot", imageFile);
                     }
-                    return Response.redirect("/student?shared=true", 303);
+                    return Response.redirect("/student/payments?shared=true", 303);
                 } catch (err) {
                     console.error("Web Share Target error:", err);
-                    return Response.redirect("/student?shared_error=true", 303);
+                    return Response.redirect("/student/payments?shared_error=true", 303);
                 }
             })()
         );

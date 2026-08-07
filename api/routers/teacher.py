@@ -497,6 +497,22 @@ def teacher_distribution(
             data["_batch_id"] = bid
             all_payments.append(data)
 
+    # Fetch live student names from users collection using payment's student_id
+    student_ids = {p.get("student_id") for p in all_payments if p.get("student_id")}
+    student_names = {}
+    for sid in student_ids:
+        try:
+            s_doc = db.collection("users").document(sid).get()
+            if s_doc.exists:
+                student_names[sid] = s_doc.to_dict().get("name")
+        except Exception:
+            pass
+
+    for p in all_payments:
+        sid = p.get("student_id")
+        if sid and sid in student_names and student_names[sid]:
+            p["student_name"] = student_names[sid]
+
     # 3. Fetch settlement snapshots
     snapshot_query = db.collection("distribution_snapshots") \
         .where(filter=FieldFilter("month", "==", month)) \

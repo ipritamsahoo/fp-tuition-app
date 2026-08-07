@@ -235,7 +235,7 @@ export default function Sidebar() {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-80 group-hover:opacity-100">
                                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                                     </svg>
-                                    <span className="font-medium">Change Username or Mobile</span>
+                                    <span className="font-medium">Change Username</span>
                                 </button>
                             )}
 
@@ -342,7 +342,7 @@ export default function Sidebar() {
             {usernameModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setUsernameModalOpen(false); setCredError(""); setCredSuccess(""); setNewUsername(""); }}>
                     <div className="w-full max-w-sm mx-4 bg-[#0f1117] border border-[#1a1f2e]/60 rounded-2xl shadow-2xl p-6 animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="text-white font-semibold text-lg mb-4">Change Username or Mobile</h3>
+                        <h3 className="text-white font-semibold text-lg mb-4">Change Username</h3>
                         {credError && <div className="mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">{credError}</div>}
                         {credSuccess && <div className="mb-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">{credSuccess}</div>}
                         <form onSubmit={async (e) => {
@@ -360,8 +360,8 @@ export default function Sidebar() {
                             } catch (err) { setCredError(err.message || "Failed to update."); }
                             finally { setCredLoading(false); }
                         }}>
-                            <label className="block text-[#8a8f98] text-xs mb-1.5">New Username or Mobile</label>
-                            <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Enter new username or mobile" required
+                            <label className="block text-[#8a8f98] text-xs mb-1.5">New Username</label>
+                            <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Enter new username" required
                                 className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a12]/80 border border-[#1a1f2e]/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3861fb]/50 mb-4" />
                             <div className="flex gap-2">
                                 <button type="button" onClick={() => { setUsernameModalOpen(false); setCredError(""); setCredSuccess(""); setNewUsername(""); }}

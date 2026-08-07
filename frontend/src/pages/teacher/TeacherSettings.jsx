@@ -25,6 +25,21 @@ function TeacherSettingsContent() {
     const [devicesModalOpen, setDevicesModalOpen] = useState(false);
     const [aboutModalOpen, setAboutModalOpen] = useState(false);
 
+    // Credential modals (moved here to be included in scroll lock)
+    const [usernameModalOpen, setUsernameModalOpen] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+    // Lock body scroll using html.scroll-lock class (works on iOS Safari too)
+    useEffect(() => {
+        const isAnyModalOpen = Boolean(picModalOpen || devicesModalOpen || aboutModalOpen || usernameModalOpen || passwordModalOpen);
+        if (isAnyModalOpen) {
+            document.documentElement.classList.add("scroll-lock");
+            return () => {
+                document.documentElement.classList.remove("scroll-lock");
+            };
+        }
+    }, [picModalOpen, devicesModalOpen, aboutModalOpen, usernameModalOpen, passwordModalOpen]);
+
     // Scrolling header micro-interactions state
     const [avatarHidden, setAvatarHidden] = useState(false);
     const [nameHidden, setNameHidden] = useState(false);
@@ -80,8 +95,6 @@ function TeacherSettingsContent() {
     };
 
     // Credential modals
-    const [usernameModalOpen, setUsernameModalOpen] = useState(false);
-    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [newUsername, setNewUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -90,6 +103,65 @@ function TeacherSettingsContent() {
     const [credLoading, setCredLoading] = useState(false);
     const [credError, setCredError] = useState("");
     const [credSuccess, setCredSuccess] = useState("");
+
+    // Live username check states
+    const [checkingUsername, setCheckingUsername] = useState(false);
+    const [usernameStatus, setUsernameStatus] = useState({ available: null, reason: "" });
+    const checkUsernameTimerRef = useRef(null);
+
+    // Live debounced username check effect
+    useEffect(() => {
+        if (!usernameModalOpen) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: null, reason: "" });
+            if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+            return;
+        }
+
+        const trimmed = newUsername.trim().toLowerCase();
+        if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+
+        if (!trimmed) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: null, reason: "" });
+            return;
+        }
+
+        if (trimmed.length < 3) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: false, reason: "Must be at least 3 characters." });
+            return;
+        }
+
+        const currentUsername = (user?.username || user?.email?.replace(/@fp\.com$/, "") || "").trim().toLowerCase();
+        if (trimmed === currentUsername) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: false, isCurrent: true, reason: "This is your current username." });
+            return;
+        }
+
+        setCheckingUsername(true);
+        setUsernameStatus({ available: null, reason: "Checking availability..." });
+
+        checkUsernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+                setUsernameStatus({
+                    available: res.available,
+                    isCurrent: res.is_current,
+                    reason: res.reason
+                });
+            } catch (err) {
+                setUsernameStatus({ available: false, reason: err.message || "Failed to check username" });
+            } finally {
+                setCheckingUsername(false);
+            }
+        }, 350);
+
+        return () => {
+            if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+        };
+    }, [newUsername, usernameModalOpen, user?.username, user?.email]);
 
     const closeCredModals = () => {
         setUsernameModalOpen(false);
@@ -101,6 +173,8 @@ function TeacherSettingsContent() {
         setConfirmPassword("");
         setShowNewPassword(false);
         setShowConfirmPassword(false);
+        setCheckingUsername(false);
+        setUsernameStatus({ available: null, reason: "" });
     };
 
     const handleUsernameSubmit = async (e) => {
@@ -194,7 +268,7 @@ function TeacherSettingsContent() {
                             {user?.name || "Teacher"}
                         </span>
                         <span
-                            className="text-xs font-semibold truncate mt-0.5"
+                            className="text-xs font-semibold truncate mt-0.5 flex items-center gap-1"
                             style={{
                                 color: accentColor,
                                 transition: 'transform 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.45s ease',
@@ -202,7 +276,10 @@ function TeacherSettingsContent() {
                                 opacity: usernameHidden ? 1 : 0,
                             }}
                         >
-                            @{displayUsername}
+                            <span>@{displayUsername}</span>
+                            <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '13px', width: '13px', height: '13px', color: accentColor, fontVariationSettings: "'FILL' 1" }}>
+                                verified
+                            </span>
                         </span>
                     </div>
                 </div>,
@@ -247,13 +324,24 @@ function TeacherSettingsContent() {
                             outline: "1px solid transparent" 
                         }}
                     >
+                        {/* Profile Picture with gradient glow */}
                         <div ref={avatarElRef} className="mb-4 flex items-center justify-center">
-                            <ProfilePicture size={96} className="border-2" style={{ borderColor: 'var(--tt-card-border)' }} />
+                            <div className="relative">
+                                <div className="absolute -inset-1.5 bg-gradient-to-tr from-[#0d9488] via-[#3b82f6] to-[#4af8e3] rounded-full blur-md opacity-60 dark:opacity-75" />
+                                <div className="relative rounded-full overflow-hidden border-2" style={{ borderColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)' }}>
+                                    <ProfilePicture size={96} />
+                                </div>
+                            </div>
                         </div>
                         <h2 ref={nameElRef} className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
                             {user?.name || "Teacher"}
                         </h2>
-                        <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold" style={{ color: accentColor }}>@{displayUsername}</p>
+                        <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold flex items-center justify-center gap-1" style={{ color: accentColor }}>
+                            <span>@{displayUsername}</span>
+                            <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '14px', width: '14px', height: '14px', color: accentColor, fontVariationSettings: "'FILL' 1" }}>
+                                verified
+                            </span>
+                        </p>
                     </div>
                 </section>
 
@@ -286,7 +374,7 @@ function TeacherSettingsContent() {
                                     <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--tt-icon-bg)' }}>
                                         <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
                                     </div>
-                                    <span className="font-medium leading-snug" style={{ color: 'var(--tt-text-primary)' }}>Change Username or Mobile</span>
+                                    <span className="font-medium leading-snug" style={{ color: 'var(--tt-text-primary)' }}>Change Username</span>
                                 </div>
                                 <span className="material-symbols-outlined" style={{ color: 'var(--tt-text-muted)' }}>chevron_right</span>
                             </button>
@@ -519,14 +607,68 @@ function TeacherSettingsContent() {
                             <h3 className="font-bold text-center text-2xl mb-6 tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Change Username</h3>
                             {credError && <div className="mb-3 p-2.5 rounded-2xl bg-[#ff6e84]/10 border border-[#ff6e84]/20 text-[#ff6e84] text-xs">{credError}</div>}
                             {credSuccess && <div className="mb-3 p-2.5 rounded-2xl border text-xs" style={{ backgroundColor: 'var(--tt-accent-bg)', borderColor: 'var(--tt-logo-border)', color: 'var(--tt-primary)' }}>{credSuccess}</div>}
-                            <form onSubmit={handleUsernameSubmit}>
-                                <label className="block text-xs mb-1.5" style={{ color: 'var(--tt-text-secondary)' }}>New Username or Mobile</label>
-                                <input
-                                    type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
-                                    placeholder="Enter new username or mobile" required
-                                    className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-0 focus:ring-offset-0 mb-4"
-                                    style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
-                                />
+                            <form onSubmit={handleUsernameSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--tt-text-secondary)' }}>New Username</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                                            placeholder="Enter new username" required
+                                            className="w-full pl-5 pr-12 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
+                                            style={{
+                                                backgroundColor: 'var(--tt-input-bg)',
+                                                border: `1px solid ${
+                                                    usernameStatus.available === true
+                                                        ? (isLight ? '#0d9488' : '#4af8e3')
+                                                        : usernameStatus.available === false && !usernameStatus.isCurrent && newUsername.trim().length >= 3
+                                                        ? (isLight ? '#ef4444' : '#ff9dac')
+                                                        : 'var(--tt-input-border)'
+                                                }`,
+                                                color: 'var(--tt-text-primary)'
+                                            }}
+                                        />
+                                        {/* Right side live status indicator */}
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                                            {checkingUsername && (
+                                                <span className="material-symbols-outlined text-[18px] animate-spin opacity-70" style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>
+                                                    progress_activity
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === true && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    check_circle
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === false && !usernameStatus.isCurrent && newUsername.trim().length >= 3 && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                    cancel
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Helper status text */}
+                                    {newUsername.trim() && (
+                                        <div className="mt-2.5 ml-1 text-xs font-semibold flex items-center gap-1.5 transition-all">
+                                            {checkingUsername && (
+                                                <span className="opacity-70 animate-pulse" style={{ color: 'var(--tt-text-secondary)' }}>
+                                                    Checking availability...
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === true && (
+                                                <span style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    ✓ Username is available!
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === false && (
+                                                <span style={{ color: usernameStatus.isCurrent ? 'var(--tt-text-secondary)' : (isLight ? '#ef4444' : '#ff9dac') }}>
+                                                    {usernameStatus.isCurrent ? "ℹ This is your current username" : `✕ ${usernameStatus.reason}`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="flex gap-3 pt-2">
                                     <button type="button" onClick={closeCredModals}
                                         className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95 border"
@@ -534,8 +676,8 @@ function TeacherSettingsContent() {
                                     >
                                         Cancel
                                     </button>
-                                    <button type="submit" disabled={credLoading}
-                                        className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer active:scale-95 border"
+                                    <button type="submit" disabled={credLoading || checkingUsername || usernameStatus.available !== true}
+                                        className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border"
                                         style={{ backgroundColor: 'var(--tt-blue-bg)', borderColor: 'var(--tt-logo-border)', color: 'var(--tt-primary)', boxShadow: '0 4px 20px var(--tt-logo-shadow)' }}
                                     >
                                         {credLoading ? "Updating..." : "Update"}
@@ -573,8 +715,7 @@ function TeacherSettingsContent() {
                                 transform: "translateZ(0)", isolation: "isolate"
                             }}
                         >
-                            <h3 className="text-center font-bold text-2xl mb-1 tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Change Password</h3>
-                            <p className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: 'var(--tt-text-secondary)' }}>Security update required</p>
+                            <h3 className="text-center font-bold text-2xl mb-6 tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Change Password</h3>
                             {credError && <div className="mb-3 p-2.5 rounded-2xl bg-[#ff6e84]/10 border border-[#ff6e84]/20 text-[#ff6e84] text-xs">{credError}</div>}
                             {credSuccess && <div className="mb-3 p-2.5 rounded-2xl border text-xs" style={{ backgroundColor: 'var(--tt-accent-bg)', borderColor: 'var(--tt-logo-border)', color: 'var(--tt-primary)' }}>{credSuccess}</div>}
                             <form onSubmit={handlePasswordSubmit}>
@@ -585,7 +726,7 @@ function TeacherSettingsContent() {
                                         value={newPassword} 
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         placeholder="Min 6 characters" required minLength={6}
-                                        className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-offset-0 focus:ring-0"
+                                        className="w-full pl-4 pr-12 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-offset-0 focus:ring-0"
                                         style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
                                     />
                                     <button
@@ -615,7 +756,7 @@ function TeacherSettingsContent() {
                                         value={confirmPassword} 
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="Re-enter password" required minLength={6}
-                                        className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-offset-0 focus:ring-0"
+                                        className="w-full pl-4 pr-12 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-offset-0 focus:ring-0"
                                         style={{ backgroundColor: 'var(--tt-input-bg)', borderColor: 'var(--tt-input-border)', color: 'var(--tt-text-primary)' }}
                                     />
                                     <button

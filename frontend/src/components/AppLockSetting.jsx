@@ -58,12 +58,15 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
+    const closeModal = () => {
+        setModalOpen(false);
+    };
+
     const handleOpenModal = () => {
         setSetupStep("options");
         setErrorMsg("");
         setSelectedTimeout(settings.timeout ?? 0);
         setModalOpen(true);
-        if (onSelect) onSelect();
     };
 
     const handleEnable = async () => {
@@ -96,7 +99,7 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
 
     const handleDisable = () => {
         disableAppLock();
-        setModalOpen(false);
+        closeModal();
     };
 
     // ── Styles ────────────────────────────────────────────────────────────────
@@ -254,7 +257,7 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
                     <div
                         data-theme={isLight ? "light" : "dark"}
                         className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-                        onClick={() => setModalOpen(false)}
+                        onClick={closeModal}
                         style={{
                             backgroundColor: isLight ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.6)",
                             backdropFilter: "blur(16px) saturate(1.5)",
@@ -301,7 +304,7 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => setModalOpen(false)}
+                                            onClick={closeModal}
                                             className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer"
                                             style={{
                                                 background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)",
@@ -486,7 +489,7 @@ export default function AppLockSetting({ accentColor = "#3b82f6", isLight = fals
                                         when you leave.
                                     </p>
                                     <button
-                                        onClick={() => setModalOpen(false)}
+                                        onClick={closeModal}
                                         className="w-full py-4 rounded-2xl font-bold text-sm cursor-pointer active:scale-95"
                                         style={{
                                             background: "rgba(34,197,94,0.12)",

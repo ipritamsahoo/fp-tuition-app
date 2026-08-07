@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
 import { setCache } from "@/lib/memoryCache";
+import { get } from "idb-keyval";
 import { StudentDashboardSkeleton } from "@/components/Skeletons";
 
 function StudentDashboardContent() {
@@ -37,20 +38,36 @@ function StudentDashboardContent() {
         }
     }, [user?.uid, loadDashboardData]);
 
+    // PWA Share Target Handler: Redirect to payments page if shared image exists or shared query is present
+    useEffect(() => {
+        const checkSharedIntent = async () => {
+            try {
+                const hasSharedUrl = window.location.search.includes("shared=true");
+                const file = await get("shared_payment_screenshot");
+                if (file || hasSharedUrl) {
+                    navigate("/student/payments?shared=true", { replace: true });
+                }
+            } catch (e) {
+                console.error("Error checking shared intent on dashboard:", e);
+            }
+        };
+        checkSharedIntent();
+    }, [navigate]);
+
     return (
         <div className="space-y-6 pb-6">
 
             {/* ── Top Header Bar (Greetings & Subtitle) ── */}
-            <section className="flex items-center justify-between gap-4 pt-2">
-                <div>
+            <section className="w-full pt-1 sm:pt-2">
+                <div className="w-full">
                     <h1
                         className="text-2xl md:text-3xl font-extrabold tracking-tight"
                         style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}
                     >
                         <AnimatedGreeting name={user?.name || "Student"} />
                     </h1>
-                    <p className="text-sm md:text-base font-semibold mt-1.5" style={{ color: isLight ? '#64748b' : 'var(--st-text-secondary)' }}>
-                        Level up your skills with <span className="font-bold text-[#6366f1]">Future Point</span>
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold mt-1 tracking-wide leading-snug" style={{ fontFamily: "'Caveat', 'Dancing Script', cursive", color: isLight ? '#475569' : 'var(--st-text-secondary)' }}>
+                        Level up your skills with <span className="font-extrabold text-[#6366f1]">Future Point</span>
                     </p>
                 </div>
             </section>

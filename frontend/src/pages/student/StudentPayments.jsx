@@ -675,26 +675,29 @@ function StudentPaymentsContent() {
 
     // Check for shared payment screenshot from PWA Share Target
     useEffect(() => {
-        if (loading || payments.length === 0) return;
+        if (loading) return;
 
         const handleSharedFile = async () => {
             try {
                 const file = await get("shared_payment_screenshot");
                 if (file) {
                     const unpaid = payments.filter((p) => p.status === "Unpaid");
-                    if (unpaid.length > 1) {
-                        setSharedFile(file);
+                    if (unpaid.length > 0) {
                         const sortedUnpaid = [...unpaid].sort((a, b) => {
                             if (a.year !== b.year) return a.year - b.year;
                             return a.month - b.month;
                         });
-                        setPayModalPayment(sortedUnpaid[0]);
-                        setPayModalAllowMultiple(true);
-                    } else if (unpaid.length === 1) {
                         setSharedFile(file);
-                        openPayModal(unpaid[0]);
+                        setPayModalPayment(sortedUnpaid[0]);
+                        setPayModalAllowMultiple(unpaid.length > 1);
+                    } else if (payments.length > 0) {
+                        setSharedFile(file);
+                        setPayModalPayment(payments[0]);
+                        setPayModalAllowMultiple(false);
                     } else {
-                        alert("You don't have any unpaid fees to verify!");
+                        setSharedFile(file);
+                        setPayModalPayment({ id: 0, amount: 0, status: "Unpaid", month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+                        setPayModalAllowMultiple(false);
                     }
                     await del("shared_payment_screenshot");
                 }

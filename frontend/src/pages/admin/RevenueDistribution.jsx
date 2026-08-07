@@ -440,13 +440,6 @@ function DistributionContent() {
                                                                 <p className="font-bold text-sm md:text-lg tracking-wide truncate" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>{formattedDate}</p>
                                                                 <p className="text-[11px] md:text-xs font-medium tracking-wide mt-0.5 md:mt-1 flex items-center gap-1.5 md:gap-2 flex-wrap" style={{ color: 'var(--ad-text-secondary)' }}>
                                                                     <span>{dist.payments ? groupPayments(dist.payments).length : 0} student payment(s)</span>
-                                                                    {dist.settled && (
-                                                                        <>
-                                                                            <span className="w-1 h-1 rounded-full bg-[#4af8e3]/50"></span>
-                                                                            <span className="text-[#4af8e3] hidden sm:inline">Permanently Settled</span>
-                                                                            <span className="text-[#4af8e3] sm:hidden">Settled</span>
-                                                                        </>
-                                                                    )}
                                                                 </p>
                                                             </div>
                                                         </button>
@@ -510,17 +503,6 @@ function DistributionContent() {
                                                         <div className="border-t pt-4" style={{ borderColor: 'var(--ad-divider)' }}>
                                                             <p className="px-5 sm:px-6 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: isLight ? '#7c3aed' : '#c799ff' }}>
                                                                 <span className="material-symbols-outlined text-sm">group</span> Student Payments
-                                                                {dist.settled && (
-                                                                    <span className="lowercase font-semibold text-[10px] px-2 py-0.5 rounded-full border ml-2 shadow-sm"
-                                                                          style={{
-                                                                              backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)',
-                                                                              borderColor: isLight ? 'rgba(13, 148, 136, 0.2)' : 'rgba(74, 248, 227, 0.2)',
-                                                                              color: isLight ? '#0d9488' : '#4af8e3'
-                                                                          }}
-                                                                    >
-                                                                        frozen
-                                                                    </span>
-                                                                )}
                                                             </p>
 
                                                             {/* Full-Bleed Table spanning edge-to-edge */}

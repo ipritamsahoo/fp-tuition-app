@@ -50,7 +50,7 @@ export default function LoginPage() {
         const code = err?.code || "";
         const msg = err?.message || "";
         if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || msg.includes("INVALID_LOGIN_CREDENTIALS"))
-            return "Invalid username/mobile or password. Please try again.";
+            return "Invalid username or password. Please try again.";
         if (code === "auth/too-many-requests")
             return "Too many failed attempts. Please try again later.";
         if (code === "auth/user-disabled")
@@ -151,21 +151,26 @@ export default function LoginPage() {
                         </div>
                         <p className="text-slate-300 text-[16px] sm:text-[17px] font-light">Please Sign in to continue.</p>
                         
-                        {/* Future Point Exclusive Notice Banner (Flat Solid Style) */}
-                        <div className="mt-3 p-3 rounded-2xl bg-[#121326] border border-[#212442] flex items-center gap-2.5 text-xs text-slate-300 font-medium">
-                            <span className="material-symbols-outlined text-base text-[#3861fb] shrink-0">verified</span>
-                            <span>Exclusively for <strong className="text-white font-bold">Future Point</strong> students & staff. Outsiders are not allowed.</span>
+                        {/* Dynamic Notice Banner / Error Alert Box */}
+                        <div 
+                            className={`mt-2 mb-3 px-3 py-2 rounded-2xl border flex items-center gap-2.5 text-[13px] sm:text-sm font-medium transition-all duration-300 ${
+                                error 
+                                    ? 'bg-[#ff6e84]/10 border-[#ff6e84]/30 text-[#ff6e84]' 
+                                    : 'bg-[#121326] border-[#212442] text-slate-300'
+                            }`}
+                        >
+                            {error ? (
+                                <>
+                                    <span className="material-symbols-outlined text-[18px] text-[#ff6e84] shrink-0">error</span>
+                                    <span className="leading-snug font-semibold">{error}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="material-symbols-outlined text-[18px] text-[#3861fb] shrink-0">verified</span>
+                                    <span>Exclusively for <strong className="text-white font-bold">Future Point</strong> students & educators. Outsiders are not allowed.</span>
+                                </>
+                            )}
                         </div>
-                    </div>
-
-                    {/* Error display - reserved space to prevent layout shifts */}
-                    <div className="h-6 mb-2 flex items-center px-1 text-[#ff6e84] text-[14px] font-medium">
-                        {error && (
-                            <div className="flex items-center gap-2 animate-fade-in-scale">
-                                <span className="material-symbols-outlined text-[18px]">error</span>
-                                <span>{error}</span>
-                            </div>
-                        )}
                     </div>
 
                     {/* Form fields */}
@@ -178,7 +183,7 @@ export default function LoginPage() {
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
-                                placeholder="Username or mobile"
+                                placeholder="Username"
                                 className="w-full h-full bg-transparent border-0 outline-none text-white placeholder-[#505466] text-[15px] focus:ring-0 focus:outline-none"
                             />
                         </div>

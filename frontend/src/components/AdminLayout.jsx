@@ -243,7 +243,6 @@ export function AdminLayoutInner({ children }) {
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
     const handleCheckUpdate = async () => {
-        setDesktopProfileOpen(false);
         setUpdateChecking(true);
         const result = await window.checkForPwaUpdate();
         setUpdateChecking(false);
@@ -263,6 +262,9 @@ export function AdminLayoutInner({ children }) {
     // Close profile dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
+            if (event.target && (event.target.closest('.fixed.inset-0') || event.target.closest('[role="dialog"]'))) {
+                return;
+            }
             if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
                 setDesktopProfileOpen(false);
             }
@@ -271,17 +273,16 @@ export function AdminLayoutInner({ children }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Disable body scroll when FAB menu is open on mobile
+    // Lock body scroll using html.scroll-lock class (works on iOS Safari too)
     useEffect(() => {
-        if (fabOpen) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
+        const isAnyOpen = Boolean(fabOpen || notifOpen || desktopProfileOpen || picUploadOpen);
+        if (isAnyOpen) {
+            document.documentElement.classList.add("scroll-lock");
+            return () => {
+                document.documentElement.classList.remove("scroll-lock");
+            };
         }
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [fabOpen]);
+    }, [fabOpen, notifOpen, desktopProfileOpen, picUploadOpen]);
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = adminBottomNav.findIndex(item =>
@@ -572,24 +573,37 @@ export function AdminLayoutInner({ children }) {
                             }}
                         >
                             {/* Profile Header Card */}
-                            <div className="py-3.5 px-5 rounded-[1.5rem] border flex flex-col items-center text-center relative overflow-hidden" style={{ backgroundColor: 'var(--ad-accent-bg)', borderColor: 'var(--ad-divider)' }}>
+                            <div className="shrink-0 p-4 rounded-[1.5rem] border flex items-center gap-4 text-left relative overflow-hidden" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(59, 130, 246, 0.1)', borderColor: 'var(--ad-divider)' }}>
                                 <div className="absolute -top-4 -right-4 w-24 h-24 pointer-events-none blur-xl" style={{ backgroundImage: `radial-gradient(circle, ${isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)'} 0%, transparent 70%)` }} />
-                                <div className="relative mb-2">
-                                    <div className="absolute -inset-1 bg-gradient-to-tr from-[var(--ad-primary)] to-[#4af8e3] rounded-full blur-sm opacity-40" />
-                                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#0c0e17]">
+                                
+                                {/* Avatar Left with Gradient Glow */}
+                                <div className="relative shrink-0">
+                                    <div className="absolute -inset-1 bg-gradient-to-tr from-[#0d9488] via-[#3b82f6] to-[#4af8e3] rounded-full blur-sm opacity-60 dark:opacity-75" />
+                                    <div className="relative w-12 h-12 rounded-full overflow-hidden border flex items-center justify-center" style={{ borderColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)' }}>
                                         <ProfilePicture size={48} />
                                     </div>
                                 </div>
-                                <h3 className="text-base font-extrabold tracking-tight leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
-                                    {user?.name || "Admin User"}
-                                </h3>
-                                <p className="text-[11px] mt-0.5" style={{ color: 'var(--ad-text-secondary)' }}>{user?.email?.replace(/@fp\.com$/, "") || "admin"}</p>
+
+                                {/* Details Right */}
+                                <div className="flex flex-col justify-center min-w-0 flex-1">
+                                    <h3 className="text-base font-extrabold tracking-tight leading-tight truncate" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                                        {user?.name || "Admin User"}
+                                    </h3>
+                                    <div className="flex items-center gap-1 mt-0.5 min-w-0 max-w-full">
+                                        <span className="text-xs font-semibold truncate" style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>
+                                            @{user?.email?.replace(/@fp\.com$/, "") || "admin"}
+                                        </span>
+                                        <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '13px', width: '13px', height: '13px', color: isLight ? "#0d9488" : "#3b82f6", fontVariationSettings: "'FILL' 1" }}>
+                                            verified
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Settings List */}
                             <div className="space-y-2">
                                 <button 
-                                    onClick={() => { setDesktopProfileOpen(false); setPicUploadOpen(true); }}
+                                    onClick={() => setPicUploadOpen(true)}
                                     className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--ad-accent)]/30"
                                     style={{ backgroundColor: 'var(--ad-hover-bg)' }}
                                 >
@@ -606,7 +620,6 @@ export function AdminLayoutInner({ children }) {
                                     accentColor={isLight ? "#0d9488" : "#3b82f6"} 
                                     isLight={isLight} 
                                     variant="dropdown" 
-                                    onSelect={() => setDesktopProfileOpen(false)} 
                                 />
 
                                 {/* Theme Toggle */}
