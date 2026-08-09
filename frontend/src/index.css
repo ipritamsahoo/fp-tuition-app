@@ -47,15 +47,11 @@ body.allow-overscroll {
     overscroll-behavior-y: auto !important;
 }
 
-/* ── Modal scroll lock — works on iOS Safari ── */
+/* ── Modal scroll lock ── */
 html.scroll-lock,
 html.scroll-lock body {
     overflow: hidden !important;
-    height: 100% !important;
-    position: fixed !important;
-    width: 100% !important;
-    touch-action: none !important;
-    -webkit-overflow-scrolling: auto !important;
+    overscroll-behavior: contain !important;
 }
 
 /* Inputs should not zoom on mobile */

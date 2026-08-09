@@ -236,7 +236,7 @@ function TeachersContent() {
     return (
         <div className="space-y-6">
             <div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 md:pr-36">
                     {/* Hide title on mobile as it's in the Sub-Page Header */}
                     <div className="hidden md:block">
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>

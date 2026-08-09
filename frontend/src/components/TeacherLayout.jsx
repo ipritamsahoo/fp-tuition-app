@@ -434,6 +434,7 @@ function TeacherLayoutInner({ children }) {
         pathname !== "/teacher/notes" &&
         pathname !== "/teacher/settings";
 
+    const isHomeMobile = pathname === "/teacher";
     const isSettings = pathname === "/teacher/settings";
 
     const getSubPageTitle = () => {
@@ -518,62 +519,58 @@ function TeacherLayoutInner({ children }) {
                 )}
             </div>
 
-            {/* ── Mobile TopAppBar (Main Pages) ── */}
-            {!isSubPageMobile && !isSettings && (
+            {/* ── Mobile TopAppBar (Homepage Only - Native App Style Header) ── */}
+            {isHomeMobile && (
                 <header
-                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-5 h-14 backdrop-blur-2xl animate-fade-in overflow-hidden rounded-[28px]"
-                    style={{ 
-                        background: 'var(--tt-nav-bg)',
-                        border: '1px solid var(--tt-nav-border)',
-                        boxShadow: 'var(--tt-nav-shadow)',
-                        transform: "translateZ(0)", 
-                        isolation: "isolate" 
+                    className="md:hidden flex justify-between items-center px-4 pt-3.5 pb-1 animate-fade-in relative z-50 select-none"
+                    style={{
+                        backgroundColor: 'transparent',
+                        transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
-                    <div className="flex items-center gap-3 select-none">
+                    <div className="flex items-center gap-2.5 select-none">
                         <div 
-                            className="w-10 h-10 rounded-full overflow-hidden shadow-lg flex items-center justify-center"
+                            className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
                             style={{
                                 borderWidth: 1,
                                 borderStyle: 'solid',
                                 borderColor: 'var(--tt-logo-border)',
                                 backgroundColor: isLight ? '#f0f4ff' : '#0c0e17',
-                                boxShadow: `0 4px 12px var(--tt-logo-shadow)`,
                             }}
                         >
                             <img 
                                 src={logoSrc} 
                                 alt="Logo" 
-                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                className="w-full h-full object-cover scale-125 pointer-events-none select-none" 
                                 draggable="false"
                                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                             />
                         </div>
                         <h1 
-                            className="text-xl font-bold tracking-tighter" 
-                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-tt-text-primary, var(--tt-text-primary))' }}
+                            className="text-lg font-extrabold tracking-tight" 
+                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
                         >
                             FP Finance
                         </h1>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                         <button
                             onClick={() => navigate("/teacher/notices")}
-                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer p-1"
                             style={{ color: 'var(--tt-text-secondary)' }}
                         >
-                            <span className="material-symbols-outlined">campaign</span>
+                            <span className="material-symbols-outlined text-[24px]">campaign</span>
                         </button>
                         <button
                             onClick={() => navigate("/notifications")}
-                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer p-1"
                             style={{ color: 'var(--tt-text-secondary)' }}
                         >
-                            <span className="material-symbols-outlined">notifications</span>
+                            <span className="material-symbols-outlined text-[24px]">notifications</span>
                             {unreadCount > 0 && (
                                 <span 
-                                    className="absolute -top-1 -right-1 min-w-[16px] h-[16px] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"
+                                    className="absolute top-0 right-0 min-w-[15px] h-[15px] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse"
                                     style={{
                                         backgroundColor: '#ff6e84',
                                         borderWidth: 1,
@@ -585,7 +582,7 @@ function TeacherLayoutInner({ children }) {
                             )}
                         </button>
                         <div
-                            className="transition-all cursor-pointer"
+                            className="transition-all cursor-pointer active:scale-95 ml-1"
                             onClick={() => navigate("/teacher/settings")}
                         >
                             <ProfilePicture size={34} />
@@ -856,12 +853,7 @@ function TeacherLayoutInner({ children }) {
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
                                 
-                                {/* Biometric Lock */}
-                                <AppLockSetting 
-                                    accentColor={isLight ? "#0d9488" : "#3b82f6"} 
-                                    isLight={isLight} 
-                                    variant="dropdown" 
-                                />
+
 
                                 {/* Devices */}
                                 <button 
@@ -1294,7 +1286,7 @@ function TeacherLayoutInner({ children }) {
 
             {/* ── Main Content ── */}
             <main
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isSettings ? "pt-8" : (isSubPageMobile ? "pt-20" : "pt-28")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isHomeMobile ? "pt-1.5" : (isSubPageMobile ? "pt-24" : "pt-6")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
                 style={{ scrollbarGutter: "stable" }}
             >
                 <div ref={bounceRef} className="max-w-7xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>
@@ -1305,7 +1297,7 @@ function TeacherLayoutInner({ children }) {
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
                 <nav
-                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate flex items-center"
+                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-full isolate flex items-center h-[60px]"
                     style={{ 
                         background: 'var(--tt-nav-bg)',
                         border: '1px solid var(--tt-nav-border)',
@@ -1315,12 +1307,14 @@ function TeacherLayoutInner({ children }) {
                         transform: "translateZ(0)", isolation: "isolate" 
                     }}
                 >
+                    {/* ── Sliding blue circle indicator ── */}
                     {activeIdx >= 0 && (
                         <div
                             className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
                             style={{
-                                width: `${100 / teacherBottomNav.length}%`,
-                                left: `${indicatorIdx * (100 / teacherBottomNav.length)}%`,
+                                width: '48px',
+                                height: '48px',
+                                left: `calc(6px + ${indicatorIdx} * ((100% - 60px) / ${teacherBottomNav.length - 1}))`,
                                 transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                             }}
                         >
@@ -1333,6 +1327,7 @@ function TeacherLayoutInner({ children }) {
                             />
                         </div>
                     )}
+                    {/* ── Nav items ── */}
                     {teacherBottomNav.map((item, i) => {
                         const isActive = i === indicatorIdx;
                         return (
@@ -1342,20 +1337,26 @@ function TeacherLayoutInner({ children }) {
                                 onClick={() => {
                                     if (navigator.vibrate) navigator.vibrate(40);
                                 }}
-                                className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
+                                className="absolute top-0 bottom-0 z-10 flex items-center justify-center rounded-full active:scale-90"
+                                style={{
+                                    width: '48px',
+                                    left: `calc(6px + ${i} * ((100% - 60px) / ${teacherBottomNav.length - 1}))`,
+                                }}
                             >
-                                <span
-                                    ref={el => iconRefs.current[i] = el}
-                                    className="material-symbols-outlined text-[22px]"
-                                    style={{
-                                        color: isActive ? '#ffffff' : 'var(--tt-nav-icon-inactive)',
-                                        transform: isActive ? 'scale(1.14)' : 'scale(1)',
-                                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                                        willChange: 'transform, color',
-                                    }}
-                                >
-                                    {item.icon}
-                                </span>
+                                <div className="relative flex items-center justify-center">
+                                    <span
+                                        ref={el => iconRefs.current[i] = el}
+                                        className="material-symbols-outlined text-[22px]"
+                                        style={{
+                                            color: isActive ? '#ffffff' : 'var(--tt-nav-icon-inactive)',
+                                            transform: isActive ? 'scale(1.14)' : 'scale(1)',
+                                            fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                                            willChange: 'transform, color',
+                                        }}
+                                    >
+                                        {item.icon}
+                                    </span>
+                                </div>
                             </Link>
                         );
                     })}

@@ -358,14 +358,14 @@ function ApprovalContent() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 md:pr-36">
                 <div className="space-y-1">
                     <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                         Approval Queue
                     </h1>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <div className="relative z-10 w-full sm:w-auto sm:min-w-[260px] min-w-[150px]">
+                    <div className="relative z-10 w-full sm:w-auto sm:min-w-[340px] min-w-[180px]">
                         <ModernSelect
                             value={filterBatch}
                             onChange={(e) => setFilterBatch(e.target.value)}

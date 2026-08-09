@@ -1027,12 +1027,7 @@ function StudentLayoutInner({ children }) {
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
 
-                                {/* Biometric Lock */}
-                                <AppLockSetting
-                                    accentColor={accentColor}
-                                    isLight={isLight}
-                                    variant="dropdown"
-                                />
+
 
                                 {/* Devices */}
                                 <button
@@ -1159,7 +1154,7 @@ function StudentLayoutInner({ children }) {
 
             {/* ── Main Content ── */}
             <main
-                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isHomeMobile ? "pt-1.5" : (isSubPageMobile ? "pt-16" : "pt-6")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
+                className={`relative z-10 md:ml-64 min-h-screen flex flex-col ${isHomeMobile ? "pt-1.5" : (isSubPageMobile ? "pt-24" : "pt-6")} ${!isSubPageMobile ? "pb-24" : "pb-6"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12`}
                 style={{ scrollbarGutter: "stable" }}
             >
                 <div ref={bounceRef} className="max-w-4xl w-full mx-auto flex-1" style={{ willChange: "transform" }}>
@@ -1595,7 +1590,7 @@ function StudentLayoutInner({ children }) {
             {/* ── Mobile Bottom Navigation ── */}
             {!isSubPageMobile && (
                 <nav
-                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-[28px] isolate flex items-center"
+                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-full isolate flex items-center h-[60px]"
                     style={{
                         background: 'var(--st-nav-bg)',
                         border: '1px solid var(--st-nav-border)',
@@ -1605,12 +1600,14 @@ function StudentLayoutInner({ children }) {
                         transform: "translateZ(0)", isolation: "isolate"
                     }}
                 >
+                    {/* ── Sliding blue circle indicator ── */}
                     {activeIdx >= 0 && (
                         <div
                             className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
                             style={{
-                                width: `${100 / studentBottomNav.length}%`,
-                                left: `${indicatorIdx * (100 / studentBottomNav.length)}%`,
+                                width: '48px',
+                                height: '48px',
+                                left: `calc(6px + ${indicatorIdx} * ((100% - 60px) / ${studentBottomNav.length - 1}))`,
                                 transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
                             }}
                         >
@@ -1623,6 +1620,7 @@ function StudentLayoutInner({ children }) {
                             />
                         </div>
                     )}
+                    {/* ── Nav items ── */}
                     {studentBottomNav.map((item, i) => {
                         const isActive = i === indicatorIdx;
                         return (
@@ -1632,7 +1630,11 @@ function StudentLayoutInner({ children }) {
                                 onClick={() => {
                                     if (navigator.vibrate) navigator.vibrate(40);
                                 }}
-                                className="flex-1 relative z-10 flex items-center justify-center h-[60px] rounded-full active:scale-90"
+                                className="absolute top-0 bottom-0 z-10 flex items-center justify-center rounded-full active:scale-90"
+                                style={{
+                                    width: '48px',
+                                    left: `calc(6px + ${i} * ((100% - 60px) / ${studentBottomNav.length - 1}))`,
+                                }}
                             >
                                 <div className="relative flex items-center justify-center">
                                     <span

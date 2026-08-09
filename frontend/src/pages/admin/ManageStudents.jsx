@@ -574,7 +574,7 @@ function StudentsContent() {
         <div className="space-y-6">
 
             {/* ── Top Header Controls (Tabs on Left, Batch selector/Search on Right) ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 md:pr-36">
                 {/* Tab control */}
                 <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
                     style={{
@@ -611,7 +611,7 @@ function StudentsContent() {
                 {/* Batch Selector & Search on Right */}
                 {activeTab === "list" && (
                     <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-                        <div className="w-full sm:w-64">
+                        <div className="w-full sm:w-[340px]">
                             <ModernSelect
                                 value={selectedListBatch}
                                 onChange={(e) => { setSelectedListBatch(e.target.value); setSearchQuery(""); }}
