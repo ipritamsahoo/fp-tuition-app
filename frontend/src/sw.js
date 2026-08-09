@@ -74,6 +74,7 @@ messaging.onBackgroundMessage((payload) => {
     self.registration.showNotification(title, options);
 });
 
+<<<<<<< HEAD
 // ─────────────────────────────────────────────────
 // PWA App Icon Badge Helpers
 // ─────────────────────────────────────────────────
@@ -154,6 +155,7 @@ self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const data = event.notification.data || {};
     const noticeId = data.notice_id || null;
+    const targetUrl = data.target_url || (data.type === "notice" ? "/student/notices" : "/");
     const action = event.action;
 
     if (action === "mark_read" && noticeId) {
@@ -175,18 +177,19 @@ self.addEventListener("notificationclick", (event) => {
         return; // Don't open the app
     }
 
-    // "open_notices" action or default tap on notification body → open/focus the app on notices page
     event.waitUntil(
         clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
                 if (client.url.includes(self.location.origin) && "focus" in client) {
-                    // Navigate existing window to notices page
-                    client.navigate("/student/notices");
-                    return client.focus();
+                    client.focus();
+                    if ("navigate" in client) {
+                        return client.navigate(targetUrl);
+                    }
+                    return;
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow("/student/notices");
+                return clients.openWindow(targetUrl);
             }
         })
     );
@@ -300,10 +303,10 @@ self.addEventListener("fetch", (event) => {
                     if (imageFile) {
                         await set("shared_payment_screenshot", imageFile);
                     }
-                    return Response.redirect("/student?shared=true", 303);
+                    return Response.redirect("/student/payments?shared=true", 303);
                 } catch (err) {
                     console.error("Web Share Target error:", err);
-                    return Response.redirect("/student?shared_error=true", 303);
+                    return Response.redirect("/student/payments?shared_error=true", 303);
                 }
             })()
         );

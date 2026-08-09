@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
@@ -74,9 +74,68 @@ function StudentsContent() {
 
     // ── Edit modal ───────────────────────────────────────────────────────
     const [editingStudent, setEditingStudent] = useState(null);
+    const [initialUsername, setInitialUsername] = useState("");
     const [editForm, setEditForm] = useState({ name: "", username: "", batch_id: "", password: "" });
     const [editLoading, setEditLoading] = useState(false);
     const [showEditPassword, setShowEditPassword] = useState(false);
+
+    // Live username check for edit student modal
+    const [checkingEditUsername, setCheckingEditUsername] = useState(false);
+    const [editUsernameStatus, setEditUsernameStatus] = useState({ available: null, reason: "" });
+    const checkEditUsernameTimerRef = useRef(null);
+
+    useEffect(() => {
+        if (!editingStudent) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: null, reason: "" });
+            if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+            return;
+        }
+
+        const trimmed = (editForm.username || "").trim().toLowerCase();
+        if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+
+        if (!trimmed) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: null, reason: "" });
+            return;
+        }
+
+        if (trimmed.length < 3) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: false, reason: "Must be at least 3 characters." });
+            return;
+        }
+
+        const originalUsername = (initialUsername || "").trim().toLowerCase();
+        if (trimmed === originalUsername) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: true, isCurrent: true, reason: "This is current username." });
+            return;
+        }
+
+        setCheckingEditUsername(true);
+        setEditUsernameStatus({ available: null, reason: "Checking availability..." });
+
+        checkEditUsernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+                setEditUsernameStatus({
+                    available: res.available,
+                    isCurrent: res.is_current,
+                    reason: res.reason
+                });
+            } catch (err) {
+                setEditUsernameStatus({ available: false, reason: err.message || "Failed to check username" });
+            } finally {
+                setCheckingEditUsername(false);
+            }
+        }, 350);
+
+        return () => {
+            if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+        };
+    }, [editForm.username, editingStudent, initialUsername]);
 
     // ── Fee-override modal ───────────────────────────────────────────────
     const [overrideStudent, setOverrideStudent] = useState(null);
@@ -94,6 +153,9 @@ function StudentsContent() {
 
     // ── Devices modal ────────────────────────────────────────────────────
     const [devicesStudent, setDevicesStudent] = useState(null);
+
+    // ── Payments modal ───────────────────────────────────────────────────
+    const [paymentsStudent, setPaymentsStudent] = useState(null);
 
     // ── Fetch ONLY batches on mount ──────────────────────────────────────
     const fetchBatches = useCallback(async () => {
@@ -148,7 +210,7 @@ function StudentsContent() {
 
     // Disable body scroll when any modal is open
     useEffect(() => {
-        const isModalOpen = !!editingStudent || !!overrideStudent || !!statusModalStudent || !!devicesStudent;
+        const isModalOpen = !!editingStudent || !!overrideStudent || !!statusModalStudent || !!devicesStudent || !!paymentsStudent;
         if (isModalOpen) {
             document.body.style.overflow = "hidden";
         } else {
@@ -157,7 +219,7 @@ function StudentsContent() {
         return () => {
             document.body.style.overflow = "";
         };
-    }, [editingStudent, overrideStudent, statusModalStudent, devicesStudent]);
+    }, [editingStudent, overrideStudent, statusModalStudent, devicesStudent, paymentsStudent]);
 
     // ── Realtime username availability check ──────────────────────────────
     useEffect(() => {
@@ -366,6 +428,7 @@ function StudentsContent() {
     // ── Edit handlers (used from list tab modals) ────────────────────────
     const startEdit = (student) => {
         setEditingStudent(student.uid || student.id);
+        setInitialUsername(student.username || "");
         setEditForm({
             name: student.name || "",
             username: student.username || "",
@@ -377,6 +440,7 @@ function StudentsContent() {
 
     const cancelEdit = () => {
         setEditingStudent(null);
+        setInitialUsername("");
         setEditForm({ name: "", username: "", batch_id: "", password: "" });
         setShowEditPassword(false);
     };
@@ -393,12 +457,12 @@ function StudentsContent() {
             if (editForm.password && editForm.password.trim()) payload.password = editForm.password;
             await api.put(`/api/admin/students/${editingStudent}`, payload);
             setSuccess("Student updated!");
-            
+
             // Optimistic UI update instead of full list refresh
-            setStudents((prev) => prev.map((s) => 
+            setStudents((prev) => prev.map((s) =>
                 (s.uid || s.id) === editingStudent ? { ...s, ...payload } : s
             ));
-            
+
             cancelEdit();
         } catch (err) {
             if (!isSystemicError(err.message)) {
@@ -439,9 +503,9 @@ function StudentsContent() {
                     });
                 }
                 setSuccess(overrideAmount === "" ? "Custom fee removed." : `Custom fee set to ₹${overrideAmount}.`);
-                
+
                 // Optimistic UI update for custom_fee
-                setStudents((prev) => prev.map((s) => 
+                setStudents((prev) => prev.map((s) =>
                     (s.uid || s.id) === uid ? { ...s, custom_fee: overrideAmount === "" ? null : parseFloat(overrideAmount) } : s
                 ));
             } else {
@@ -479,9 +543,9 @@ function StudentsContent() {
         try {
             await api.put(`/api/admin/students/${uid}/status`, { is_disabled: newStatus });
             setSuccess(`Student ${newStatus ? "disabled" : "enabled"} successfully.`);
-            
+
             // Optimistic UI update
-            setStudents((prev) => prev.map((s) => 
+            setStudents((prev) => prev.map((s) =>
                 (s.uid || s.id) === uid ? { ...s, is_disabled: newStatus } : s
             ));
         } catch (err) {
@@ -510,13 +574,13 @@ function StudentsContent() {
         <div className="space-y-6">
 
             {/* ── Top Header Controls (Tabs on Left, Batch selector/Search on Right) ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 md:pr-36">
                 {/* Tab control */}
                 <div className="flex items-center gap-1 p-1 border rounded-2xl w-fit"
-                     style={{
-                         backgroundColor: 'var(--ad-card-bg)',
-                         borderColor: 'var(--ad-divider)'
-                     }}
+                    style={{
+                        backgroundColor: 'var(--ad-card-bg)',
+                        borderColor: 'var(--ad-divider)'
+                    }}
                 >
                     <button
                         onClick={() => setActiveTab("list")}
@@ -547,7 +611,7 @@ function StudentsContent() {
                 {/* Batch Selector & Search on Right */}
                 {activeTab === "list" && (
                     <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-                        <div className="w-full sm:w-64">
+                        <div className="w-full sm:w-[340px]">
                             <ModernSelect
                                 value={selectedListBatch}
                                 onChange={(e) => { setSelectedListBatch(e.target.value); setSearchQuery(""); }}
@@ -612,11 +676,11 @@ function StudentsContent() {
             {/* ── Messages ────────────────────────────────────────────── */}
             {error && !editingStudent && !overrideStudent && !statusModalStudent && (
                 <div className="p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
-                     style={{
-                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
-                         borderColor: 'rgba(255, 110, 132, 0.3)',
-                         color: isLight ? '#ef4444' : '#ff9dac'
-                     }}
+                    style={{
+                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                        borderColor: 'rgba(255, 110, 132, 0.3)',
+                        color: isLight ? '#ef4444' : '#ff9dac'
+                    }}
                 >
                     <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                     <span className="flex-1 font-medium">{error}</span>
@@ -625,11 +689,11 @@ function StudentsContent() {
             )}
             {success && (
                 <div className="p-4 rounded-xl border shadow-lg text-sm flex items-center gap-3"
-                     style={{
-                         backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
-                         borderColor: 'rgba(74, 248, 227, 0.3)',
-                         color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
-                     }}
+                    style={{
+                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                        borderColor: 'rgba(74, 248, 227, 0.3)',
+                        color: isLight ? 'var(--ad-text-primary)' : '#dcfff8'
+                    }}
                 >
                     <span className="material-symbols-outlined text-[#4af8e3]">check_circle</span>
                     <span className="flex-1 font-medium">{success}</span>
@@ -649,10 +713,10 @@ function StudentsContent() {
                     {/* Empty state — no batch selected or no data */}
                     {!listLoading && !hasLoaded && (
                         <div className="backdrop-blur-[20px] border rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4 text-center"
-                             style={{
-                                 backgroundColor: 'var(--ad-card-bg)',
-                                 borderColor: 'var(--ad-card-border)'
-                             }}
+                            style={{
+                                backgroundColor: 'var(--ad-card-bg)',
+                                borderColor: 'var(--ad-card-border)'
+                            }}
                         >
                             <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--ad-text-secondary)' }}>group</span>
                             <p className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>Select Batch</p>
@@ -662,10 +726,10 @@ function StudentsContent() {
 
                     {!listLoading && hasLoaded && students.length === 0 && (
                         <div className="backdrop-blur-[20px] border rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center"
-                             style={{
-                                 backgroundColor: 'var(--ad-card-bg)',
-                                 borderColor: 'var(--ad-card-border)'
-                             }}
+                            style={{
+                                backgroundColor: 'var(--ad-card-bg)',
+                                borderColor: 'var(--ad-card-border)'
+                            }}
                         >
                             <span className="material-symbols-outlined text-4xl" style={{ color: 'var(--ad-text-secondary)' }}>person_off</span>
                             <p className="font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No students found in this batch.</p>
@@ -675,10 +739,10 @@ function StudentsContent() {
                     {/* Empty search results state */}
                     {!listLoading && hasLoaded && students.length > 0 && filteredStudents.length === 0 && (
                         <div className="backdrop-blur-[20px] border rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center"
-                             style={{
-                                 backgroundColor: 'var(--ad-card-bg)',
-                                 borderColor: 'var(--ad-card-border)'
-                             }}
+                            style={{
+                                backgroundColor: 'var(--ad-card-bg)',
+                                borderColor: 'var(--ad-card-border)'
+                            }}
                         >
                             <span className="material-symbols-outlined text-4xl animate-pulse" style={{ color: 'var(--ad-text-secondary)' }}>search_off</span>
                             <p className="font-medium" style={{ color: 'var(--ad-text-secondary)' }}>No matching students found.</p>
@@ -693,12 +757,12 @@ function StudentsContent() {
                             </div>
                             <div className="space-y-4 md:hidden">
                                 {filteredStudents.map((s) => (
-                                    <div key={s.uid || s.id} 
-                                         className={`backdrop-blur-[20px] border rounded-2xl p-5 transition-all ${s.is_disabled ? "opacity-60 grayscale-[0.3]" : ""}`}
-                                         style={{
-                                             backgroundColor: 'var(--ad-card-bg)',
-                                             borderColor: 'var(--ad-card-border)'
-                                         }}
+                                    <div key={s.uid || s.id}
+                                        className={`backdrop-blur-[20px] border rounded-2xl p-5 transition-all ${s.is_disabled ? "opacity-60 grayscale-[0.3]" : ""}`}
+                                        style={{
+                                            backgroundColor: 'var(--ad-card-bg)',
+                                            borderColor: 'var(--ad-card-border)'
+                                        }}
                                     >
                                         <div className="flex flex-col gap-4">
                                             <div className="flex items-center justify-between">
@@ -712,31 +776,38 @@ function StudentsContent() {
                                                     <span className="px-3 py-1 rounded-full bg-[#f5c542]/10 text-[#f5c542] text-[11px] border border-[#f5c542]/30 font-bold uppercase tracking-widest whitespace-nowrap">₹{s.custom_fee}/mo</span>
                                                 )}
                                             </div>
-                                            <div className="flex gap-2 justify-end w-full border-t pt-4" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                <button onClick={() => setDevicesStudent(s)} 
-                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
-                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                            <div className="flex gap-2 justify-end w-full border-t pt-4 font-sans" style={{ borderColor: 'var(--ad-divider)' }}>
+                                                <button onClick={() => setPaymentsStudent(s)}
+                                                    className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                    title="Payments History"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">history</span>
+                                                </button>
+                                                <button onClick={() => setDevicesStudent(s)}
+                                                    className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">devices</span>
                                                 </button>
-                                                <button onClick={() => startOverride(s)} 
-                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
-                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                <button onClick={() => startOverride(s)}
+                                                    className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">payments</span>
                                                 </button>
-                                                <button onClick={() => startEdit(s)} 
-                                                        className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
-                                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                <button onClick={() => startEdit(s)}
+                                                    className="p-2.5 rounded-xl border text-xs transition-all cursor-pointer flex-1 flex justify-center hover:opacity-80"
+                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">edit</span>
                                                 </button>
                                                 <button onClick={() => handleToggleStatus(s)} disabled={togglingStatus === (s.uid || s.id)}
                                                     className="p-2.5 rounded-xl border transition-all disabled:opacity-50 cursor-pointer flex-1 flex justify-center hover:opacity-80"
-                                                    style={{ 
-                                                        backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)', 
-                                                        borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)', 
-                                                        color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)' 
+                                                    style={{
+                                                        backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)',
+                                                        borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)',
+                                                        color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)'
                                                     }}
                                                 >
                                                     {togglingStatus === (s.uid || s.id)
@@ -751,10 +822,10 @@ function StudentsContent() {
 
                             {/* ── Desktop: Table layout ──────────────────── */}
                             <div className="hidden md:block backdrop-blur-[20px] border rounded-[2rem] overflow-hidden shadow-lg"
-                                 style={{
-                                     backgroundColor: 'var(--ad-card-bg)',
-                                     borderColor: 'var(--ad-card-border)'
-                                 }}
+                                style={{
+                                    backgroundColor: 'var(--ad-card-bg)',
+                                    borderColor: 'var(--ad-card-border)'
+                                }}
                             >
                                 <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--ad-divider)' }}>
                                     <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
@@ -790,33 +861,40 @@ function StudentsContent() {
                                                     </td>
                                                     <td className="px-6 py-5 whitespace-nowrap">
                                                         <div className="flex justify-end gap-2">
-                                                            <button onClick={() => setDevicesStudent(s)} 
-                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
-                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            <button onClick={() => setPaymentsStudent(s)}
+                                                                className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            >
+                                                                <span className="material-symbols-outlined text-[16px]">history</span>
+                                                                <span className="text-xs font-bold tracking-wide uppercase">Payments</span>
+                                                            </button>
+                                                            <button onClick={() => setDevicesStudent(s)}
+                                                                className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                             >
                                                                 <span className="material-symbols-outlined text-[16px]">devices</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Devices</span>
                                                             </button>
-                                                            <button onClick={() => startOverride(s)} 
-                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
-                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            <button onClick={() => startOverride(s)}
+                                                                className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                             >
                                                                 <span className="material-symbols-outlined text-[16px]">payments</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Fee</span>
                                                             </button>
-                                                            <button onClick={() => startEdit(s)} 
-                                                                    className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
-                                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
+                                                            <button onClick={() => startEdit(s)}
+                                                                className="px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 hover:opacity-85"
+                                                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                                             >
                                                                 <span className="material-symbols-outlined text-[16px]">edit</span>
                                                                 <span className="text-xs font-bold tracking-wide uppercase">Edit</span>
                                                             </button>
                                                             <button onClick={() => handleToggleStatus(s)} disabled={togglingStatus === (s.uid || s.id)}
                                                                 className="px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2 hover:opacity-85"
-                                                                style={{ 
-                                                                    backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)', 
-                                                                    borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)', 
-                                                                    color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)' 
+                                                                style={{
+                                                                    backgroundColor: s.is_disabled ? 'rgba(74, 248, 227, 0.05)' : 'var(--ad-icon-bg)',
+                                                                    borderColor: s.is_disabled ? 'rgba(74, 248, 227, 0.15)' : 'var(--ad-input-border)',
+                                                                    color: s.is_disabled ? '#4af8e3' : 'var(--ad-text-secondary)'
                                                                 }}
                                                             >
                                                                 {togglingStatus === (s.uid || s.id)
@@ -845,10 +923,10 @@ function StudentsContent() {
                     {!addBatchId ? (
                         /* Empty state — no batch selected */
                         <div className="backdrop-blur-[20px] border rounded-2xl p-16 flex flex-col items-center justify-center gap-4 text-center"
-                             style={{
-                                 backgroundColor: 'var(--ad-card-bg)',
-                                 borderColor: 'var(--ad-card-border)'
-                             }}
+                            style={{
+                                backgroundColor: 'var(--ad-card-bg)',
+                                borderColor: 'var(--ad-card-border)'
+                            }}
                         >
                             <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--ad-text-secondary)' }}>group_add</span>
                             <p className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>Select Batch</p>
@@ -857,10 +935,10 @@ function StudentsContent() {
                     ) : (
                         /* Form Card — shown when batch is selected */
                         <div className="backdrop-blur-[20px] border rounded-2xl p-3.5 sm:p-6 shadow-lg space-y-4 sm:space-y-6"
-                             style={{
-                                 backgroundColor: 'var(--ad-card-bg)',
-                                 borderColor: 'var(--ad-card-border)'
-                             }}
+                            style={{
+                                backgroundColor: 'var(--ad-card-bg)',
+                                borderColor: 'var(--ad-card-border)'
+                            }}
                         >
                             <div className="border-b pb-3 sm:pb-4" style={{ borderColor: 'var(--ad-divider)' }}>
                                 <p className="text-xs" style={{ color: 'var(--ad-text-secondary)' }}>
@@ -868,221 +946,219 @@ function StudentsContent() {
                                 </p>
                             </div>
 
-                        {/* Quick Actions Bar */}
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                {isCheckingUsernames && (
-                                    <span className="flex items-center gap-1.5 text-xs text-[#3b82f6] font-medium animate-pulse">
-                                        <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                                        Checking usernames...
-                                    </span>
+                            {/* Quick Actions Bar */}
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                    {isCheckingUsernames && (
+                                        <span className="flex items-center gap-1.5 text-xs text-[#3b82f6] font-medium animate-pulse">
+                                            <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                            Checking usernames...
+                                        </span>
+                                    )}
+                                </div>
+
+                                {studentRows.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClearRows}
+                                        className="hidden sm:block px-3 py-1.5 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all hover:text-[#ff6e84]"
+                                        style={{
+                                            backgroundColor: 'var(--ad-icon-bg)',
+                                            borderColor: 'var(--ad-input-border)',
+                                            color: 'var(--ad-text-secondary)'
+                                        }}
+                                    >
+                                        Clear All
+                                    </button>
                                 )}
                             </div>
 
-                            {studentRows.length > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={handleClearRows}
-                                    className="hidden sm:block px-3 py-1.5 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all hover:text-[#ff6e84]"
-                                    style={{
-                                        backgroundColor: 'var(--ad-icon-bg)',
-                                        borderColor: 'var(--ad-input-border)',
-                                        color: 'var(--ad-text-secondary)'
-                                    }}
-                                >
-                                    Clear All
-                                </button>
-                            )}
-                        </div>
+                            {/* Student Entry Rows */}
+                            <form onSubmit={handleBulkSubmit} className="space-y-4">
+                                <div className="space-y-4">
+                                    {studentRows.map((row, index) => {
+                                        const statusInfo = getRowStatus(row, index);
+                                        const isRowError = statusInfo.status === "exists" || statusInfo.status === "duplicate";
 
-                        {/* Student Entry Rows */}
-                        <form onSubmit={handleBulkSubmit} className="space-y-4">
-                            <div className="space-y-4">
-                                {studentRows.map((row, index) => {
-                                    const statusInfo = getRowStatus(row, index);
-                                    const isRowError = statusInfo.status === "exists" || statusInfo.status === "duplicate";
+                                        return (
+                                            <div
+                                                key={row.id}
+                                                className={`p-3 sm:p-5 rounded-xl border transition-all relative ${isRowError
+                                                        ? (isLight ? "border-red-300 bg-red-50/40" : "border-red-500/40 bg-red-950/20")
+                                                        : "border-[var(--ad-card-border)] hover:border-[#3b82f6]/30"
+                                                    }`}
+                                                style={{
+                                                    backgroundColor: isRowError ? undefined : 'var(--ad-surface)'
+                                                }}
+                                            >
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-black uppercase tracking-wider"
+                                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                                    >
+                                                        #{index + 1} Student
+                                                    </span>
 
-                                    return (
-                                        <div
-                                            key={row.id}
-                                            className={`p-3 sm:p-5 rounded-xl border transition-all relative ${
-                                                isRowError
-                                                    ? (isLight ? "border-red-300 bg-red-50/40" : "border-red-500/40 bg-red-950/20")
-                                                    : "border-[var(--ad-card-border)] hover:border-[#3b82f6]/30"
-                                            }`}
-                                            style={{
-                                                backgroundColor: isRowError ? undefined : 'var(--ad-surface)'
-                                            }}
-                                        >
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs font-black uppercase tracking-wider"
-                                                      style={{ color: 'var(--ad-text-secondary)' }}
-                                                >
-                                                    #{index + 1} Student
-                                                </span>
-
-                                                <div className="flex items-center gap-2">
-                                                    {(row.isUsernameEdited || row.isPasswordEdited) && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleResetRowCredentials(row.id)}
-                                                            className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline transition-colors cursor-pointer"
-                                                            style={{ color: 'var(--ad-text-secondary)' }}
-                                                            title="Reset username & password to automatic prefill"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[14px]">restart_alt</span>
-                                                            Auto Prefill
-                                                        </button>
-                                                    )}
-                                                    {studentRows.length > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveRow(row.id)}
-                                                            className="p-1 rounded-lg hover:text-[#ff6e84] transition-colors cursor-pointer"
-                                                            style={{ color: 'var(--ad-text-secondary)' }}
-                                                            title="Remove this student"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                {/* Full Name */}
-                                                <div>
-                                                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
-                                                        Full Name <span className="text-[#ff6e84]">*</span>
-                                                    </label>
-                                                    <input
-                                                        placeholder="Full Name"
-                                                        value={row.name}
-                                                        onChange={(e) => handleRowNameChange(row.id, e.target.value)}
-                                                        required
-                                                        className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                                                        style={{
-                                                            backgroundColor: 'var(--ad-input-bg)',
-                                                            borderColor: 'var(--ad-input-border)',
-                                                            color: 'var(--ad-text-primary)'
-                                                        }}
-                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        {(row.isUsernameEdited || row.isPasswordEdited) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleResetRowCredentials(row.id)}
+                                                                className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline transition-colors cursor-pointer"
+                                                                style={{ color: 'var(--ad-text-secondary)' }}
+                                                                title="Reset username & password to automatic prefill"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[14px]">restart_alt</span>
+                                                                Auto Prefill
+                                                            </button>
+                                                        )}
+                                                        {studentRows.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveRow(row.id)}
+                                                                className="p-1 rounded-lg hover:text-[#ff6e84] transition-colors cursor-pointer"
+                                                                style={{ color: 'var(--ad-text-secondary)' }}
+                                                                title="Remove this student"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Username */}
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ad-text-secondary)' }}>
-                                                            Username <span className="text-[#ff6e84]">*</span>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    {/* Full Name */}
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                            Full Name <span className="text-[#ff6e84]">*</span>
                                                         </label>
-                                                        {isRowError && (
-                                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#ff6e84] flex items-center gap-0.5 animate-bounce">
-                                                                {statusInfo.msg}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="relative">
                                                         <input
-                                                            placeholder="Username or Mobile"
-                                                            type="text"
-                                                            value={row.username}
-                                                            onChange={(e) => handleRowUsernameChange(row.id, e.target.value)}
+                                                            placeholder="Full Name"
+                                                            value={row.name}
+                                                            onChange={(e) => handleRowNameChange(row.id, e.target.value)}
                                                             required
-                                                            className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 transition-colors ${
-                                                                isRowError ? "border-[#ff6e84] focus:ring-[#ff6e84]/50" : "focus:ring-[#3b82f6]/50"
-                                                            }`}
-                                                            style={{
-                                                                backgroundColor: 'var(--ad-input-bg)',
-                                                                borderColor: isRowError ? '#ff6e84' : 'var(--ad-input-border)',
-                                                                color: 'var(--ad-text-primary)'
-                                                            }}
-                                                        />
-                                                        {statusInfo.status === "available" && (
-                                                            <span className="material-symbols-outlined text-[18px] text-[#4af8e3] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title="Username Available">
-                                                                check_circle
-                                                            </span>
-                                                        )}
-                                                        {isRowError && (
-                                                            <span className="material-symbols-outlined text-[18px] text-[#ff6e84] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title={statusInfo.msg}>
-                                                                warning
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Password */}
-                                                <div>
-                                                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
-                                                        Password <span className="text-[#ff6e84]">*</span>
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            placeholder="Password"
-                                                            type={row.showPassword ? "text" : "password"}
-                                                            value={row.password}
-                                                            onChange={(e) => handleRowPasswordChange(row.id, e.target.value)}
-                                                            required
-                                                            minLength={6}
-                                                            className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                                            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
                                                             style={{
                                                                 backgroundColor: 'var(--ad-input-bg)',
                                                                 borderColor: 'var(--ad-input-border)',
                                                                 color: 'var(--ad-text-primary)'
                                                             }}
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleToggleRowPassword(row.id)}
-                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 cursor-pointer"
-                                                            tabIndex="-1"
-                                                            style={{ color: 'var(--ad-text-secondary)' }}
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">
-                                                                {row.showPassword ? "visibility_off" : "visibility"}
-                                                            </span>
-                                                        </button>
+                                                    </div>
+
+                                                    {/* Username */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                                Username <span className="text-[#ff6e84]">*</span>
+                                                            </label>
+                                                            {isRowError && (
+                                                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#ff6e84] flex items-center gap-0.5 animate-bounce">
+                                                                    {statusInfo.msg}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="relative">
+                                                            <input
+                                                                placeholder="Username"
+                                                                type="text"
+                                                                value={row.username}
+                                                                onChange={(e) => handleRowUsernameChange(row.id, e.target.value)}
+                                                                required
+                                                                className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 transition-colors ${isRowError ? "border-[#ff6e84] focus:ring-[#ff6e84]/50" : "focus:ring-[#3b82f6]/50"
+                                                                    }`}
+                                                                style={{
+                                                                    backgroundColor: 'var(--ad-input-bg)',
+                                                                    borderColor: isRowError ? '#ff6e84' : 'var(--ad-input-border)',
+                                                                    color: 'var(--ad-text-primary)'
+                                                                }}
+                                                            />
+                                                            {statusInfo.status === "available" && (
+                                                                <span className="material-symbols-outlined text-[18px] text-[#4af8e3] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title="Username Available">
+                                                                    check_circle
+                                                                </span>
+                                                            )}
+                                                            {isRowError && (
+                                                                <span className="material-symbols-outlined text-[18px] text-[#ff6e84] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title={statusInfo.msg}>
+                                                                    warning
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Password */}
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                            Password <span className="text-[#ff6e84]">*</span>
+                                                        </label>
+                                                        <div className="relative">
+                                                            <input
+                                                                placeholder="Password"
+                                                                type={row.showPassword ? "text" : "password"}
+                                                                value={row.password}
+                                                                onChange={(e) => handleRowPasswordChange(row.id, e.target.value)}
+                                                                required
+                                                                minLength={6}
+                                                                className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                                                                style={{
+                                                                    backgroundColor: 'var(--ad-input-bg)',
+                                                                    borderColor: 'var(--ad-input-border)',
+                                                                    color: 'var(--ad-text-primary)'
+                                                                }}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleRowPassword(row.id)}
+                                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center p-1 cursor-pointer"
+                                                                tabIndex="-1"
+                                                                style={{ color: 'var(--ad-text-secondary)' }}
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">
+                                                                    {row.showPassword ? "visibility_off" : "visibility"}
+                                                                </span>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                            {/* Submit & Action Buttons */}
-                            <div className="pt-4 border-t flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3" style={{ borderColor: 'var(--ad-divider)' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleAddRow}
-                                    className="px-5 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-2 hover:opacity-85"
-                                    style={{
-                                        backgroundColor: 'var(--ad-icon-bg)',
-                                        borderColor: 'var(--ad-input-border)',
-                                        color: 'var(--ad-text-primary)'
-                                    }}
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">add</span>
-                                    Add Another Student
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={addLoading || isCheckingUsernames}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 border hover:opacity-85 shadow-md"
-                                    style={{
-                                        backgroundColor: 'var(--ad-accent-bg)',
-                                        borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
-                                        color: 'var(--ad-accent)'
-                                    }}
-                                >
-                                    {addLoading ? (
-                                        <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
-                                    ) : (
-                                        <span className="material-symbols-outlined text-[18px]">person_add</span>
-                                    )}
-                                    {addLoading ? "Enrolling..." : `Enroll ${studentRows.length} Student${studentRows.length > 1 ? "s" : ""}`}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                                {/* Submit & Action Buttons */}
+                                <div className="pt-4 border-t flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3" style={{ borderColor: 'var(--ad-divider)' }}>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddRow}
+                                        className="px-5 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-2 hover:opacity-85"
+                                        style={{
+                                            backgroundColor: 'var(--ad-icon-bg)',
+                                            borderColor: 'var(--ad-input-border)',
+                                            color: 'var(--ad-text-primary)'
+                                        }}
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">add</span>
+                                        Add Another Student
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={addLoading || isCheckingUsernames}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 border hover:opacity-85 shadow-md"
+                                        style={{
+                                            backgroundColor: 'var(--ad-accent-bg)',
+                                            borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                                            color: 'var(--ad-accent)'
+                                        }}
+                                    >
+                                        {addLoading ? (
+                                            <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-accent)', borderTopColor: 'transparent' }} />
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[18px]">person_add</span>
+                                        )}
+                                        {addLoading ? "Enrolling..." : `Enroll ${studentRows.length} Student${studentRows.length > 1 ? "s" : ""}`}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     )}
                 </div>
             )}
@@ -1094,34 +1170,34 @@ function StudentsContent() {
             {/* Edit Student Modal */}
             {editingStudent && createPortal(
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <form onSubmit={handleEditSubmit} 
-                          className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
-                          style={{
-                              backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
-                              borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(80px) saturate(2.5)',
-                              WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
-                          }}
+                    <form onSubmit={handleEditSubmit}
+                        className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
+                        style={{
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                            borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(80px) saturate(2.5)',
+                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                        }}
                     >
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 <span className="material-symbols-outlined" style={{ color: 'var(--ad-primary)' }}>edit</span>
                                 Edit Student
                             </h3>
-                            <button type="button" onClick={cancelEdit} 
-                                    className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
-                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                            <button type="button" onClick={cancelEdit}
+                                className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
                             >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
                         {error && (
                             <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
-                                 style={{
-                                     backgroundColor: 'rgba(255, 110, 132, 0.08)',
-                                     borderColor: 'rgba(255, 110, 132, 0.3)',
-                                     color: isLight ? '#ef4444' : '#ff9dac'
-                                 }}
+                                style={{
+                                    backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                    borderColor: 'rgba(255, 110, 132, 0.3)',
+                                    color: isLight ? '#ef4444' : '#ff9dac'
+                                }}
                             >
                                 <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                 <span className="flex-1 font-medium">{error}</span>
@@ -1143,19 +1219,70 @@ function StudentsContent() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Username or Mobile</label>
-                                <input
-                                    placeholder="Username or Mobile"
-                                    type="text"
-                                    value={editForm.username}
-                                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                                    className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
-                                    style={{
-                                        backgroundColor: 'var(--ad-input-bg)',
-                                        borderColor: 'var(--ad-input-border)',
-                                        color: 'var(--ad-text-primary)'
-                                    }}
-                                />
+                                <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Username</label>
+                                <div className="relative">
+                                    <input
+                                        placeholder="Username"
+                                        type="text"
+                                        value={editForm.username}
+                                        onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                                        className={`w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 transition-colors ${
+                                            editUsernameStatus.available === true && !editUsernameStatus.isCurrent
+                                                ? "focus:ring-[#0d9488]/50"
+                                                : editUsernameStatus.available === false
+                                                ? "border-[#ff6e84] focus:ring-[#ff6e84]/50"
+                                                : "focus:ring-[var(--ad-primary)]/50"
+                                        }`}
+                                        style={{
+                                            backgroundColor: 'var(--ad-input-bg)',
+                                            borderColor: editUsernameStatus.available === false
+                                                ? '#ff6e84'
+                                                : editUsernameStatus.available === true && !editUsernameStatus.isCurrent
+                                                ? (isLight ? '#0d9488' : '#4af8e3')
+                                                : 'var(--ad-input-border)',
+                                            color: 'var(--ad-text-primary)'
+                                        }}
+                                    />
+                                    {/* Right side status indicator */}
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                                        {checkingEditUsername && (
+                                            <span className="material-symbols-outlined text-[18px] animate-spin opacity-70" style={{ color: 'var(--ad-primary)' }}>
+                                                progress_activity
+                                            </span>
+                                        )}
+                                        {!checkingEditUsername && editUsernameStatus.available === true && !editUsernameStatus.isCurrent && (
+                                            <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                check_circle
+                                            </span>
+                                        )}
+                                        {!checkingEditUsername && editUsernameStatus.available === false && (
+                                            <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                cancel
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Helper status text */}
+                                {editForm.username.trim() && (
+                                    <div className="mt-2 ml-1 text-xs font-semibold flex items-center gap-1.5 transition-all">
+                                        {checkingEditUsername && (
+                                            <span className="opacity-70 animate-pulse" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                Checking availability...
+                                            </span>
+                                        )}
+                                        {!checkingEditUsername && editUsernameStatus.available === true && !editUsernameStatus.isCurrent && (
+                                            <span style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                ✓ Username is available!
+                                            </span>
+                                        )}
+                                        {!checkingEditUsername && editUsernameStatus.available === false && (
+                                            <span style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                ✕ {editUsernameStatus.reason}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>New Password (Optional)</label>
@@ -1203,15 +1330,15 @@ function StudentsContent() {
                             </div>
                         </div>
                         <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
-                            <button type="button" onClick={cancelEdit} 
-                                    className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
-                                    style={{ color: 'var(--ad-text-secondary)' }}
+                            <button type="button" onClick={cancelEdit}
+                                className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                style={{ color: 'var(--ad-text-secondary)' }}
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
-                                disabled={editLoading}
+                                disabled={editLoading || checkingEditUsername || editUsernameStatus.available === false}
                                 className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 border hover:opacity-85"
                                 style={{
                                     backgroundColor: 'var(--ad-accent-bg)',
@@ -1235,34 +1362,34 @@ function StudentsContent() {
             {/* Fee Override Modal */}
             {overrideStudent && createPortal(
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <form onSubmit={handleOverrideSubmit} 
-                          className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
-                          style={{
-                              backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
-                              borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(80px) saturate(2.5)',
-                              WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
-                          }}
+                    <form onSubmit={handleOverrideSubmit}
+                        className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
+                        style={{
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                            borderColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(80px) saturate(2.5)',
+                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                        }}
                     >
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                                 <span className="material-symbols-outlined text-[#f5c542]">payments</span>
                                 Override: {overrideStudent.name}
                             </h3>
-                            <button type="button" onClick={cancelOverride} 
-                                    className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
-                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                            <button type="button" onClick={cancelOverride}
+                                className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
                             >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
                         {error && (
                             <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
-                                 style={{
-                                     backgroundColor: 'rgba(255, 110, 132, 0.08)',
-                                     borderColor: 'rgba(255, 110, 132, 0.3)',
-                                     color: isLight ? '#ef4444' : '#ff9dac'
-                                 }}
+                                style={{
+                                    backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                    borderColor: 'rgba(255, 110, 132, 0.3)',
+                                    color: isLight ? '#ef4444' : '#ff9dac'
+                                }}
                             >
                                 <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                 <span className="flex-1 font-medium">{error}</span>
@@ -1340,9 +1467,9 @@ function StudentsContent() {
                             )}
                         </div>
                         <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
-                            <button type="button" onClick={cancelOverride} 
-                                    className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
-                                    style={{ color: 'var(--ad-text-secondary)' }}
+                            <button type="button" onClick={cancelOverride}
+                                className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                style={{ color: 'var(--ad-text-secondary)' }}
                             >
                                 Cancel
                             </button>
@@ -1377,18 +1504,18 @@ function StudentsContent() {
                 return createPortal(
                     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
                         <div className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
-                             style={{
-                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
-                                 borderColor: isDisabling 
-                                     ? (isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 110, 132, 0.3)')
-                                     : (isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)'),
-                                 backdropFilter: 'blur(80px) saturate(2.5)',
-                                 WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
-                             }}
+                            style={{
+                                backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
+                                borderColor: isDisabling
+                                    ? (isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 110, 132, 0.3)')
+                                    : (isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.3)'),
+                                backdropFilter: 'blur(80px) saturate(2.5)',
+                                WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
+                            }}
                         >
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-bold text-xl flex items-center gap-2" 
-                                    style={{ 
+                                <h3 className="font-bold text-xl flex items-center gap-2"
+                                    style={{
                                         fontFamily: "'Manrope', sans-serif",
                                         color: isDisabling ? (isLight ? '#ef4444' : '#ff6e84') : (isLight ? '#0d9488' : '#4af8e3')
                                     }}
@@ -1396,20 +1523,20 @@ function StudentsContent() {
                                     <span className="material-symbols-outlined">{isDisabling ? "person_off" : "person_check"}</span>
                                     {isDisabling ? "Disable Student" : "Enable Student"}
                                 </h3>
-                                <button onClick={() => setStatusModalStudent(null)} 
-                                        className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
-                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
+                                <button onClick={() => setStatusModalStudent(null)}
+                                    className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
+                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
                                 >
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
                             </div>
                             {error && (
                                 <div className="mb-6 p-4 rounded-xl border text-sm flex items-center gap-3"
-                                     style={{
-                                         backgroundColor: 'rgba(255, 110, 132, 0.08)',
-                                         borderColor: 'rgba(255, 110, 132, 0.3)',
-                                         color: isLight ? '#ef4444' : '#ff9dac'
-                                     }}
+                                    style={{
+                                        backgroundColor: 'rgba(255, 110, 132, 0.08)',
+                                        borderColor: 'rgba(255, 110, 132, 0.3)',
+                                        color: isLight ? '#ef4444' : '#ff9dac'
+                                    }}
                                 >
                                     <span className="material-symbols-outlined text-[#ff6e84]">error</span>
                                     <span className="flex-1 font-medium">{error}</span>
@@ -1419,11 +1546,11 @@ function StudentsContent() {
                                 <p className="text-base font-medium" style={{ color: 'var(--ad-text-primary)' }}>Are you sure you want to {actionText} <span className="font-bold" style={{ color: 'var(--ad-text-primary)' }}>{statusModalStudent.name}</span>?</p>
                                 {isDisabling ? (
                                     <div className="border p-4 rounded-xl text-sm leading-relaxed"
-                                         style={{
-                                             backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                                             borderColor: 'rgba(239, 68, 68, 0.15)',
-                                             color: isLight ? '#ef4444' : '#ff9dac'
-                                         }}
+                                        style={{
+                                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                                            borderColor: 'rgba(239, 68, 68, 0.15)',
+                                            color: isLight ? '#ef4444' : '#ff9dac'
+                                        }}
                                     >
                                         <p className="font-bold mb-1">If you disable this student:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
@@ -1434,11 +1561,11 @@ function StudentsContent() {
                                     </div>
                                 ) : (
                                     <div className="border p-4 rounded-xl text-sm leading-relaxed"
-                                         style={{
-                                             backgroundColor: 'rgba(13, 148, 136, 0.05)',
-                                             borderColor: 'rgba(13, 148, 136, 0.15)',
-                                             color: isLight ? '#0d9488' : '#dcfff8'
-                                         }}
+                                        style={{
+                                            backgroundColor: 'rgba(13, 148, 136, 0.05)',
+                                            borderColor: 'rgba(13, 148, 136, 0.15)',
+                                            color: isLight ? '#0d9488' : '#dcfff8'
+                                        }}
                                     >
                                         <p className="font-bold mb-1">If you enable this student:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
@@ -1468,9 +1595,9 @@ function StudentsContent() {
                                 </div>
                             </div>
                             <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
-                                <button onClick={() => setStatusModalStudent(null)} 
-                                        className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
-                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                <button onClick={() => setStatusModalStudent(null)}
+                                    className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer"
+                                    style={{ color: 'var(--ad-text-secondary)' }}
                                 >
                                     Cancel
                                 </button>
@@ -1499,7 +1626,15 @@ function StudentsContent() {
                 <UserDevicesModal
                     user={devicesStudent}
                     onClose={() => setDevicesStudent(null)}
-                    onSessionDeleted={() => {}}
+                    onSessionDeleted={() => { }}
+                />
+            )}
+
+            {/* Student Payments & Revert Modal */}
+            {paymentsStudent && (
+                <StudentPaymentsModal
+                    student={paymentsStudent}
+                    onClose={() => setPaymentsStudent(null)}
                 />
             )}
         </div>
@@ -1513,5 +1648,311 @@ export default function ManageStudents() {
                 <StudentsContent />
             </AdminLayout>
         </ProtectedRoute>
+    );
+}
+
+function StudentPaymentsModal({ student, onClose }) {
+    const { theme } = useAdminTheme();
+    const isLight = theme === "light";
+    const [payments, setPayments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [revertDoc, setRevertDoc] = useState(null);
+    const [revertLoading, setRevertLoading] = useState(false);
+    const [actionSuccess, setActionSuccess] = useState("");
+
+    const approvalDateStr = (() => {
+        if (!revertDoc) return null;
+        const raw = revertDoc.updated_at || revertDoc.approved_at;
+        if (!raw) return null;
+        try {
+            const d = new Date(raw);
+            return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+        } catch { return null; }
+    })();
+
+    const fetchStudentPayments = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await api.get(`/api/admin/students/${student.uid || student.id}/payments`);
+            setPayments(data);
+        } catch (err) {
+            if (!isSystemicError(err.message)) {
+                setError(err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [student]);
+
+    useEffect(() => {
+        fetchStudentPayments();
+    }, [fetchStudentPayments]);
+
+    const handleConfirmRevert = async () => {
+        if (!revertDoc) return;
+        setRevertLoading(true);
+        setError("");
+        setActionSuccess("");
+        try {
+            await api.put(`/api/admin/payments/${revertDoc.id}/revert`);
+            clearCache("admin_payments_*");
+            setActionSuccess(`Payment for ${MONTHS[(revertDoc.month || 1) - 1]} ${revertDoc.year} reverted to Unpaid.`);
+            setRevertDoc(null);
+            fetchStudentPayments();
+        } catch (err) {
+            if (!isSystemicError(err.message)) {
+                setError(err.message);
+            }
+        } finally {
+            setRevertLoading(false);
+        }
+    };
+
+    const statusBadge = (status) => {
+        if (status === "Paid") {
+            return {
+                label: "Paid",
+                color: isLight ? "#0d9488" : "#4af8e3"
+            };
+        }
+        if (status === "Pending_Verification") {
+            return {
+                label: "Pending",
+                color: isLight ? "#b45309" : "#facc15"
+            };
+        }
+        if (status === "Rejected") {
+            return {
+                label: "Rejected",
+                color: isLight ? "#ef4444" : "#ff6e84"
+            };
+        }
+        return {
+            label: "Unpaid",
+            color: isLight ? "#c2410c" : "#fb923c"
+        };
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60 transition-opacity">
+            <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden backdrop-blur-xl transition-all"
+                style={{
+                    backgroundColor: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(23, 25, 36, 0.92)',
+                    borderColor: isLight ? 'rgba(226, 232, 240, 0.8)' : 'var(--ad-card-border)',
+                    color: isLight ? '#0f172a' : 'var(--ad-text-primary)',
+                    boxShadow: isLight ? '0 25px 50px -12px rgba(0, 0, 0, 0.15)' : '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                }}
+            >
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b flex items-center justify-between gap-4" style={{ borderColor: isLight ? 'rgba(226, 232, 240, 0.8)' : 'var(--ad-divider)' }}>
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0"
+                            style={{
+                                backgroundColor: isLight ? 'rgba(59, 130, 246, 0.1)' : 'var(--ad-icon-bg)',
+                                borderColor: isLight ? 'rgba(59, 130, 246, 0.25)' : 'var(--ad-input-border)',
+                                color: isLight ? '#2563eb' : '#3b82f6'
+                            }}
+                        >
+                            <span className="material-symbols-outlined text-2xl">history</span>
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="font-extrabold text-lg tracking-wide truncate" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>
+                                {student.name}
+                            </h2>
+                            <p className="text-xs font-semibold" style={{ color: isLight ? '#64748b' : 'var(--ad-text-secondary)' }}>
+                                Payment History & Actions
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Inline Alert Badges in Header */}
+                    {actionSuccess && (
+                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold shrink-0 animate-fadeIn"
+                            style={{ backgroundColor: 'rgba(13, 148, 136, 0.1)', borderColor: 'rgba(13, 148, 136, 0.25)', color: isLight ? '#0d9488' : '#4af8e3' }}
+                        >
+                            <span className="material-symbols-outlined text-base">check_circle</span>
+                            <span>{actionSuccess}</span>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold shrink-0 animate-fadeIn"
+                            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)', color: isLight ? '#dc2626' : '#ef4444' }}
+                        >
+                            <span className="material-symbols-outlined text-base">error</span>
+                            <span>{error}</span>
+                        </div>
+                    )}
+
+                    <button onClick={onClose}
+                        className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer hover:opacity-80 font-bold shrink-0"
+                        style={{
+                            backgroundColor: isLight ? 'rgba(0, 0, 0, 0.04)' : 'var(--ad-icon-bg)',
+                            borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'var(--ad-input-border)',
+                            color: isLight ? '#475569' : 'var(--ad-text-secondary)'
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                {/* Small Screen Fallback Alert Banner */}
+                {(actionSuccess || error) && (
+                    <div className="sm:hidden px-6 py-2 border-b flex items-center gap-2 text-xs font-bold shrink-0"
+                        style={{
+                            backgroundColor: actionSuccess ? 'rgba(13, 148, 136, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            borderColor: isLight ? 'rgba(226, 232, 240, 0.8)' : 'var(--ad-divider)',
+                            color: actionSuccess ? (isLight ? '#0d9488' : '#4af8e3') : (isLight ? '#dc2626' : '#ef4444')
+                        }}
+                    >
+                        <span className="material-symbols-outlined text-base">{actionSuccess ? 'check_circle' : 'error'}</span>
+                        <span>{actionSuccess || error}</span>
+                    </div>
+                )}
+
+                {/* Content Body */}
+                <div className="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-12 gap-3">
+                            <span className="w-8 h-8 rounded-full border-2 border-[#3b82f6] border-t-transparent animate-spin" />
+                            <p className="text-xs font-semibold" style={{ color: isLight ? '#64748b' : 'var(--ad-text-secondary)' }}>Loading payment records...</p>
+                        </div>
+                    ) : payments.length === 0 ? (
+                        <div className="text-center py-12" style={{ color: isLight ? '#64748b' : 'var(--ad-text-secondary)' }}>
+                            <span className="material-symbols-outlined text-4xl opacity-30">payments</span>
+                            <p className="mt-2 text-sm font-semibold">No payment records found for this student.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-auto max-h-[65vh] custom-scrollbar relative">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 z-20" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)' }}>
+                                    <tr>
+                                        <th className="sticky top-0 left-0 z-30 pl-6 pr-4 py-3.5 text-xs font-bold uppercase tracking-widest border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)', boxShadow: '2px 0 6px -2px rgba(0, 0, 0, 0.08)' }}>Billing Cycle</th>
+                                        <th className="sticky top-0 z-20 px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-center border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Amount</th>
+                                        <th className="sticky top-0 z-20 px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-center border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Status</th>
+                                        <th className="sticky top-0 z-20 px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-center border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Mode</th>
+                                        <th className="sticky top-0 z-20 px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-center border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Cash Received By</th>
+                                        <th className="sticky top-0 z-20 px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-center border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Date</th>
+                                        <th className="sticky top-0 z-20 pl-4 pr-6 py-3.5 text-xs font-bold uppercase tracking-widest text-right border-b whitespace-nowrap" style={{ backgroundColor: isLight ? '#f1f5f9' : 'var(--ad-surface)', borderColor: isLight ? 'rgba(226, 232, 240, 0.9)' : 'var(--ad-divider)', color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {payments.map((p) => {
+                                        const sb = statusBadge(p.status);
+                                        const formatDate = (dateStr) => {
+                                            if (!dateStr) return "—";
+                                            try {
+                                                const d = new Date(dateStr);
+                                                return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+                                            } catch { return "—"; }
+                                        };
+                                        return (
+                                            <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] border-b last:border-b-0 transition-colors"
+                                                style={{ borderColor: isLight ? 'rgba(226, 232, 240, 0.6)' : 'var(--ad-divider)' }}
+                                            >
+                                                <td className="sticky left-0 z-10 pl-6 pr-4 py-3.5 text-sm font-extrabold whitespace-nowrap" style={{ fontFamily: "'Manrope', sans-serif", backgroundColor: isLight ? '#ffffff' : '#171924', color: isLight ? '#0f172a' : 'var(--ad-text-primary)', boxShadow: '2px 0 6px -2px rgba(0, 0, 0, 0.08)' }}>
+                                                    {MONTHS[(p.month || 1) - 1]} {p.year}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-center text-xs font-black whitespace-nowrap" style={{ color: isLight ? '#2563eb' : '#3b82f6' }}>
+                                                    ₹{(p.amount || 0).toLocaleString()}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                                                    <span className="text-xs font-black uppercase tracking-wider" style={{ color: sb.color }}>
+                                                        {sb.label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3.5 text-center text-xs font-semibold whitespace-nowrap" style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>
+                                                    {p.mode ? p.mode.charAt(0).toUpperCase() + p.mode.slice(1) : "—"}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-center text-xs font-semibold whitespace-nowrap" style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>
+                                                    {p.mode && p.mode.toLowerCase() === "offline"
+                                                        ? (p.teacher_name || "—")
+                                                        : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
+                                                </td>
+                                                <td className="px-4 py-3.5 text-center text-xs font-semibold whitespace-nowrap" style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>
+                                                    {p.status === "Paid" && p.updated_at ? formatDate(p.updated_at) : "—"}
+                                                </td>
+                                                <td className="pl-4 pr-6 py-3.5 text-right whitespace-nowrap">
+                                                    {p.status === "Paid" ? (
+                                                        <button onClick={() => setRevertDoc(p)}
+                                                            className="px-3 py-1.5 rounded-lg border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 hover:opacity-85 shadow-sm"
+                                                            style={{
+                                                                backgroundColor: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                                                                borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.25)',
+                                                                color: isLight ? '#dc2626' : '#ef4444'
+                                                            }}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                            Revert
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs font-semibold" style={{ color: isLight ? '#94a3b8' : 'var(--ad-text-secondary)' }}>—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Safety Confirmation Modal for Revert */}
+            {revertDoc && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+                    <div className="w-full max-w-md p-6 rounded-3xl border shadow-2xl space-y-4"
+                        style={{
+                            backgroundColor: isLight ? '#ffffff' : 'var(--ad-card-bg)',
+                            borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                            color: isLight ? '#0f172a' : 'var(--ad-text-primary)'
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-[#ef4444]/10 border border-[#ef4444]/30 flex items-center justify-center text-[#ef4444]">
+                                <span className="material-symbols-outlined text-2xl">warning</span>
+                            </div>
+                            <div>
+                                <h3 className="font-extrabold text-base" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>
+                                    Confirm Payment Revert
+                                </h3>
+                                <p className="text-xs text-[#ef4444] font-semibold">Critical Administrative Action</p>
+                            </div>
+                        </div>
+                        <p className="text-xs leading-relaxed" style={{ color: isLight ? '#475569' : 'var(--ad-text-secondary)' }}>
+                            Are you sure you want to revert the <strong style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>{MONTHS[(revertDoc.month || 1) - 1]} {revertDoc.year}</strong> payment for <strong style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>{student.name}</strong> from <span className="text-[#0d9488] font-bold">Paid</span> back to <span className="text-[#ef4444] font-bold">Unpaid</span>?
+                            <br /><br />
+                            <span className="font-extrabold text-[#dc2626] dark:text-[#ef4444]">Important:</span> If any distribution for {approvalDateStr ? <strong style={{ color: isLight ? '#0f172a' : 'var(--ad-text-primary)' }}>{approvalDateStr}</strong> : "this payment's date"} was already settled, that settlement will be removed so it can be re-settled.
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={() => setRevertDoc(null)} disabled={revertLoading}
+                                className="flex-1 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer hover:opacity-80"
+                                style={{
+                                    backgroundColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'var(--ad-icon-bg)',
+                                    borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'var(--ad-input-border)',
+                                    color: isLight ? '#475569' : 'var(--ad-text-secondary)'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button onClick={handleConfirmRevert} disabled={revertLoading}
+                                className="flex-1 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 hover:opacity-85 disabled:opacity-50"
+                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: isLight ? '#dc2626' : '#ef4444' }}
+                            >
+                                {revertLoading ? (
+                                    <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                ) : (
+                                    "Confirm Revert"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>,
+        document.body
     );
 }

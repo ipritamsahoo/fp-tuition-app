@@ -257,6 +257,32 @@ def unregister_fcm_token(body: FCMTokenBody, user=Depends(get_current_user)):
 
 
 # ──────────────────────────────────────────────
+# GET /api/auth/check-username
+# ──────────────────────────────────────────────
+@router.get("/check-username")
+def check_username_availability(username: str, user=Depends(get_current_user)):
+    """Check if a username or mobile is available or already taken."""
+    clean_username = username.strip().lower()
+    if not clean_username or len(clean_username) < 3:
+        return {"available": False, "reason": "Username must be at least 3 characters."}
+    
+    current_username = (user.get("username") or "").strip().lower()
+    current_email = (user.get("email") or "").strip().lower()
+    target_email = to_firebase_email(clean_username).lower()
+
+    if clean_username == current_username or target_email == current_email:
+        return {"available": False, "is_current": True, "reason": "This is your current username."}
+
+    try:
+        firebase_auth.get_user_by_email(target_email)
+        return {"available": False, "reason": "Username is already taken."}
+    except firebase_auth.UserNotFoundError:
+        return {"available": True, "reason": "Username is available!"}
+    except Exception as e:
+        return {"available": False, "reason": f"Check failed: {str(e)}"}
+
+
+# ──────────────────────────────────────────────
 # PUT /api/auth/update-credentials
 # ──────────────────────────────────────────────
 @router.put("/update-credentials")

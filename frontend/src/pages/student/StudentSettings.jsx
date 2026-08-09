@@ -117,6 +117,65 @@ function StudentSettingsContent() {
     const [credError, setCredError] = useState("");
     const [credSuccess, setCredSuccess] = useState("");
 
+    // Live username check states
+    const [checkingUsername, setCheckingUsername] = useState(false);
+    const [usernameStatus, setUsernameStatus] = useState({ available: null, reason: "" });
+    const checkUsernameTimerRef = useRef(null);
+
+    // Live debounced username check effect
+    useEffect(() => {
+        if (!usernameModalOpen) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: null, reason: "" });
+            if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+            return;
+        }
+
+        const trimmed = newUsername.trim().toLowerCase();
+        if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+
+        if (!trimmed) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: null, reason: "" });
+            return;
+        }
+
+        if (trimmed.length < 3) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: false, reason: "Must be at least 3 characters." });
+            return;
+        }
+
+        const currentUsername = (user?.username || user?.email?.replace(/@fp\.com$/, "") || "").trim().toLowerCase();
+        if (trimmed === currentUsername) {
+            setCheckingUsername(false);
+            setUsernameStatus({ available: false, isCurrent: true, reason: "This is your current username." });
+            return;
+        }
+
+        setCheckingUsername(true);
+        setUsernameStatus({ available: null, reason: "Checking availability..." });
+
+        checkUsernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+                setUsernameStatus({
+                    available: res.available,
+                    isCurrent: res.is_current,
+                    reason: res.reason
+                });
+            } catch (err) {
+                setUsernameStatus({ available: false, reason: err.message || "Failed to check username" });
+            } finally {
+                setCheckingUsername(false);
+            }
+        }, 350);
+
+        return () => {
+            if (checkUsernameTimerRef.current) clearTimeout(checkUsernameTimerRef.current);
+        };
+    }, [newUsername, usernameModalOpen, user?.username, user?.email]);
+
     const closeCredModals = () => {
         setUsernameModalOpen(false);
         setPasswordModalOpen(false);
@@ -127,6 +186,8 @@ function StudentSettingsContent() {
         setConfirmPassword("");
         setShowNewPassword(false);
         setShowConfirmPassword(false);
+        setCheckingUsername(false);
+        setUsernameStatus({ available: null, reason: "" });
     };
 
     const handleUsernameSubmit = async (e) => {
@@ -181,12 +242,12 @@ function StudentSettingsContent() {
 
     useEffect(() => {
         if (isAnyModalOpen) {
-            document.body.style.overflow = "hidden";
+            document.documentElement.classList.add("scroll-lock");
         } else {
-            document.body.style.overflow = "unset";
+            document.documentElement.classList.remove("scroll-lock");
         }
         return () => {
-            document.body.style.overflow = "unset";
+            document.documentElement.classList.remove("scroll-lock");
         };
     }, [isAnyModalOpen]);
 
@@ -233,7 +294,7 @@ function StudentSettingsContent() {
                             {user?.name || "User"}
                         </span>
                         <span
-                            className="text-xs font-semibold truncate mt-0.5"
+                            className="text-xs font-semibold truncate mt-0.5 flex items-center gap-1"
                             style={{
                                 color: accentColor,
                                 transition: 'transform 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.45s ease',
@@ -241,7 +302,10 @@ function StudentSettingsContent() {
                                 opacity: usernameHidden ? 1 : 0,
                             }}
                         >
-                            @{displayUsername}
+                            <span>@{displayUsername}</span>
+                            <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '13px', width: '13px', height: '13px', color: accentColor, fontVariationSettings: "'FILL' 1" }}>
+                                verified
+                            </span>
                         </span>
                     </div>
                 </div>,
@@ -274,16 +338,7 @@ function StudentSettingsContent() {
                 {/* ── Profile Header Card ── */}
 
                 <section className="relative">
-                    <div
-                        className="backdrop-blur-2xl p-8 rounded-[32px] ring-1 flex flex-col items-center text-center"
-                        style={{
-                            backgroundColor: isLight ? 'rgba(13,148,136,0.06)' : 'rgba(59,130,246,0.1)',
-                            boxShadow: isLight ? '0 8px 32px rgba(0,0,0,0.06)' : '0 20px 40px rgba(0,0,0,0.3)',
-                            ringColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                            borderWidth: 1, borderStyle: 'solid',
-                            borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)',
-                        }}
-                    >
+                    <div className="py-4 flex flex-col items-center text-center">
                         {/* Profile Picture */}
                         <div ref={avatarElRef} className="mb-4 flex items-center justify-center">
                             <ProfilePicture size={96} className="border-2 border-white/20" />
@@ -291,23 +346,24 @@ function StudentSettingsContent() {
                         <h2 ref={nameElRef} className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                             {user?.name || "User"}
                         </h2>
-                        <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold" style={{ color: accentColor }}>@{displayUsername}</p>
+                        <p ref={usernameElRef} className="tracking-wider mt-1 text-sm font-semibold flex items-center justify-center gap-1" style={{ color: accentColor }}>
+                            <span>@{displayUsername}</span>
+                            <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '14px', width: '14px', height: '14px', color: accentColor, fontVariationSettings: "'FILL' 1" }}>
+                                verified
+                            </span>
+                        </p>
                         {batchName && (
-                            <span
-                                className="mt-2 inline-block px-3 py-1 text-[10px] font-bold tracking-widest rounded-full"
+                            <p
+                                className="mt-2 text-xs sm:text-sm font-extrabold tracking-wide"
                                 style={{
-                                    backgroundColor: isLight ? "rgba(13,148,136,0.1)" : "rgba(59,130,246,0.08)",
-                                    color: isLight ? "#0d9488" : "#3b82f6",
-                                    border: `1px solid ${isLight ? "rgba(13,148,136,0.2)" : "rgba(59,130,246,0.15)"}`,
-                                    backdropFilter: "blur(12px)",
-                                    WebkitBackdropFilter: "blur(12px)",
+                                    color: accentColor,
                                     fontFamily: "'Manrope', sans-serif"
                                 }}
                             >
-                                Batch: {batchName}
-                            </span>
+                                BATCH: {batchName}
+                            </p>
                         )}
-                        <div className="mt-6 flex gap-2 flex-wrap justify-center">
+                        <div className="mt-3 flex gap-2 flex-wrap justify-center">
 
                             {user?.currentBadge === "prime" && (
                                 <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1"
@@ -378,7 +434,7 @@ function StudentSettingsContent() {
                                     <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
                                         <span className="material-symbols-outlined" style={{ color: accentColor }}>person</span>
                                     </div>
-                                    <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username or Mobile</span>
+                                    <span className="font-medium leading-snug" style={{ color: 'var(--st-text-primary)' }}>Change Username</span>
                                 </div>
                                 <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
                             </button>
@@ -645,17 +701,64 @@ function StudentSettingsContent() {
 
                             <form onSubmit={handleUsernameSubmit} className="space-y-5">
                                 <div>
-                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Username or Mobile</label>
-                                    <input
-                                        type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
-                                        placeholder="Enter new username or mobile" required
-                                        className="w-full px-5 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
-                                        style={{
-                                            backgroundColor: 'var(--st-icon-bg)',
-                                            border: `1px solid var(--st-input-border)`,
-                                            color: 'var(--st-text-primary)'
-                                        }}
-                                    />
+                                    <label className="block text-xs font-bold mb-2 ml-1 uppercase tracking-widest" style={{ color: 'var(--st-text-muted)' }}>New Username</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                                            placeholder="Enter new username" required
+                                            className="w-full pl-5 pr-12 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all placeholder:text-gray-400"
+                                            style={{
+                                                backgroundColor: 'var(--st-icon-bg)',
+                                                border: `1px solid ${
+                                                    usernameStatus.available === true
+                                                        ? (isLight ? '#0d9488' : '#4af8e3')
+                                                        : usernameStatus.available === false && !usernameStatus.isCurrent && newUsername.trim().length >= 3
+                                                        ? (isLight ? '#ef4444' : '#ff9dac')
+                                                        : 'var(--st-input-border)'
+                                                }`,
+                                                color: 'var(--st-text-primary)'
+                                            }}
+                                        />
+                                        {/* Right side live status indicator */}
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                                            {checkingUsername && (
+                                                <span className="material-symbols-outlined text-[18px] animate-spin opacity-70" style={{ color: accentColor }}>
+                                                    progress_activity
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === true && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    check_circle
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === false && !usernameStatus.isCurrent && newUsername.trim().length >= 3 && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                    cancel
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Helper status text */}
+                                    {newUsername.trim() && (
+                                        <div className="mt-2.5 ml-1 text-xs font-semibold flex items-center gap-1.5 transition-all">
+                                            {checkingUsername && (
+                                                <span className="opacity-70 animate-pulse" style={{ color: 'var(--st-text-muted)' }}>
+                                                    Checking availability...
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === true && (
+                                                <span style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    ✓ Username is available!
+                                                </span>
+                                            )}
+                                            {!checkingUsername && usernameStatus.available === false && (
+                                                <span style={{ color: usernameStatus.isCurrent ? 'var(--st-text-muted)' : (isLight ? '#ef4444' : '#ff9dac') }}>
+                                                    {usernameStatus.isCurrent ? "ℹ This is your current username" : `✕ ${usernameStatus.reason}`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex gap-3 pt-2">
@@ -664,7 +767,7 @@ function StudentSettingsContent() {
                                         style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-secondary)' }}>
                                         Cancel
                                     </button>
-                                    <button type="submit" disabled={credLoading}
+                                    <button type="submit" disabled={credLoading || checkingUsername || usernameStatus.available !== true}
                                         className={`flex-1 px-4 py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-40 cursor-pointer active:scale-95 border shadow-lg ${isLight
                                             ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
                                             : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
@@ -710,8 +813,7 @@ function StudentSettingsContent() {
                                 transform: "translateZ(0)", isolation: "isolate"
                             }}
                         >
-                            <h3 className="font-extrabold text-2xl mb-1 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Password</h3>
-                            <p className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: 'var(--st-text-muted)' }}>Security update required</p>
+                            <h3 className="font-extrabold text-2xl mb-6 tracking-tight text-center" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>Change Password</h3>
 
                             {credError && (
                                 <div className="mb-5 p-3 rounded-2xl text-xs font-bold text-center"

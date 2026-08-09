@@ -78,7 +78,12 @@ function AdminProfileContent() {
                     <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
                         {user?.name || "Admin User"}
                     </h2>
-                    <p className="tracking-wider mt-1 text-sm" style={{ color: 'var(--ad-text-secondary)' }}>{user?.email?.replace(/@fp\.com$/, "") || "admin"}</p>
+                    <p className="tracking-wider mt-1 text-sm font-semibold flex items-center justify-center gap-1" style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>
+                        <span>@{user?.email?.replace(/@fp\.com$/, "") || "admin"}</span>
+                        <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '14px', width: '14px', height: '14px', color: isLight ? "#0d9488" : "#3b82f6", fontVariationSettings: "'FILL' 1" }}>
+                            verified
+                        </span>
+                    </p>
                 </div>
             </section>
 

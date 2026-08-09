@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
@@ -22,26 +22,81 @@ function TeachersContent() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [showForm, setShowForm] = useState(false);
-    const [deleting, setDeleting] = useState(null);
     const [form, setForm] = useState({ name: "", username: "", password: "", batch_ids: [] });
     const [formLoading, setFormLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     // Edit state
     const [editingTeacher, setEditingTeacher] = useState(null);
+    const [initialUsername, setInitialUsername] = useState("");
     const [editForm, setEditForm] = useState({ name: "", username: "", batch_ids: [], password: "" });
     const [editLoading, setEditLoading] = useState(false);
     const [showEditPassword, setShowEditPassword] = useState(false);
 
+    // Live username check for edit teacher modal
+    const [checkingEditUsername, setCheckingEditUsername] = useState(false);
+    const [editUsernameStatus, setEditUsernameStatus] = useState({ available: null, reason: "" });
+    const checkEditUsernameTimerRef = useRef(null);
+
+    useEffect(() => {
+        if (!editingTeacher) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: null, reason: "" });
+            if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+            return;
+        }
+
+        const trimmed = (editForm.username || "").trim().toLowerCase();
+        if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+
+        if (!trimmed) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: null, reason: "" });
+            return;
+        }
+
+        if (trimmed.length < 3) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: false, reason: "Must be at least 3 characters." });
+            return;
+        }
+
+        const originalUsername = (initialUsername || "").trim().toLowerCase();
+        if (trimmed === originalUsername) {
+            setCheckingEditUsername(false);
+            setEditUsernameStatus({ available: true, isCurrent: true, reason: "This is current username." });
+            return;
+        }
+
+        setCheckingEditUsername(true);
+        setEditUsernameStatus({ available: null, reason: "Checking availability..." });
+
+        checkEditUsernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+                setEditUsernameStatus({
+                    available: res.available,
+                    isCurrent: res.is_current,
+                    reason: res.reason
+                });
+            } catch (err) {
+                setEditUsernameStatus({ available: false, reason: err.message || "Failed to check username" });
+            } finally {
+                setCheckingEditUsername(false);
+            }
+        }, 350);
+
+        return () => {
+            if (checkEditUsernameTimerRef.current) clearTimeout(checkEditUsernameTimerRef.current);
+        };
+    }, [editForm.username, editingTeacher, initialUsername]);
+
     // Devices modal state
     const [devicesTeacher, setDevicesTeacher] = useState(null);
 
-    // Delete confirmation state
-    const [deleteModalTeacher, setDeleteModalTeacher] = useState(null);
-
     // Disable body scroll when any modal is open
     useEffect(() => {
-        const isModalOpen = !!editingTeacher || !!deleteModalTeacher || !!devicesTeacher;
+        const isModalOpen = !!editingTeacher || !!devicesTeacher;
         if (isModalOpen) {
             document.body.style.overflow = "hidden";
         } else {
@@ -50,25 +105,7 @@ function TeachersContent() {
         return () => {
             document.body.style.overflow = "";
         };
-    }, [editingTeacher, deleteModalTeacher, devicesTeacher]);
-
-    const confirmDelete = async () => {
-        if (!deleteModalTeacher) return;
-        const uid = deleteModalTeacher.uid || deleteModalTeacher.id;
-        setDeleteModalTeacher(null);
-        setDeleting(uid);
-        try {
-            await api.delete(`/api/admin/teachers/${uid}`);
-            setSuccess("Teacher removed successfully.");
-            fetchData();
-        } catch (err) {
-            if (!isSystemicError(err.message)) {
-                setError(err.message);
-            }
-        } finally {
-            setDeleting(null);
-        }
-    };
+    }, [editingTeacher, devicesTeacher]);
 
     const fetchData = useCallback(async () => {
         if (!getCache("admin_teachers")) {
@@ -146,6 +183,7 @@ function TeachersContent() {
 
     const startEdit = (teacher) => {
         setEditingTeacher(teacher.uid || teacher.id);
+        setInitialUsername(teacher.username || "");
         setEditForm({
             name: teacher.name || "",
             username: teacher.username || "",
@@ -157,6 +195,7 @@ function TeachersContent() {
 
     const cancelEdit = () => {
         setEditingTeacher(null);
+        setInitialUsername("");
         setError("");
         setEditForm({ name: "", username: "", batch_ids: [], password: "" });
         setShowEditPassword(false);
@@ -197,7 +236,7 @@ function TeachersContent() {
     return (
         <div className="space-y-6">
             <div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 md:pr-36">
                     {/* Hide title on mobile as it's in the Sub-Page Header */}
                     <div className="hidden md:block">
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
@@ -289,7 +328,7 @@ function TeachersContent() {
                                     color: 'var(--ad-text-primary)'
                                 }}
                             />
-                            <input placeholder="Username or Mobile" type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required
+                            <input placeholder="Username" type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required
                                 className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
                                 style={{
                                     backgroundColor: 'var(--ad-input-bg)',
@@ -409,15 +448,66 @@ function TeachersContent() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Username or Mobile</label>
-                                    <input placeholder="Username or Mobile" type="text" value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                                        className="w-full px-4 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--ad-primary)]/50 transition-colors"
-                                        style={{
-                                            backgroundColor: 'var(--ad-input-bg)',
-                                            borderColor: 'var(--ad-input-border)',
-                                            color: 'var(--ad-text-primary)'
-                                        }}
-                                    />
+                                    <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>Username</label>
+                                    <div className="relative">
+                                        <input placeholder="Username" type="text" value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                                            className={`w-full pl-4 pr-12 py-3.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 transition-colors ${
+                                                editUsernameStatus.available === true && !editUsernameStatus.isCurrent
+                                                    ? "focus:ring-[#0d9488]/50"
+                                                    : editUsernameStatus.available === false
+                                                    ? "border-[#ff6e84] focus:ring-[#ff6e84]/50"
+                                                    : "focus:ring-[var(--ad-primary)]/50"
+                                            }`}
+                                            style={{
+                                                backgroundColor: 'var(--ad-input-bg)',
+                                                borderColor: editUsernameStatus.available === false
+                                                    ? '#ff6e84'
+                                                    : editUsernameStatus.available === true && !editUsernameStatus.isCurrent
+                                                    ? (isLight ? '#0d9488' : '#4af8e3')
+                                                    : 'var(--ad-input-border)',
+                                                color: 'var(--ad-text-primary)'
+                                            }}
+                                        />
+                                        {/* Right side status indicator */}
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                                            {checkingEditUsername && (
+                                                <span className="material-symbols-outlined text-[18px] animate-spin opacity-70" style={{ color: 'var(--ad-primary)' }}>
+                                                    progress_activity
+                                                </span>
+                                            )}
+                                            {!checkingEditUsername && editUsernameStatus.available === true && !editUsernameStatus.isCurrent && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    check_circle
+                                                </span>
+                                            )}
+                                            {!checkingEditUsername && editUsernameStatus.available === false && (
+                                                <span className="material-symbols-outlined text-[20px]" style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                    cancel
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Helper status text */}
+                                    {editForm.username.trim() && (
+                                        <div className="mt-2 ml-1 text-xs font-semibold flex items-center gap-1.5 transition-all">
+                                            {checkingEditUsername && (
+                                                <span className="opacity-70 animate-pulse" style={{ color: 'var(--ad-text-secondary)' }}>
+                                                    Checking availability...
+                                                </span>
+                                            )}
+                                            {!checkingEditUsername && editUsernameStatus.available === true && !editUsernameStatus.isCurrent && (
+                                                <span style={{ color: isLight ? '#0d9488' : '#4af8e3' }}>
+                                                    ✓ Username is available!
+                                                </span>
+                                            )}
+                                            {!checkingEditUsername && editUsernameStatus.available === false && (
+                                                <span style={{ color: isLight ? '#ef4444' : '#ff9dac' }}>
+                                                    ✕ {editUsernameStatus.reason}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-[13px] font-bold tracking-wide uppercase mb-2" style={{ color: 'var(--ad-text-secondary)' }}>New Password (Optional)</label>
@@ -471,7 +561,7 @@ function TeachersContent() {
                                 <button type="button" onClick={cancelEdit} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer" style={{ color: 'var(--ad-text-secondary)' }}>
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={editLoading}
+                                <button type="submit" disabled={editLoading || checkingEditUsername || editUsernameStatus.available === false}
                                     className="px-6 py-3 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
                                     style={{
                                         backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(199, 153, 255, 0.1)',
@@ -492,67 +582,7 @@ function TeachersContent() {
                     document.body
                 )}
 
-                {/* Delete Confirmation Modal */}
-                {deleteModalTeacher && createPortal(
-                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-                        <div className="relative w-full max-w-lg rounded-[2rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.2)] animate-fade-in-up m-auto border"
-                             style={{
-                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(25, 30, 45, 0.85)',
-                                 borderColor: isLight ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 110, 132, 0.3)',
-                                 backdropFilter: 'blur(80px) saturate(2.5)',
-                                 WebkitBackdropFilter: 'blur(80px) saturate(2.5)'
-                             }}
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-bold text-xl flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#ef4444' : '#ff6e84' }}>
-                                    <span className="material-symbols-outlined">delete</span>
-                                    Remove Teacher
-                                </h3>
-                                <button onClick={() => setDeleteModalTeacher(null)} 
-                                        className="transition-colors cursor-pointer p-2 rounded-full flex items-center justify-center border hover:opacity-80"
-                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-divider)', color: 'var(--ad-text-secondary)' }}
-                                >
-                                    <span className="material-symbols-outlined">close</span>
-                                </button>
-                            </div>
-                            <div className="space-y-4 mb-6" style={{ color: 'var(--ad-text-secondary)' }}>
-                                <p className="text-base font-medium" style={{ color: 'var(--ad-text-primary)' }}>Are you sure you want to remove <span className="font-bold" style={{ color: 'var(--ad-text-primary)' }}>{deleteModalTeacher.name}</span>?</p>
-                                <div className="border p-4 rounded-xl text-sm leading-relaxed"
-                                     style={{
-                                         backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                                         borderColor: 'rgba(239, 68, 68, 0.15)',
-                                         color: isLight ? '#ef4444' : '#ff9dac'
-                                     }}
-                                >
-                                    <p className="font-bold mb-1">If you remove this teacher:</p>
-                                    <ul className="list-disc list-inside space-y-1 ml-1 font-medium">
-                                        <li>They will be logged out of all devices immediately.</li>
-                                        <li>They will no longer have access to the teacher portal.</li>
-                                        <li>Their assigned batches will lose this instructor.</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-4 pt-6 border-t font-semibold" style={{ borderColor: 'var(--ad-divider)' }}>
-                                <button onClick={() => setDeleteModalTeacher(null)} className="px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:opacity-85 transition-all cursor-pointer" style={{ color: 'var(--ad-text-secondary)' }}>
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmDelete}
-                                    className="px-6 py-3 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
-                                    style={{
-                                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                                        borderColor: 'rgba(239, 68, 68, 0.25)',
-                                        color: isLight ? '#ef4444' : '#ff6e84'
-                                    }}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                    Remove
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
+
 
                 {/* Mobile: Card layout */}
                 <div className="space-y-4 md:hidden">
@@ -596,16 +626,6 @@ function TeachersContent() {
                                         style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
                                     >
                                         <span className="material-symbols-outlined text-[20px]">edit</span>
-                                    </button>
-                                    <button onClick={() => setDeleteModalTeacher(t)} disabled={deleting === (t.uid || t.id)}
-                                        className="p-2.5 rounded-xl border text-xs transition-all disabled:opacity-50 cursor-pointer flex-1 flex justify-center hover:opacity-80"
-                                        style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
-                                    >
-                                        {deleting === (t.uid || t.id) ? (
-                                            <span className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-text-secondary)' }} />
-                                        ) : (
-                                            <span className="material-symbols-outlined text-[20px]">delete</span>
-                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -681,17 +701,6 @@ function TeachersContent() {
                                                 >
                                                     <span className="material-symbols-outlined text-[16px]">edit</span>
                                                     <span className="text-xs font-bold tracking-wide uppercase">Edit</span>
-                                                </button>
-                                                <button onClick={() => setDeleteModalTeacher(t)} disabled={deleting === (t.uid || t.id)}
-                                                    className="px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2 hover:opacity-85"
-                                                    style={{ backgroundColor: 'var(--ad-icon-bg)', borderColor: 'var(--ad-input-border)', color: 'var(--ad-text-secondary)' }}
-                                                >
-                                                    {deleting === (t.uid || t.id) ? (
-                                                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--ad-text-secondary)' }} />
-                                                    ) : (
-                                                        <span className="material-symbols-outlined text-[16px]">delete</span>
-                                                    )}
-                                                    <span className="text-xs font-bold tracking-wide uppercase">Remove</span>
                                                 </button>
                                             </div>
                                         </td>

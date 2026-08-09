@@ -92,7 +92,14 @@ export default function NotificationsPage() {
             >
                 <div className="flex items-center px-4 h-16 gap-4">
                     <button 
-                        onClick={() => navigate(-1)} 
+                        onClick={() => {
+                            if (window.history.state && window.history.state.idx > 0) {
+                                navigate(-1);
+                            } else {
+                                const homePath = user?.role === "teacher" ? "/teacher" : (user?.role === "admin" ? "/admin" : "/student");
+                                navigate(homePath, { replace: true });
+                            }
+                        }} 
                         className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all active:scale-90 cursor-pointer border"
                         style={{ backgroundColor: `var(${prefix}icon-bg)`, color: `var(${prefix}text-primary)`, borderColor: `var(${prefix}input-border)` }}
                     >

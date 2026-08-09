@@ -243,7 +243,6 @@ export function AdminLayoutInner({ children }) {
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
     const handleCheckUpdate = async () => {
-        setDesktopProfileOpen(false);
         setUpdateChecking(true);
         const result = await window.checkForPwaUpdate();
         setUpdateChecking(false);
@@ -263,6 +262,9 @@ export function AdminLayoutInner({ children }) {
     // Close profile dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
+            if (event.target && (event.target.closest('.fixed.inset-0') || event.target.closest('[role="dialog"]'))) {
+                return;
+            }
             if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
                 setDesktopProfileOpen(false);
             }
@@ -271,17 +273,16 @@ export function AdminLayoutInner({ children }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Disable body scroll when FAB menu is open on mobile
+    // Lock body scroll using html.scroll-lock class (works on iOS Safari too)
     useEffect(() => {
-        if (fabOpen) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
+        const isAnyOpen = Boolean(fabOpen || notifOpen || desktopProfileOpen || picUploadOpen);
+        if (isAnyOpen) {
+            document.documentElement.classList.add("scroll-lock");
+            return () => {
+                document.documentElement.classList.remove("scroll-lock");
+            };
         }
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [fabOpen]);
+    }, [fabOpen, notifOpen, desktopProfileOpen, picUploadOpen]);
 
     // ── Bottom nav: kinetic sliding indicator ──
     const activeIdx = adminBottomNav.findIndex(item =>
@@ -383,6 +384,8 @@ export function AdminLayoutInner({ children }) {
                             pathname !== "/admin/payments" && 
                             pathname !== "/admin/distribution";
 
+    const isHomeMobile = pathname === "/admin";
+
     const getSubPageTitle = () => {
         if (pathname === "/admin/profile") return "Profile";
         const item = adminSidebarNav.find(i => i.href !== "/admin" && pathname.startsWith(i.href));
@@ -436,48 +439,44 @@ export function AdminLayoutInner({ children }) {
                 )}
             </div>
 
-            {/* ── Mobile TopAppBar (Main Pages) ── */}
-            {!isSubPageMobile && (
+            {/* ── Mobile TopAppBar (Homepage Only - Native App Style Header) ── */}
+            {isHomeMobile && (
                 <header 
-                    className="md:hidden fixed top-4 left-4 right-4 z-50 flex justify-between items-center pl-3 pr-3 h-14 backdrop-blur-2xl animate-fade-in overflow-hidden rounded-[28px]" 
+                    className="md:hidden flex justify-between items-center px-4 pt-3.5 pb-1 animate-fade-in relative z-50 select-none" 
                     style={{ 
+                        backgroundColor: 'transparent',
                         transform: "translateZ(0)", 
                         isolation: "isolate",
-                        backgroundColor: 'var(--ad-nav-bg)',
-                        borderColor: 'var(--ad-nav-border)',
-                        boxShadow: 'var(--ad-nav-shadow)',
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
                     }}
                 >
-                    <div className="flex items-center gap-3 select-none">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border bg-[#0c0e17] flex items-center justify-center" style={{ borderColor: 'var(--ad-logo-border)', boxShadow: '0 4px 12px var(--ad-logo-shadow)' }}>
+                    <div className="flex items-center gap-2.5 select-none">
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--ad-logo-border)', backgroundColor: isLight ? '#f0f4ff' : '#0c0e17' }}>
                             <img 
                                 src={logoSrc} 
                                 alt="Logo" 
-                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                className="w-full h-full object-cover scale-125 pointer-events-none select-none" 
                                 draggable="false"
                                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
                             />
                         </div>
-                        <h1 className="text-xl font-bold tracking-tighter" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>FP Finance</h1>
+                        <h1 className="text-lg font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>FP Finance</h1>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                         <button 
                             onClick={() => navigate("/notifications")}
-                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer"
+                            className="relative flex items-center justify-center transition-all active:scale-95 duration-200 cursor-pointer p-1"
                             style={{ color: 'var(--ad-text-secondary)' }}
                         >
-                            <span className="material-symbols-outlined">notifications</span>
+                            <span className="material-symbols-outlined text-[24px]">notifications</span>
                             {unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-[#ff6e84] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border animate-pulse" style={{ borderColor: 'var(--ad-page-bg)' }}>
+                                <span className="absolute top-0 right-0 min-w-[15px] h-[15px] bg-[#ff6e84] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border animate-pulse" style={{ borderColor: 'var(--ad-page-bg)' }}>
                                     {unreadCount > 9 ? "9+" : unreadCount}
                                 </span>
                             )}
                         </button>
                         <div 
-                            className="transition-all cursor-pointer"
+                            className="transition-all cursor-pointer active:scale-95 ml-1"
                             onClick={() => navigate("/admin/profile")}
                         >
                             <ProfilePicture size={34} />
@@ -572,24 +571,37 @@ export function AdminLayoutInner({ children }) {
                             }}
                         >
                             {/* Profile Header Card */}
-                            <div className="py-3.5 px-5 rounded-[1.5rem] border flex flex-col items-center text-center relative overflow-hidden" style={{ backgroundColor: 'var(--ad-accent-bg)', borderColor: 'var(--ad-divider)' }}>
+                            <div className="shrink-0 p-4 rounded-[1.5rem] border flex items-center gap-4 text-left relative overflow-hidden" style={{ backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(59, 130, 246, 0.1)', borderColor: 'var(--ad-divider)' }}>
                                 <div className="absolute -top-4 -right-4 w-24 h-24 pointer-events-none blur-xl" style={{ backgroundImage: `radial-gradient(circle, ${isLight ? 'rgba(13,148,136,0.3)' : 'rgba(59,130,246,0.3)'} 0%, transparent 70%)` }} />
-                                <div className="relative mb-2">
-                                    <div className="absolute -inset-1 bg-gradient-to-tr from-[var(--ad-primary)] to-[#4af8e3] rounded-full blur-sm opacity-40" />
-                                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#0c0e17]">
+                                
+                                {/* Avatar Left with Gradient Glow */}
+                                <div className="relative shrink-0">
+                                    <div className="absolute -inset-1 bg-gradient-to-tr from-[#0d9488] via-[#3b82f6] to-[#4af8e3] rounded-full blur-sm opacity-60 dark:opacity-75" />
+                                    <div className="relative w-12 h-12 rounded-full overflow-hidden border flex items-center justify-center" style={{ borderColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)' }}>
                                         <ProfilePicture size={48} />
                                     </div>
                                 </div>
-                                <h3 className="text-base font-extrabold tracking-tight leading-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
-                                    {user?.name || "Admin User"}
-                                </h3>
-                                <p className="text-[11px] mt-0.5" style={{ color: 'var(--ad-text-secondary)' }}>{user?.email?.replace(/@fp\.com$/, "") || "admin"}</p>
+
+                                {/* Details Right */}
+                                <div className="flex flex-col justify-center min-w-0 flex-1">
+                                    <h3 className="text-base font-extrabold tracking-tight leading-tight truncate" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>
+                                        {user?.name || "Admin User"}
+                                    </h3>
+                                    <div className="flex items-center gap-1 mt-0.5 min-w-0 max-w-full">
+                                        <span className="text-xs font-semibold truncate" style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>
+                                            @{user?.email?.replace(/@fp\.com$/, "") || "admin"}
+                                        </span>
+                                        <span className="material-symbols-outlined shrink-0 select-none leading-none flex items-center justify-center" style={{ fontSize: '13px', width: '13px', height: '13px', color: isLight ? "#0d9488" : "#3b82f6", fontVariationSettings: "'FILL' 1" }}>
+                                            verified
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Settings List */}
                             <div className="space-y-2">
                                 <button 
-                                    onClick={() => { setDesktopProfileOpen(false); setPicUploadOpen(true); }}
+                                    onClick={() => setPicUploadOpen(true)}
                                     className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--ad-accent)]/30"
                                     style={{ backgroundColor: 'var(--ad-hover-bg)' }}
                                 >
@@ -602,12 +614,7 @@ export function AdminLayoutInner({ children }) {
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
                                 
-                                <AppLockSetting 
-                                    accentColor={isLight ? "#0d9488" : "#3b82f6"} 
-                                    isLight={isLight} 
-                                    variant="dropdown" 
-                                    onSelect={() => setDesktopProfileOpen(false)} 
-                                />
+
 
                                 {/* Theme Toggle */}
                                 <button 
@@ -767,7 +774,7 @@ export function AdminLayoutInner({ children }) {
 
 
             {/* ── Main Content ── */}
-            <main className={`relative z-10 pt-24 ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pb-8 px-6 md:px-12 md:ml-64 space-y-8 flex-1`}>
+            <main className={`relative z-10 ${isHomeMobile ? "pt-1.5" : (isSubPageMobile ? "pt-24" : "pt-6")} ${!isSubPageMobile ? "pb-24" : "pb-12"} md:pt-8 md:pb-8 px-3.5 sm:px-6 md:px-12 md:ml-64 flex-1`}>
                 <div ref={bounceRef} className="max-w-7xl mx-auto" style={{ willChange: "transform" }}>
                     {children}
                 </div>
@@ -855,47 +862,54 @@ export function AdminLayoutInner({ children }) {
 
             {/* ── Mobile: Bottom Navigation Bar ── */}
             {!isSubPageMobile && (
-                <div className="md:hidden fixed bottom-6 left-6 right-6 z-40 overflow-hidden rounded-full isolate">
-                    <nav className="relative flex items-center backdrop-blur-2xl border overflow-hidden rounded-full" 
-                         style={{ 
-                             transform: "translateZ(0)", 
-                             isolation: "isolate",
-                             backgroundColor: 'var(--ad-nav-bg)',
-                             borderColor: 'var(--ad-nav-border)',
-                             boxShadow: 'var(--ad-nav-shadow)'
-                         }}
-                    >
-                        {/* ── Sliding blue circle indicator ── */}
-                        {activeIdx >= 0 && (
+                <nav
+                    className="md:hidden fixed bottom-6 left-4 right-4 z-40 overflow-hidden rounded-full isolate flex items-center h-[60px]"
+                    style={{
+                        background: 'var(--ad-nav-bg)',
+                        border: '1px solid var(--ad-nav-border)',
+                        boxShadow: 'var(--ad-nav-shadow)',
+                        backdropFilter: 'blur(28px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(28px) saturate(1.8)',
+                        transform: "translateZ(0)", isolation: "isolate"
+                    }}
+                >
+                    {/* ── Sliding blue circle indicator ── */}
+                    {activeIdx >= 0 && (
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
+                            style={{
+                                width: '48px',
+                                height: '48px',
+                                left: `calc(6px + ${indicatorIdx} * ((100% - 60px) / ${adminBottomNav.length - 1}))`,
+                                transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                            }}
+                        >
                             <div
-                                className="absolute top-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none will-change-[left]"
+                                className="w-12 h-12 rounded-full"
                                 style={{
-                                    width: `${100 / adminBottomNav.length}%`,
-                                    left: `${indicatorIdx * (100 / adminBottomNav.length)}%`,
-                                    transition: 'left 500ms cubic-bezier(0.34, 1.3, 0.64, 1)',
+                                    backgroundColor: 'var(--ad-accent)',
+                                    boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                                }}
+                            />
+                        </div>
+                    )}
+                    {/* ── Nav items ── */}
+                    {adminBottomNav.map((item, i) => {
+                        const isActive = i === indicatorIdx;
+                        return (
+                            <Link
+                                key={item.href}
+                                to={item.href}
+                                onClick={() => {
+                                    if (navigator.vibrate) navigator.vibrate(40);
+                                }}
+                                className="absolute top-0 bottom-0 z-10 flex items-center justify-center rounded-full active:scale-90"
+                                style={{
+                                    width: '48px',
+                                    left: `calc(6px + ${i} * ((100% - 60px) / ${adminBottomNav.length - 1}))`,
                                 }}
                             >
-                                <div 
-                                    className="w-[48px] h-[48px] rounded-full" 
-                                    style={{
-                                        backgroundColor: 'var(--ad-accent)',
-                                        boxShadow: `0 0 10px ${isLight ? 'rgba(13,148,136,0.4)' : 'rgba(59,130,246,0.4)'}`
-                                    }}
-                                />
-                            </div>
-                        )}
-                        {/* ── Nav items ── */}
-                        {adminBottomNav.map((item, i) => {
-                            const isActive = i === indicatorIdx;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    to={item.href}
-                                    onClick={() => {
-                                        if (navigator.vibrate) navigator.vibrate(40);
-                                    }}
-                                    className="flex-1 relative z-10 flex items-center justify-center h-[66px] rounded-full active:scale-90"
-                                >
+                                <div className="relative flex items-center justify-center">
                                     <span
                                         ref={el => iconRefs.current[i] = el}
                                         className="material-symbols-outlined text-[22px]"
@@ -905,12 +919,14 @@ export function AdminLayoutInner({ children }) {
                                             fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
                                             willChange: 'transform, color',
                                         }}
-                                    >{item.icon}</span>
-                                </Link>
-                            )
-                        })}
-                    </nav>
-                </div>
+                                    >
+                                        {item.icon}
+                                    </span>
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </nav>
             )}
             <ProfilePicUpload isOpen={picUploadOpen} onClose={() => setPicUploadOpen(false)} />
 

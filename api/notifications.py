@@ -16,7 +16,7 @@ _ADMIN_CACHE = {
 }
 
 
-def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_uid: str = "", extra_data: dict = None):
+def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_uid: str = "", target_url: str = "", extra_data: dict = None):
     """Send FCM data-only push notification to a list of device tokens.
     Silently ignores invalid/expired tokens and cleans them up.
     extra_data: optional dict of additional string key-value pairs to merge into the FCM data payload."""
@@ -29,13 +29,16 @@ def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_
         "type": notif_type,
         "target_uid": target_uid,
     }
-    # Merge any extra fields (e.g. notice_id) — FCM data values must be strings
+    if target_url:
+        payload["target_url"] = target_url
     if extra_data:
         for k, v in extra_data.items():
             payload[str(k)] = str(v)
 
     message = messaging.MulticastMessage(
         data=payload,
+        tokens=tokens,
+    )
         tokens=tokens,
     )
 
@@ -85,22 +88,22 @@ def _get_fcm_tokens(uid: str) -> list:
     return []
 
 
-def notify_user(uid: str, message: str, notif_type: str, title: str = "FP Finance", tokens: list = None, extra_data: dict = None):
+def notify_user(uid: str, message: str, notif_type: str, title: str = "FP Finance", tokens: list = None, target_url: str = "", extra_data: dict = None):
     """Send FCM push notification to a single user."""
     if tokens is None:
         tokens = _get_fcm_tokens(uid)
     if tokens:
-        _send_fcm(tokens, title, message, notif_type, target_uid=uid, extra_data=extra_data)
+        _send_fcm(tokens, title, message, notif_type, target_uid=uid, target_url=target_url, extra_data=extra_data)
 
 
-def notify_users(uids: list, message: str, notif_type: str, title: str = "FP Finance", extra_data: dict = None):
+def notify_users(uids: list, message: str, notif_type: str, title: str = "FP Finance", target_url: str = "", extra_data: dict = None):
     """Send FCM push notification to multiple users.
     Sends individually to ensure each recipient gets their own target_uid.
     extra_data: optional dict of additional string fields to include in every recipient's FCM payload."""
     for uid in uids:
         # Optimization: We could batch this, but since we need a distinct target_uid
         # per user, we call _send_fcm per user. Firebase Admin SDK handles this efficiently.
-        notify_user(uid, message, notif_type, title, extra_data=extra_data)
+        notify_user(uid, message, notif_type, title, target_url=target_url, extra_data=extra_data)
 
 
 def notify_admins(message: str, notif_type: str, title: str = "FP Finance"):

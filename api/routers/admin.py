@@ -482,6 +482,100 @@ def admin_reject(payment_id: str, user=Depends(require_role("admin"))):
     return {"message": "Payment rejected", "payment_id": payment_id}
 
 
+@router.put("/payments/{payment_id}/revert")
+def admin_revert_payment(payment_id: str, user=Depends(require_role("admin"))):
+    """Revert an approved (Paid) payment back to Unpaid status and recalculate/reset student badge."""
+    payment_ref = db.collection("payments").document(payment_id)
+    payment_doc = payment_ref.get()
+
+    if not payment_doc.exists:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    payment = payment_doc.to_dict()
+    if payment.get("status") != "Paid":
+        raise HTTPException(status_code=400, detail="Only approved (Paid) payments can be reverted")
+
+    student_id = payment.get("student_id")
+    p_month = payment.get("month")
+    p_year = payment.get("year")
+
+    # Update payment status to Unpaid and reset mode, teacher, and approval fields to None
+    payment_ref.update({
+        "status": "Unpaid",
+        "mode": None,
+        "teacher_id": None,
+        "teacher_name": None,
+        "approved_by": None,
+        "approved_at": None,
+        "requested_at": None,
+        "transaction_id": None,
+        "screenshot_url": None,
+        "screenshot_public_id": None,
+        "reverted_by": user["uid"],
+        "reverted_at": ts_now(),
+        "updated_at": ts_now(),
+    })
+
+    upd_payment = payment_ref.get()
+    if upd_payment.exists:
+        backup_document("payments", payment_id, upd_payment.to_dict())
+
+    # Reset student user badge fields completely on payment revert
+    if student_id:
+        try:
+            student_ref = db.collection("users").document(student_id)
+            student_doc = student_ref.get()
+            if student_doc.exists:
+                student_ref.update({
+                    "current_badge": None,
+                    "badge_month": None,
+                    "badge_year": None,
+                    "badge_animation_pending": False,
+                })
+                upd_student = student_ref.get()
+                if upd_student.exists:
+                    backup_document("users", student_id, upd_student.to_dict())
+        except Exception as e:
+            print(f"Failed to reset student badge on revert: {e}")
+
+        try:
+            # Notify student
+            month_num = p_month or 1
+            year_num = p_year or ""
+            month_str = f"{MONTHS_FULL[month_num - 1]} {year_num}"
+            notify_user(
+                student_id,
+                f"Your payment for {month_str} has been revised by administration. Please contact support if you have any questions.",
+                "payment_reverted",
+                title="Payment Reverted"
+            )
+        except Exception as e:
+            print(f"Revert notification failed: {e}")
+
+    # Delete settlement snapshot if this payment's approval date & batch were settled
+    p_updated_at = payment.get("updated_at") or payment.get("approved_at") or payment.get("created_at")
+    if p_updated_at:
+        try:
+            p_date_str = str(p_updated_at)[:10]  # YYYY-MM-DD
+            p_batch_id = payment.get("batch_id")
+
+            # Query distribution snapshots for this date
+            snap_query = db.collection("distribution_snapshots").where(filter=FieldFilter("date", "==", p_date_str)).stream()
+            for snap_doc in snap_query:
+                snap_data = snap_doc.to_dict()
+                s_batch = snap_data.get("batch_id")
+                # If snapshot matches payment's batch or covers all batches
+                if not s_batch or s_batch == p_batch_id or s_batch == "unassigned":
+                    delete_document_backup("distribution_snapshots", snap_doc.id)
+                    db.collection("distribution_snapshots").document(snap_doc.id).delete()
+                    print(f"Deleted distribution_snapshot {snap_doc.id} from Firestore & Google Drive for date {p_date_str} due to payment revert.")
+        except Exception as e:
+            print(f"Failed to delete distribution_snapshot on revert: {e}")
+
+    return {"message": "Payment approval successfully reverted", "payment_id": payment_id}
+
+
+
 
 
 
@@ -1133,6 +1227,23 @@ def admin_update_student_status(uid: str, req: StudentStatusUpdate, user=Depends
     return {"message": f"Student account {status_txt}"}
 
 
+@router.get("/students/{student_id}/payments")
+def admin_get_student_payments(student_id: str, user=Depends(require_role("admin"))):
+    """Fetch all payments for a specific student."""
+    try:
+        payments_stream = db.collection("payments") \
+            .where(filter=FieldFilter("student_id", "==", student_id)) \
+            .stream()
+        
+        result = [serialize_doc(p) for p in payments_stream]
+        result.sort(key=lambda x: (x.get("year", 0), x.get("month", 0)), reverse=True)
+        return result
+    except Exception as e:
+        print(f"Error fetching payments for student {student_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch student payments: {str(e)}")
+
+
+
 
 
 
@@ -1767,6 +1878,22 @@ def admin_distribution(
         if batch_id and p_doc.get("batch_id") != batch_id:
             continue
         matching_payments.append(p_doc)
+
+    # Fetch live student names from users collection using payment's student_id
+    student_ids = {p.get("student_id") for p in matching_payments if p.get("student_id")}
+    student_names = {}
+    for sid in student_ids:
+        try:
+            s_doc = db.collection("users").document(sid).get()
+            if s_doc.exists:
+                student_names[sid] = s_doc.to_dict().get("name")
+        except Exception:
+            pass
+
+    for p in matching_payments:
+        sid = p.get("student_id")
+        if sid and sid in student_names and student_names[sid]:
+            p["student_name"] = student_names[sid]
 
     # 2. Fetch settlement snapshots for summary aggregation
     snapshot_query = db.collection("distribution_snapshots") \

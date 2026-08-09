@@ -47,11 +47,29 @@ body.allow-overscroll {
     overscroll-behavior-y: auto !important;
 }
 
+/* ── Modal scroll lock ── */
+html.scroll-lock,
+html.scroll-lock body {
+    overflow: hidden !important;
+    overscroll-behavior: contain !important;
+}
+
 /* Inputs should not zoom on mobile */
 input,
 select,
 textarea {
     font-size: 16px !important;
+}
+
+/* Hide browser built-in password reveal icons to prevent double-eye icon overlap */
+input::-ms-reveal,
+input::-ms-clear,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
 }
 
 select {
@@ -113,12 +131,26 @@ select option {
 }
 
 @media (max-width: 767px) {
-    ::-webkit-scrollbar {
-        display: none;
+    html, body {
+        scrollbar-gutter: auto !important;
     }
 
-    body {
-        scrollbar-width: none;
+    * {
+        -ms-overflow-style: none !important;
+        scrollbar-width: none !important;
+    }
+
+    *::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
     }
 }
 

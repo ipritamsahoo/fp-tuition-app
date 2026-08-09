@@ -163,7 +163,7 @@ function BatchesContent() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:pr-36">
                 {/* Hide title on mobile as it's in the Sub-Page Header */}
                 <div className="hidden md:block">
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>

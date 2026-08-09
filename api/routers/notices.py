@@ -120,6 +120,7 @@ def create_notice(
         .stream()
 
     student_recipients = [doc.id for doc in student_docs]
+    teacher_name = user.get("name", "Teacher")
 
     # Send notifications to students (Title: Teacher's Name, Body: Notice Content)
     # notice_id is included so the service worker can call POST /api/notices/{id}/read
@@ -127,21 +128,23 @@ def create_notice(
     if student_recipients:
         notify_users(
             uids=student_recipients,
-            message=req.content.strip(),
+            message=f"{teacher_name} posted a new notice.",
             notif_type="notice",
             title=user.get("name", "Teacher"),
+            target_url="/student/notices",
             extra_data={"notice_id": doc_ref.id}
         )
 
-    # Query and send notifications to other teachers assigned to this batch (Title: Batch Name, Body: Teacher Name: Notice Content)
+    # Query and send notifications to other teachers assigned to this batch
     other_teachers = [tid for tid in batch_data.get("teacher_ids", []) if tid != user["uid"]]
     if other_teachers:
-        teacher_name = user.get("name", "Teacher")
+        batch_name = batch_data.get("batch_name", "your batch")
         notify_users(
             uids=other_teachers,
-            message=f"{teacher_name}: {req.content.strip()}",
+            message=f"{teacher_name} posted a notice in {batch_name}.",
             notif_type="notice",
-            title=batch_data.get("batch_name", "Unknown Batch")
+            title="New Notice",
+            target_url="/teacher/notices"
         )
 
     # Clean up expired notices in the background
