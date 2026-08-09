@@ -33,7 +33,7 @@ export default function LeaderGallerySlider() {
         async function fetchGallery() {
             try {
                 setLoading(true);
-                const data = await api.get("/api/student/leader-gallery?month=1");
+                const data = await api.get("/api/student/leader-gallery");
                 if (isMounted) {
                     setChampions(data?.champions || []);
                     setMonth(data?.month || new Date().getMonth() + 1);

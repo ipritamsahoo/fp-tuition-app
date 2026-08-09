@@ -39,8 +39,6 @@ def _send_fcm(tokens: list, title: str, body: str, notif_type: str = "", target_
         data=payload,
         tokens=tokens,
     )
-        tokens=tokens,
-    )
 
     try:
         response = messaging.send_each_for_multicast(message)
