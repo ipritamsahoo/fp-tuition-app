@@ -17,6 +17,12 @@ firebase.initializeApp({
 });
 
 import { get, set } from "idb-keyval";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import { registerRoute, NavigationRoute } from "workbox-routing";
+import { CacheFirst, NetworkFirst } from "workbox-strategies";
+import { ExpirationPlugin } from "workbox-expiration";
+import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import { enable as enableNavigationPreload } from "workbox-navigation-preload";
 
 const messaging = firebase.messaging();
 
@@ -195,12 +201,6 @@ self.addEventListener("notificationclick", (event) => {
 // ═══════════════════════════════════════════
 // WORKBOX: Precaching & Runtime Caching
 // ═══════════════════════════════════════════
-import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-import { registerRoute, NavigationRoute } from "workbox-routing";
-import { CacheFirst, NetworkFirst } from "workbox-strategies";
-import { ExpirationPlugin } from "workbox-expiration";
-import { CacheableResponsePlugin } from "workbox-cacheable-response";
-import { enable as enableNavigationPreload } from "workbox-navigation-preload";
 
 // Enable navigation preload — allows the browser to start loading
 // the page in parallel with service worker boot, eliminating the
