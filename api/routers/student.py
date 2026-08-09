@@ -461,6 +461,97 @@ def student_get_leaderboard(
         raise HTTPException(status_code=500, detail=f"Failed to fetch leaderboard: {str(e)}")
 
 
+# ──────────────────────────────────────────────
+# GET /api/student/leader-gallery
+# ──────────────────────────────────────────────
+@router.get("/leader-gallery")
+def student_get_leader_gallery(
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    user=Depends(require_role("student")),
+):
+    """Get the #1 fastest payer champion from every batch for a billing cycle.
+
+    Used to populate the Leader Gallery slider on the Student Dashboard homepage.
+    Returns one champion entry per batch, sorted by batch name.
+    """
+    if not month:
+        month = 1  # Default to January for testing
+    if not year:
+        now = datetime.now(IST)
+        year = now.year
+
+    try:
+        # ── Fetch all batches ──
+        batches_stream = db.collection("batches").stream()
+        batches = []
+        for b in batches_stream:
+            data = b.to_dict()
+            data["id"] = b.id
+            if data.get("is_active") is False or data.get("status") == "inactive":
+                continue
+            batches.append(data)
+
+        if not batches:
+            return {"month": month, "year": year, "champions": []}
+
+        champions = []
+
+        for batch in batches:
+            batch_id = batch["id"]
+            batch_name = batch.get("batch_name") or batch.get("name") or "Unknown Batch"
+
+            # ── Fetch Paid payments for this batch + month + year ──
+            paid_stream = db.collection("payments") \
+                .where(filter=FieldFilter("batch_id", "==", batch_id)) \
+                .where(filter=FieldFilter("month", "==", month)) \
+                .where(filter=FieldFilter("year", "==", year)) \
+                .where(filter=FieldFilter("status", "==", "Paid")) \
+                .stream()
+
+            paid_payments = []
+            for p in paid_stream:
+                data = p.to_dict()
+                data["id"] = p.id
+                for k, v in data.items():
+                    if hasattr(v, "isoformat"):
+                        data[k] = v.isoformat()
+                paid_payments.append(data)
+
+            if not paid_payments:
+                continue  # Skip batches with no paid students this cycle
+
+            # ── Sort by requested_at ascending → #1 is the fastest payer ──
+            paid_payments.sort(key=lambda x: str(x.get("requested_at", "") or "9999"))
+            top_payment = paid_payments[0]
+
+            # ── Fetch student profile ──
+            student_doc = db.collection("users").document(top_payment["student_id"]).get()
+            student_data = student_doc.to_dict() if student_doc.exists else {}
+
+            # Skip disabled students
+            if student_data.get("is_disabled", False) or student_data.get("status") == "disabled":
+                continue
+
+            champions.append({
+                "batch_id": batch_id,
+                "batch_name": batch_name,
+                "student_id": top_payment["student_id"],
+                "student_name": student_data.get("name", top_payment.get("student_name", "Unknown")),
+                "profile_pic_url": student_data.get("profile_pic_url"),
+                "paid_at": top_payment.get("updated_at", top_payment.get("requested_at", "")),
+                "rank": 1,
+            })
+
+        # Sort champions by batch name for consistent ordering
+        champions.sort(key=lambda x: x["batch_name"])
+
+        return {"month": month, "year": year, "champions": champions}
+
+    except Exception as e:
+        print(f"Error fetching leader gallery: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch leader gallery: {str(e)}")
+
 
 # ──────────────────────────────────────────────
 # POST /api/student/payments/{payment_id}/acknowledge-rejection

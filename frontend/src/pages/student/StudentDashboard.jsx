@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useStudentTheme } from "@/context/StudentThemeContext";
 import { setCache } from "@/lib/memoryCache";
 import { StudentDashboardSkeleton } from "@/components/Skeletons";
+import LeaderGallerySlider from "@/components/LeaderGallerySlider";
 
 function StudentDashboardContent() {
     const { user } = useAuth();
@@ -54,6 +55,9 @@ function StudentDashboardContent() {
                     </p>
                 </div>
             </section>
+
+            {/* ── Leader Gallery (FP Batch Champions Slider) ── */}
+            <LeaderGallerySlider />
 
             {/* ── Hero Banner Card ("Learn Smarter") ── */}
             <section
