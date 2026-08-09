@@ -72,9 +72,6 @@ messaging.onBackgroundMessage((payload) => {
     _incrementBadge();
 
     self.registration.showNotification(title, options);
-});
-
-<<<<<<< HEAD
 // ─────────────────────────────────────────────────
 // PWA App Icon Badge Helpers
 // ─────────────────────────────────────────────────
