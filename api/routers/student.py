@@ -16,6 +16,7 @@ from utils import ts_now, serialize_doc, IST
 from notifications import notify_user, notify_admins
 from google.cloud.firestore_v1.base_query import FieldFilter
 from backup_service import backup_document
+from leader_gallery import update_leader_gallery_champion, recalculate_leader_gallery  # noqa: F401 — re-exported for admin.py
 
 router = APIRouter(prefix="/api/student", tags=["Student"])
 MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -442,8 +443,6 @@ def student_get_leaderboard(
         # ── Compute cohort progress percentage ──
         cohort_progress = round((total_paid / total_students * 100)) if total_students > 0 else 0
 
-        # Note: available_months removed — frontend uses hardcoded month/year dropdowns
-        # and does not consume this field. Removing saves N Firestore reads per call.
         return {
             "month": month,
             "year": year,
@@ -461,99 +460,67 @@ def student_get_leaderboard(
         raise HTTPException(status_code=500, detail=f"Failed to fetch leaderboard: {str(e)}")
 
 
+
+# update_leader_gallery_champion and recalculate_leader_gallery
+# are defined in api/leader_gallery.py and imported above.
+# They are also used directly by admin.py.
+
+
 # ──────────────────────────────────────────────
 # GET /api/student/leader-gallery
 # ──────────────────────────────────────────────
 @router.get("/leader-gallery")
 def student_get_leader_gallery(
-    month: Optional[int] = None,
-    year: Optional[int] = None,
     user=Depends(require_role("student")),
 ):
-    """Get the #1 fastest payer champion from every batch for a billing cycle.
+    """Get the batch champions from the leader_gallery collection.
 
-    Used to populate the Leader Gallery slider on the Student Dashboard homepage.
-    Returns one champion entry per batch, sorted by batch name.
+    Returns one champion per batch (sorted by batch_name), with profile_pic_url
+    fetched live from each student's user document to ensure freshness.
+    Total Reads: ~8 (leader_gallery docs) + ~8 (users docs) = ~16 Reads.
     """
-    now = datetime.now(IST)
-    req_month = month or now.month
-    req_year = year or now.year
-
     try:
-        # ── Fetch all active batches ──
-        batches_stream = db.collection("batches").stream()
-        batches = []
-        for b in batches_stream:
-            data = b.to_dict()
-            data["id"] = b.id
-            if data.get("is_active") is False or data.get("status") == "inactive":
-                continue
-            batches.append(data)
+        gallery_stream = db.collection("leader_gallery").stream()
+        gallery_docs = []
+        for doc in gallery_stream:
+            data = doc.to_dict()
+            if data:
+                gallery_docs.append(data)
 
-        if not batches:
-            return {"month": req_month, "year": req_year, "champions": []}
+        if not gallery_docs:
+            return {"champions": []}
 
-        def get_champions_for_cycle(m, y):
-            champs = []
-            for batch in batches:
-                batch_id = batch["id"]
-                batch_name = batch.get("batch_name") or batch.get("name") or "Unknown Batch"
+        champions = []
+        for entry in gallery_docs:
+            student_id = entry.get("student_id")
+            profile_pic_url = None
+            pic_version = None
 
-                paid_stream = db.collection("payments") \
-                    .where(filter=FieldFilter("batch_id", "==", batch_id)) \
-                    .where(filter=FieldFilter("month", "==", m)) \
-                    .where(filter=FieldFilter("year", "==", y)) \
-                    .where(filter=FieldFilter("status", "==", "Paid")) \
-                    .stream()
+            if student_id:
+                user_doc = db.collection("users").document(student_id).get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    # Skip disabled students
+                    if user_data.get("is_disabled") or user_data.get("status") == "disabled":
+                        continue
+                    profile_pic_url = user_data.get("profile_pic_url")
+                    pic_version = user_data.get("pic_version") or profile_pic_url
 
-                paid_payments = []
-                for p in paid_stream:
-                    data = p.to_dict()
-                    data["id"] = p.id
-                    for k, v in data.items():
-                        if hasattr(v, "isoformat"):
-                            data[k] = v.isoformat()
-                    paid_payments.append(data)
+            champions.append({
+                "batch_id": entry.get("batch_id"),
+                "batch_name": entry.get("batch_name"),
+                "student_id": student_id,
+                "student_name": entry.get("student_name"),
+                "profile_pic_url": profile_pic_url,
+                "pic_version": pic_version,
+                "month": entry.get("month"),
+                "year": entry.get("year"),
+                "requested_at": str(entry.get("requested_at") or ""),
+            })
 
-                if not paid_payments:
-                    continue
-
-                paid_payments.sort(key=lambda x: str(x.get("requested_at", "") or "9999"))
-                top_payment = paid_payments[0]
-
-                student_doc = db.collection("users").document(top_payment["student_id"]).get()
-                student_data = student_doc.to_dict() if student_doc.exists else {}
-
-                if student_data.get("is_disabled", False) or student_data.get("status") == "disabled":
-                    continue
-
-                champs.append({
-                    "batch_id": batch_id,
-                    "batch_name": batch_name,
-                    "student_id": top_payment["student_id"],
-                    "student_name": student_data.get("name", top_payment.get("student_name", "Unknown")),
-                    "profile_pic_url": student_data.get("profile_pic_url"),
-                    "paid_at": top_payment.get("updated_at", top_payment.get("requested_at", "")),
-                    "rank": 1,
-                })
-
-            champs.sort(key=lambda x: x["batch_name"])
-            return champs
-
-        # Try requested cycle first
-        champions = get_champions_for_cycle(req_month, req_year)
-        active_month = req_month
-        active_year = req_year
-
-        # If no query month was explicitly requested and current month is empty, search recent months
-        if not champions and month is None:
-            for m in range(now.month, 0, -1):
-                champions = get_champions_for_cycle(m, req_year)
-                if champions:
-                    active_month = m
-                    break
-
-        return {"month": active_month, "year": active_year, "champions": champions}
+        # Sort by batch_name
+        champions.sort(key=lambda x: x.get("batch_name") or "")
+        return {"champions": champions}
 
     except Exception as e:
         print(f"Error fetching leader gallery: {e}")

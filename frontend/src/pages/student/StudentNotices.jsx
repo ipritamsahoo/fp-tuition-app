@@ -128,25 +128,8 @@ function StudentNoticesContent() {
                 )).then(() => {
                     // Dispatch custom event to refresh layout counters
                     window.dispatchEvent(new CustomEvent("notices-read"));
-                    // Clear the PWA app icon badge — student has now read the notices
-                    if ("serviceWorker" in navigator) {
-                        navigator.serviceWorker.ready.then((reg) => {
-                            reg.active?.postMessage({ type: "CLEAR_BADGE" });
-                        }).catch(() => {});
-                    }
-                    try { navigator.clearAppBadge?.(); } catch { /* not supported */ }
                 });
-            } else {
-                // No unread notices on this page — badge should already be 0,
-                // but sync it just in case (handles edge cases like token expiry)
-                if ("serviceWorker" in navigator) {
-                    navigator.serviceWorker.ready.then((reg) => {
-                        reg.active?.postMessage({ type: "CLEAR_BADGE" });
-                    }).catch(() => {});
-                }
-                try { navigator.clearAppBadge?.(); } catch { /* not supported */ }
             }
-
         } catch (err) {
             if (!isSystemicError(err.message)) {
                 setError(err.message || "Failed to fetch notices");

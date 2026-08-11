@@ -30,6 +30,7 @@ from utils import ts_now, serialize_doc
 from notifications import notify_user, notify_users, notify_admins
 from gdrive import delete_folder_from_gdrive
 from backup_service import backup_document, delete_document_backup
+from leader_gallery import update_leader_gallery_champion, recalculate_leader_gallery
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -217,6 +218,17 @@ def admin_approve_batch(req: BatchActionPayload, user=Depends(require_role("admi
         upd = payment_ref.get()
         if upd.exists:
             backup_document("payments", pid, upd.to_dict())
+
+    # ── Update Leader Gallery champion for each approved payment (1 Read + 0-1 Write each) ──
+    for _, payment, _ in payment_docs:
+        try:
+            update_leader_gallery_champion(
+                batch_id=payment.get("batch_id", ""),
+                batch_name=payment.get("batch_name", ""),
+                payment=payment,
+            )
+        except Exception as e:
+            print(f"[leader_gallery] hook failed on batch approve: {e}")
 
     # Save badge on student doc if we have student_id
     if student_id and last_badge_tier:
@@ -420,6 +432,16 @@ def admin_approve(payment_id: str, user=Depends(require_role("admin"))):
         except Exception as e:
             print(f"Badge save to user doc failed: {e}")
 
+    # ── Update Leader Gallery champion (1 Read + 0-1 Write) ──
+    try:
+        update_leader_gallery_champion(
+            batch_id=payment.get("batch_id", ""),
+            batch_name=payment.get("batch_name", ""),
+            payment=payment,
+        )
+    except Exception as e:
+        print(f"[leader_gallery] hook failed on single approve: {e}")
+
     # Notify student
     if student_id:
         month_num = payment.get("month", 1)
@@ -515,6 +537,27 @@ def admin_revert_payment(payment_id: str, user=Depends(require_role("admin"))):
         "reverted_at": ts_now(),
         "updated_at": ts_now(),
     })
+
+    # ── Recalculate Leader Gallery only if reverted student WAS the current champion ──
+    try:
+        p_batch_id = payment.get("batch_id", "")
+        p_month = payment.get("month")
+        p_year = payment.get("year")
+        p_student_id = payment.get("student_id", "")
+        p_batch_name = payment.get("batch_name", "")
+        if p_batch_id and p_month and p_year:
+            gallery_doc = db.collection("leader_gallery").document(p_batch_id).get()
+            if gallery_doc.exists:
+                gallery_data = gallery_doc.to_dict()
+                is_champion = (
+                    gallery_data.get("student_id") == p_student_id
+                    and gallery_data.get("month") == p_month
+                    and gallery_data.get("year") == p_year
+                )
+                if is_champion:
+                    recalculate_leader_gallery(p_batch_id, p_batch_name, p_month, p_year)
+    except Exception as e:
+        print(f"[leader_gallery] hook failed on revert: {e}")
 
     upd_payment = payment_ref.get()
     if upd_payment.exists:
@@ -730,6 +773,18 @@ def admin_update_batch(batch_id: str, req: BatchCreate, user=Depends(require_rol
     upd_batch = batch_ref.get()
     if upd_batch.exists:
         backup_document("batches", batch_id, upd_batch.to_dict())
+
+    # ── Sync batch_name to leader_gallery if it exists ──
+    try:
+        gallery_ref = db.collection("leader_gallery").document(batch_id)
+        if gallery_ref.get().exists:
+            gallery_ref.update({"batch_name": batch_name_clean, "updated_at": ts_now()})
+            updated_gallery = gallery_ref.get()
+            if updated_gallery.exists:
+                backup_document("leader_gallery", batch_id, updated_gallery.to_dict())
+    except Exception as e:
+        print(f"[leader_gallery] batch_name sync failed for {batch_id}: {e}")
+
     return {"message": f"Batch '{batch_name_clean}' updated"}
 
 
@@ -806,7 +861,14 @@ def admin_delete_batch(batch_id: str, user=Depends(require_role("admin"))):
         except Exception as e:
             print(f"[GDrive] Batch folder delete failed for '{batch_name}': {e}")
 
-    # 5. FINALIZE: Delete the batch itself
+    # 5. CLEANUP: Delete leader_gallery document for this batch
+    try:
+        db.collection("leader_gallery").document(batch_id).delete()
+        delete_document_backup("leader_gallery", batch_id)
+    except Exception as e:
+        print(f"[leader_gallery] cleanup failed on batch delete for {batch_id}: {e}")
+
+    # 6. FINALIZE: Delete the batch itself
     batch_ref.delete()
     delete_document_backup("batches", batch_id)
 

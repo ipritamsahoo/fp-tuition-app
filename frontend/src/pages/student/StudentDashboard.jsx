@@ -73,9 +73,6 @@ function StudentDashboardContent() {
                 </div>
             </section>
 
-            {/* ── Leader Gallery (FP Batch Champions Slider) ── */}
-            <LeaderGallerySlider />
-
             {/* ── Hero Banner Card ("Learn Smarter") ── */}
             <section
                 className="relative rounded-[32px] p-6 sm:p-8 overflow-hidden transition-all duration-300 shadow-[0_12px_32px_-8px_rgba(99,102,241,0.12)] border"
@@ -115,6 +112,9 @@ function StudentDashboardContent() {
                     </button>
                 </div>
             </section>
+
+            {/* ── Leader Gallery (FP Batch Champions Slider) ── */}
+            <LeaderGallerySlider />
 
             {/* ── 2 Mini Metric Cards (Side-by-Side Borderless Soft Glass Themes) ── */}
             <section className="grid grid-cols-2 gap-3 sm:gap-4">

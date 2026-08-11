@@ -1,0 +1,664 @@
+/* =====================================================
+   TOP STUDENT CARD
+   Exact Replica of Design Screenshots (Light + Dark)
+===================================================== */
+
+.top-student-card {
+  --gold: #d99a2d;
+  --gold-light: #f2c45d;
+  --gold-dark: #a86c16;
+
+  position: relative;
+  width: 100%;
+  max-width: 1050px;
+  min-height: auto;
+
+  margin: 15px auto;
+  padding: 75px 55px 24px;
+
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 26px;
+
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    color 0.3s ease;
+}
+
+/* =====================================================
+   LIGHT THEME
+===================================================== */
+
+.theme-light {
+  --card-bg: rgba(255, 255, 255, 0.78);
+  --card-bg-secondary: rgba(255, 253, 248, 0.65);
+
+  --text-primary: #000000;
+  --text-secondary: #666666;
+
+  --border: rgba(240, 197, 103, 0.6);
+
+  --info-bg-start: rgba(255, 255, 255, 0.8);
+  --info-bg-end: rgba(255, 253, 248, 0.6);
+
+  --info-border: rgba(243, 226, 195, 0.7);
+
+  --icon-bg: #ffffff;
+  --icon-border: #e3ae43;
+
+  --divider: #eedebf;
+
+  background:
+    radial-gradient(
+      circle at 20% 50%,
+      rgba(218, 161, 48, 0.08),
+      transparent 40%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.82),
+      rgba(255, 250, 242, 0.65)
+    );
+
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+
+  border: 1.5px solid var(--border);
+
+  box-shadow:
+    0 20px 50px rgba(217, 154, 45, 0.14),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -1.5px 2px rgba(217, 154, 45, 0.12);
+}
+
+/* =====================================================
+   DARK THEME
+===================================================== */
+
+.theme-dark {
+  --card-bg: #090a0e;
+  --card-bg-secondary: #0e0f14;
+
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;
+
+  --border: #a66f20;
+
+  --info-bg-start: #14161c;
+  --info-bg-end: #0f1015;
+
+  --info-border: #382e1e;
+
+  --icon-bg: #0f1015;
+  --icon-border: #dca133;
+
+  --divider: #4d3d22;
+
+  background:
+    radial-gradient(
+      circle at 25% 50%,
+      rgba(213, 150, 35, 0.06),
+      transparent 35%
+    ),
+    linear-gradient(
+      145deg,
+      var(--card-bg),
+      var(--card-bg-secondary)
+    );
+
+  border: 1.5px solid var(--border);
+
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(255, 190, 50, 0.02);
+}
+
+/* Inner Glow */
+.top-student-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 25px;
+  pointer-events: none;
+  box-shadow: inset 0 0 30px rgba(255, 183, 47, 0.02);
+}
+
+/* =====================================================
+   RANK RIBBON (3D FOLDED GOLD BANNER)
+===================================================== */
+
+.rank-ribbon-container {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ribbon-front {
+  position: relative;
+  min-width: 270px;
+  height: 46px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #000000;
+  background: linear-gradient(
+    180deg,
+    #fae188 0%,
+    #f2be44 35%,
+    #d4921b 75%,
+    #b0710a 100%
+  );
+  border-radius: 4px;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  box-shadow:
+    0 8px 20px rgba(160, 100, 15, 0.35),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.25);
+  z-index: 3;
+}
+
+.ribbon-star {
+  color: #ffffff;
+  font-size: 17px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* Ribbon Tails (Positioned 10px lower behind front bar) */
+.ribbon-tail {
+  position: absolute;
+  top: 10px;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(
+    180deg,
+    #e5a730 0%,
+    #b37512 60%,
+    #885304 100%
+  );
+  z-index: 1;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+}
+
+.ribbon-tail-left {
+  left: -32px;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%, 35% 50%, 0 0);
+}
+
+.ribbon-tail-right {
+  right: -32px;
+  clip-path: polygon(0 0, 100% 0, 65% 50%, 100% 100%, 0 100%);
+}
+
+/* 3D Under-fold Dark Triangular Shadows */
+.ribbon-fold {
+  position: absolute;
+  top: 48px;
+  width: 14px;
+  height: 10px;
+  background: #593603;
+  z-index: 2;
+}
+
+.ribbon-fold-left {
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.ribbon-fold-right {
+  right: 0;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+/* Light Theme Ribbon Specific Light Colors */
+.theme-light .ribbon-front {
+  background: linear-gradient(
+    180deg,
+    #fff5b8 0%,
+    #fde373 35%,
+    #f7c844 75%,
+    #e5ab20 100%
+  );
+  box-shadow:
+    0 8px 22px rgba(247, 200, 68, 0.45),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1.5px 2px rgba(180, 120, 10, 0.2);
+}
+
+.theme-light .ribbon-tail {
+  background: linear-gradient(
+    180deg,
+    #f7c844 0%,
+    #e5ab20 60%,
+    #c48b0e 100%
+  );
+  box-shadow: 0 4px 10px rgba(229, 171, 32, 0.3);
+}
+
+.theme-light .ribbon-fold {
+  background: #966606;
+}
+
+/* =====================================================
+   TOP-RIGHT BACKGROUND LAUREL WREATH IMAGE & NUMBER
+===================================================== */
+
+.rank-decoration {
+  position: absolute;
+  top: 15px;
+  right: 25px;
+  width: 175px;
+  height: 175px;
+  opacity: 0.35;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.theme-dark .rank-decoration {
+  opacity: 0.38;
+}
+
+.rank-laurel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(216, 148, 32, 0.18));
+}
+
+/* =====================================================
+   STUDENT CONTENT (PHOTO + INFO LAYOUT)
+===================================================== */
+
+.student-content {
+  display: flex;
+  align-items: center;
+  gap: 55px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Photo Section */
+.student-photo-section {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 18px;
+}
+
+/* Outer Thin Gold Ring */
+.photo-ring-outer {
+  width: 238px;
+  height: 238px;
+  border-radius: 50%;
+  padding: 9px;
+  border: 2px solid #eab338;
+  background-color: var(--card-bg);
+  box-shadow: 0 12px 35px rgba(234, 179, 56, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Thick Metallic Gold Inner Ring */
+.photo-ring-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  padding: 8px;
+  background: linear-gradient(135deg, #f7d57f 0%, #d99a2d 45%, #a86c16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.6), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.student-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 7px solid var(--card-bg);
+  background-color: var(--card-bg);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+  touch-action: manipulation;
+}
+
+/* TOP Crown Badge Overlapping Bottom-Right */
+.top-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 10px;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  padding: 5.5px;
+  background: linear-gradient(135deg, #f7d57f 0%, #d99a2d 50%, #a86c16 100%);
+  box-shadow: 0 8px 22px rgba(200, 131, 22, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.top-badge-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 3px rgba(200, 135, 25, 0.25);
+  gap: 2px;
+}
+
+.top-badge-inner span {
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  color: #df9c20;
+}
+
+/* Student Info Section */
+.student-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+  margin-top: 22px;
+}
+
+/* =====================================================
+   AUTO MARQUEE OVERFLOW SCROLL
+===================================================== */
+.marquee-container {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  display: block;
+}
+
+.marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marquee-text.animate-marquee {
+  animation: marqueeScroll 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes marqueeScroll {
+  0%, 20% {
+    transform: translateX(0);
+  }
+  75%, 85% {
+    transform: translateX(var(--marquee-dist, -50px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.student-info h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name-line {
+  width: 140px;
+  height: 3px;
+  background: linear-gradient(to right, #d99a2d, #f2c45d, transparent);
+  border-radius: 2px;
+  margin-top: -8px;
+  margin-bottom: 6px;
+}
+
+/* Info Box Clean Layout (Green Box Area) */
+.info-item {
+  display: flex;
+  align-items: stretch;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  gap: 12px;
+  box-shadow: none;
+}
+
+.info-divider {
+  width: 3px;
+  align-self: stretch;
+  min-height: 32px;
+  background: linear-gradient(180deg, #f2c45d 0%, #d99a2d 100%);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.info-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.info-content strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =====================================================
+   RESPONSIVE DESIGN (HORIZONTAL ON ALL SCREENS)
+===================================================== */
+
+@media (max-width: 868px) {
+  .top-student-card {
+    padding: 58px 18px 28px;
+    min-height: 220px;
+    border-radius: 22px;
+  }
+
+  .rank-ribbon-container {
+    top: 4px;
+    transform: translateX(-50%) scale(0.50);
+  }
+
+  .rank-decoration {
+    top: 10px;
+    right: 10px;
+    width: 90px;
+    height: 90px;
+    opacity: 0.25;
+  }
+
+  .student-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+  }
+
+  .student-photo-section {
+    margin-top: 0;
+  }
+
+  .photo-ring-outer {
+    width: 135px;
+    height: 135px;
+    padding: 5px;
+  }
+
+  .photo-ring-inner {
+    padding: 5px;
+  }
+
+  .student-photo {
+    border-width: 4px;
+  }
+
+  .top-badge {
+    width: 42px;
+    height: 42px;
+    bottom: 4px;
+    right: 2px;
+    padding: 3px;
+  }
+
+  .top-badge-inner svg {
+    width: 13px;
+    height: 10px;
+  }
+
+  .top-badge-inner span {
+    font-size: 8.5px;
+  }
+
+  .student-info {
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
+    text-align: left;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .student-info h1 {
+    font-size: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .name-line {
+    width: 80px;
+    height: 2px;
+    margin-top: -6px;
+    margin-bottom: 2px;
+  }
+
+  .info-item {
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+    padding: 2px 0;
+    gap: 8px;
+    background: transparent;
+    border: none;
+  }
+
+  .info-divider {
+    height: 26px;
+  }
+
+  .info-label {
+    font-size: 8.5px;
+  }
+
+  .info-content strong {
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-student-card {
+    padding: 52px 14px 24px;
+    min-height: 200px;
+    border-radius: 18px;
+  }
+
+  .rank-ribbon-container {
+    top: 2px;
+    transform: translateX(-50%) scale(0.42);
+  }
+
+  .student-content {
+    gap: 12px;
+  }
+
+  .photo-ring-outer {
+    width: 115px;
+    height: 115px;
+    padding: 4px;
+  }
+
+  .top-badge {
+    width: 36px;
+    height: 36px;
+    bottom: 2px;
+    right: 0px;
+    padding: 2.5px;
+  }
+
+  .top-badge-inner svg {
+    width: 11px;
+    height: 8px;
+  }
+
+  .top-badge-inner span {
+    font-size: 7.5px;
+  }
+
+  .student-info h1 {
+    font-size: 15px;
+  }
+
+  .info-item {
+    padding: 2px 0;
+    gap: 6px;
+  }
+
+  .info-divider {
+    height: 24px;
+  }
+
+  .info-label {
+    font-size: 8px;
+  }
+
+  .info-content strong {
+    font-size: 11px;
+  }
+}

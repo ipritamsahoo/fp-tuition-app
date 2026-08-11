@@ -1,5 +1,4 @@
 import { auth } from "./firebase";
-import { set as idbSet } from "idb-keyval";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -20,9 +19,6 @@ export async function apiFetch(endpoint, options = {}) {
     if (auth.currentUser) {
         token = await auth.currentUser.getIdToken();
         localStorage.setItem("idToken", token);
-        // Mirror token to IndexedDB so the Service Worker can read it
-        // for background "Mark as Read" API calls (SW cannot access localStorage)
-        idbSet("fp_auth_token", token).catch(() => {});
     } else {
         token = localStorage.getItem("idToken");
     }
