@@ -358,12 +358,6 @@ def student_get_leaderboard(
     Returns top 5 fastest payers, current student's position, and stats.
     If month/year not provided, defaults to current month.
     """
-    # Default to current month/year
-    if not month or not year:
-        now = datetime.now(IST)
-        month = now.month
-        year = now.year
-
     try:
         # ── Get student's batch ──
         student_batch_id = user.get("batch_id")
@@ -373,6 +367,24 @@ def student_get_leaderboard(
                 "is_current_paid": False, "has_bill": False, "total_paid": 0,
                 "total_students": 0, "cohort_progress": 0, "available_months": [],
             }
+
+        # ── Fetch latest generated month from batch document ──
+        latest_month = None
+        latest_year = None
+        batch_doc = db.collection("batches").document(student_batch_id).get()
+        if batch_doc.exists:
+            batch_data = batch_doc.to_dict()
+            gen_months = batch_data.get("generated_months", [])
+            if gen_months:
+                sorted_gen = sorted(gen_months, key=lambda x: (x.get("year", 0), x.get("month", 0)))
+                latest_entry = sorted_gen[-1]
+                latest_month = latest_entry.get("month")
+                latest_year = latest_entry.get("year")
+
+        # Default strictly to latest generated month from student's batch
+        if not month or not year:
+            month = latest_month
+            year = latest_year
 
         # ── Fetch ONLY 'Paid' payments for this billing cycle and batch ──
         paid_payments_stream = db.collection("payments") \

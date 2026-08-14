@@ -9,7 +9,7 @@ import { useStudentTheme } from "@/context/StudentThemeContext";
 import { getYearOptions } from "@/lib/yearOptions";
 import ModernSelect from "@/components/ModernSelect";
 import { getCache, setCache } from "@/lib/memoryCache";
-import { GenericListSkeleton } from "@/components/Skeletons";
+import { StudentLeaderboardGatewaySkeleton, StudentLeaderboardButtonSkeleton, GenericListSkeleton } from "@/components/Skeletons";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -94,19 +94,12 @@ function StudentLeaderboardContent() {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
     
-    // Dynamic Date Calculation: Previous completed month & Current live month
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
     // Reveal State: false by default to save 100% of Firestore reads on initial visit!
     const [isRevealed, setIsRevealed] = useState(false);
     const [isRevealing, setIsRevealing] = useState(false);
     const [revealProgress, setRevealProgress] = useState(0);
-    const [month, setMonth] = useState(prevMonth);
-    const [year, setYear] = useState(prevYear);
+    const [month, setMonth] = useState(null);
+    const [year, setYear] = useState(null);
     const [hasInit, setHasInit] = useState(false);
 
     // Get cached data if already fetched
@@ -150,6 +143,18 @@ function StudentLeaderboardContent() {
         }
     }, []);
 
+    // Fetch default batch billing month from backend on mount
+    useEffect(() => {
+        api.get("/api/student/leaderboard")
+            .then(res => {
+                if (res.month && res.year) {
+                    setMonth(res.month);
+                    setYear(res.year);
+                }
+            })
+            .catch(() => {});
+    }, []);
+
     // Fetch data ONLY when revealed & user changes month/year filters later!
     useEffect(() => {
         if (!isRevealed || isRevealing) return;
@@ -180,17 +185,17 @@ function StudentLeaderboardContent() {
         }, 130);
 
         try {
-            const targetMonth = prevMonth;
-            const targetYear = prevYear;
-            setMonth(targetMonth);
-            setYear(targetYear);
-
-            const fetchCacheKey = `student_leaderboard_${targetMonth}_${targetYear}`;
+            const fetchCacheKey = `student_leaderboard_${month}_${year}`;
             let result = getCache(fetchCacheKey);
             
             if (!result) {
-                result = await api.get(`/api/student/leaderboard?month=${targetMonth}&year=${targetYear}`);
+                result = await api.get(`/api/student/leaderboard?month=${month}&year=${year}`);
                 setCache(fetchCacheKey, result);
+            }
+
+            if (result.month && result.year) {
+                setMonth(result.month);
+                setYear(result.year);
             }
 
             clearInterval(progressInterval);
@@ -234,178 +239,139 @@ function StudentLeaderboardContent() {
         return (
             <div className="min-h-[calc(100vh-200px)] flex flex-col justify-center items-center w-full max-w-md mx-auto select-none py-3 px-2 sm:px-0">
                 <div className="w-full space-y-4 sm:space-y-5 flex flex-col items-center">
-                    {/* ── Top Live Billing Status Tag ── */}
-                    <div className="w-full flex justify-center">
-                        <div 
-                            className="inline-flex items-center justify-center gap-2 sm:gap-2.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-xl shadow-xs border text-center transition-all max-w-full"
-                            style={{
-                                backgroundColor: isLight ? 'rgba(124, 58, 237, 0.06)' : 'rgba(23, 25, 45, 0.75)',
-                                color: isLight ? '#6d28d9' : '#c084fc',
-                                borderColor: isLight ? 'rgba(124, 58, 237, 0.18)' : 'rgba(168, 85, 247, 0.3)',
-                                boxShadow: isLight ? '0 2px 10px rgba(124, 58, 237, 0.08)' : '0 4px 16px rgba(0, 0, 0, 0.4)',
-                            }}
-                        >
-                            <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-emerald-500"></span>
-                            </span>
-                            <span className="leading-tight">⚡ {MONTH_FULL[currentMonth - 1]} Billing Cycle is Live! Pay first to claim #1</span>
-                        </div>
-                    </div>
+                    {/* ── Ultra-Premium Wrapped Style Hero Reveal Content (Card background removed) ── */}
+                    <div className="w-full relative text-center group py-2 sm:py-4 flex flex-col items-center justify-center">
+                        <div className="relative z-10 space-y-4 sm:space-y-6 flex flex-col items-center justify-center">
+                            
+                            {/* Top Micro Text Header */}
+                            <div className="flex items-center justify-center gap-2.5 sm:gap-3 select-none -mt-16 sm:mt-0 mb-8 sm:mb-0">
+                                <svg 
+                                    className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 -translate-y-[2px] sm:-translate-y-[3px]" 
+                                    viewBox="0 0 24 24" 
+                                    fill="currentColor"
+                                    style={{ color: '#f59e0b', filter: 'drop-shadow(0 2px 8px rgba(245, 158, 11, 0.45))' }}
+                                >
+                                    <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+                                </svg>
+                                <span 
+                                    className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-widest leading-none"
+                                    style={{ color: '#f59e0b' }}
+                                >
+                                    HALL OF FAME
+                                </span>
+                            </div>
 
-                    {/* ── Ultra-Premium Wrapped Style Hero Reveal Card ── */}
-                    <div 
-                        className="w-full relative rounded-[28px] sm:rounded-[36px] p-5 sm:p-8 md:p-10 overflow-hidden text-center transition-all duration-500 group border"
-                        style={{
-                            background: isLight
-                                ? 'linear-gradient(160deg, #ffffff 0%, #fbfaff 40%, #f1ecfe 100%)'
-                                : 'linear-gradient(160deg, #0e101d 0%, #18162f 45%, #0a0b14 100%)',
-                            borderColor: isLight ? 'rgba(199, 210, 254, 0.8)' : 'rgba(255, 255, 255, 0.1)',
-                            boxShadow: isLight
-                                ? '0 20px 50px -12px rgba(124, 58, 237, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.8) inset'
-                                : '0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(124, 58, 237, 0.15), 0 1px 0 rgba(255, 255, 255, 0.12) inset',
-                        }}
-                    >
-                    {/* Atmospheric Ambient Glows */}
-                    <div 
-                        className="absolute -top-16 -left-16 w-48 sm:w-56 h-48 sm:h-56 rounded-full blur-3xl pointer-events-none opacity-60"
-                        style={{ background: 'radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%)' }}
-                    />
-                    <div 
-                        className="absolute -bottom-16 -right-16 w-48 sm:w-56 h-48 sm:h-56 rounded-full blur-3xl pointer-events-none opacity-60"
-                        style={{ background: 'radial-gradient(circle, rgba(245, 158, 11, 0.3) 0%, transparent 70%)' }}
-                    />
-
-                    {/* Subtle Inner Mesh Texture */}
-                    <div 
-                        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                        style={{
-                            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-                            backgroundSize: '20px 20px',
-                        }}
-                    />
-
-                    <div className="relative z-10 space-y-4 sm:space-y-6 flex flex-col items-center justify-center">
-                        
-                        {/* Top Micro Pill Badge */}
-                        <div 
-                            className="inline-flex items-center gap-1.5 px-3 py-0.5 sm:px-3.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest border backdrop-blur-md"
-                            style={{
-                                background: isLight ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.15)',
-                                color: '#f59e0b',
-                                borderColor: 'rgba(245, 158, 11, 0.3)',
-                            }}
-                        >
-                            <span>👑</span>
-                            <span>HALL OF FAME</span>
-                        </div>
-
-                        {/* Golden Winner Trophy Stage with Spotlight Aura */}
-                        <div className="relative flex items-center justify-center my-0.5 sm:my-1">
-                            {/* Radiant Golden Halo Spotlight */}
-                            <div 
-                                className="absolute w-28 sm:w-36 h-28 sm:h-36 rounded-full blur-2xl pointer-events-none"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, rgba(217, 119, 6, 0.15) 50%, transparent 75%)',
-                                }}
-                            />
-
-                            {/* Floating Trophy Image */}
-                            <div className="relative transform group-hover:scale-108 group-hover:-translate-y-1 transition-transform duration-500 ease-out">
-                                <img 
-                                    src="/golden-trophy.png" 
-                                    alt="Golden Winner Trophy" 
-                                    className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-contain"
+                            {/* Golden Winner Trophy Stage with Spotlight Aura */}
+                            <div className="relative flex items-center justify-center my-0.5 sm:my-1">
+                                {/* Radiant Golden Halo Spotlight */}
+                                <div 
+                                    className="absolute w-28 sm:w-36 h-28 sm:h-36 rounded-full blur-2xl pointer-events-none"
                                     style={{
-                                        filter: 'drop-shadow(0 12px 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25))',
+                                        background: 'radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, rgba(217, 119, 6, 0.15) 50%, transparent 75%)',
                                     }}
-                                    draggable="false"
                                 />
+
+                                {/* Floating Trophy Image */}
+                                <div className="relative transform group-hover:scale-108 group-hover:-translate-y-1 transition-transform duration-500 ease-out">
+                                    <img 
+                                        src="/golden-trophy.png" 
+                                        alt="Golden Winner Trophy" 
+                                        className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-contain"
+                                        style={{
+                                            filter: 'drop-shadow(0 12px 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25))',
+                                        }}
+                                        draggable="false"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Main Headline & Description */}
+                            <div className="space-y-2 sm:space-y-3 max-w-md mx-auto px-1">
+                                <h2 
+                                    className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide leading-snug"
+                                    style={{
+                                        fontFamily: "'Caveat', 'Dancing Script', cursive",
+                                        color: isLight ? '#171435' : '#ffffff',
+                                        textShadow: isLight ? '0 2px 10px rgba(124, 58, 237, 0.12)' : '0 2px 20px rgba(199, 153, 255, 0.35)',
+                                    }}
+                                >
+                                    Who was the <span className="font-extrabold text-[#38bdf8]" style={{ textShadow: '0 0 16px rgba(56, 189, 248, 0.5)' }}>fastest payer</span> in your batch?
+                                </h2>
+                                {!month || !year ? (
+                                    <StudentLeaderboardGatewaySkeleton />
+                                ) : (
+                                    <p 
+                                        className="text-xs sm:text-sm font-medium leading-relaxed"
+                                        style={{ color: isLight ? '#64748b' : '#94a3b8' }}
+                                    >
+                                        Discover the{' '}
+                                        <span className="font-bold text-amber-500">
+                                            {MONTH_FULL[month - 1]} {year}
+                                        </span>{' '}
+                                        billing cycle champions & check your rank!
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Flagship 3D Shimmer Action Button with Inline Progress Loader */}
+                            <div className="pt-1 sm:pt-2 w-full sm:w-auto">
+                                {!month || !year ? (
+                                    <StudentLeaderboardButtonSkeleton />
+                                ) : (
+                                    <button
+                                        onClick={handleReveal}
+                                        disabled={isRevealing}
+                                        className="w-full sm:w-auto relative inline-flex items-center justify-center gap-2 sm:gap-2.5 px-6 sm:px-8 py-3.5 rounded-full font-black text-xs sm:text-sm md:text-base text-white shadow-2xl active:scale-95 hover:scale-105 transition-all duration-300 cursor-pointer overflow-hidden group/btn disabled:opacity-95 disabled:cursor-wait"
+                                        style={{
+                                            background: isRevealing
+                                                ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%)'
+                                                : 'linear-gradient(135deg, #6366f1 0%, #7c3aed 55%, #4f46e5 100%)',
+                                            boxShadow: '0 12px 30px -4px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35)',
+                                        }}
+                                    >
+                                        {/* Shimmer Sweep Overlay (active when ready) */}
+                                        {!isRevealing && (
+                                            <div 
+                                                className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none"
+                                                style={{
+                                                    background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
+                                                }}
+                                            />
+                                        )}
+
+                                        {/* Animated Line Progress Bar along the bottom */}
+                                        {isRevealing && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/30 overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-300 transition-all duration-200 ease-out shadow-xs"
+                                                    style={{ width: `${revealProgress}%` }}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {isRevealing ? (
+                                            <div className="flex items-center gap-2 sm:gap-2.5 tracking-wider text-xs sm:text-sm font-black">
+                                                <span className="material-symbols-outlined text-base animate-spin text-amber-300">
+                                                    progress_activity
+                                                </span>
+                                                <span>UNLOCKING RANKINGS... {revealProgress}%</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <span className="tracking-wide">REVEAL LEADERBOARD</span>
+                                                <span 
+                                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] sm:text-xs group-hover/btn:translate-x-1 transition-transform"
+                                                    style={{ boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}
+                                                >
+                                                    ➔
+                                                </span>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
-
-                        {/* Main Headline & Description */}
-                        <div className="space-y-2 sm:space-y-3 max-w-md mx-auto px-1">
-                            <h2 
-                                className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide leading-snug"
-                                style={{
-                                    fontFamily: "'Caveat', 'Dancing Script', cursive",
-                                    color: isLight ? '#171435' : '#ffffff',
-                                    textShadow: isLight ? '0 2px 10px rgba(124, 58, 237, 0.12)' : '0 2px 20px rgba(199, 153, 255, 0.35)',
-                                }}
-                            >
-                                Who was the <span className="font-extrabold text-[#38bdf8]" style={{ textShadow: '0 0 16px rgba(56, 189, 248, 0.5)' }}>fastest payer</span> in your batch?
-                            </h2>
-                            <p 
-                                className="text-xs sm:text-sm font-medium leading-relaxed"
-                                style={{ color: isLight ? '#64748b' : '#94a3b8' }}
-                            >
-                                Discover the completed{' '}
-                                <span 
-                                    className="inline-block px-2 sm:px-2.5 py-0.5 rounded-md font-bold text-amber-500 border border-amber-500/30"
-                                    style={{ background: isLight ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.15)' }}
-                                >
-                                    {MONTH_FULL[prevMonth - 1]} {prevYear}
-                                </span>{' '}
-                                billing cycle champions & check your rank!
-                            </p>
-                        </div>
-
-                        {/* Flagship 3D Shimmer Action Button with Inline Progress Loader */}
-                        <div className="pt-1 sm:pt-2 w-full sm:w-auto">
-                            <button
-                                onClick={handleReveal}
-                                disabled={isRevealing}
-                                className="w-full sm:w-auto relative inline-flex items-center justify-center gap-2 sm:gap-2.5 px-6 sm:px-8 py-3.5 rounded-full font-black text-xs sm:text-sm md:text-base text-white shadow-2xl active:scale-95 hover:scale-105 transition-all duration-300 cursor-pointer overflow-hidden group/btn disabled:opacity-95 disabled:cursor-wait"
-                                style={{
-                                    background: isRevealing
-                                        ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%)'
-                                        : 'linear-gradient(135deg, #6366f1 0%, #7c3aed 55%, #4f46e5 100%)',
-                                    boxShadow: '0 12px 30px -4px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35)',
-                                }}
-                            >
-                                {/* Shimmer Sweep Overlay (active when ready) */}
-                                {!isRevealing && (
-                                    <div 
-                                        className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none"
-                                        style={{
-                                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
-                                        }}
-                                    />
-                                )}
-
-                                {/* Animated Line Progress Bar along the bottom */}
-                                {isRevealing && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/30 overflow-hidden">
-                                        <div 
-                                            className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-300 transition-all duration-200 ease-out shadow-xs"
-                                            style={{ width: `${revealProgress}%` }}
-                                        />
-                                    </div>
-                                )}
-
-                                {isRevealing ? (
-                                    <div className="flex items-center gap-2 sm:gap-2.5 tracking-wider text-xs sm:text-sm font-black">
-                                        <span className="material-symbols-outlined text-base animate-spin text-amber-300">
-                                            progress_activity
-                                        </span>
-                                        <span>UNLOCKING RANKINGS... {revealProgress}%</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <span className="tracking-wide">⚡ REVEAL LEADERBOARD</span>
-                                        <span 
-                                            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] sm:text-xs group-hover/btn:translate-x-1 transition-transform"
-                                            style={{ boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}
-                                        >
-                                            ➔
-                                        </span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
                     </div>
-                </div>
                 </div>
             </div>
         );

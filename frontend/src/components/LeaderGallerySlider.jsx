@@ -21,22 +21,22 @@ function AutoMarqueeText({ text, className = "", tag: Tag = "span" }) {
   const [scrollDistance, setScrollDistance] = useState(0);
 
   useEffect(() => {
+    // Reset overflow state first so animation stops and transform resets for accurate measurement
+    setIsOverflowing(false);
+    setScrollDistance(0);
+
     const checkOverflow = () => {
       if (containerRef.current && textRef.current) {
         const cWidth = containerRef.current.clientWidth;
         const sWidth = textRef.current.scrollWidth;
-        if (sWidth > cWidth) {
+        if (sWidth > cWidth + 2) {
           setIsOverflowing(true);
-          setScrollDistance(sWidth - cWidth + 14);
-        } else {
-          setIsOverflowing(false);
-          setScrollDistance(0);
+          setScrollDistance(sWidth - cWidth + 16);
         }
       }
     };
 
-    checkOverflow();
-    const timer = setTimeout(checkOverflow, 120);
+    const timer = setTimeout(checkOverflow, 80);
     window.addEventListener("resize", checkOverflow);
     return () => {
       clearTimeout(timer);
@@ -239,7 +239,7 @@ export default function LeaderGallerySlider() {
     setCurrentIndex((prev) => (prev - 1 + champions.length) % champions.length);
   }, [champions.length]);
 
-  // Auto-advance timer (3 seconds)
+  // Auto-advance timer (4 seconds)
   useEffect(() => {
     if (loading || champions.length <= 1 || isPaused) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -248,7 +248,7 @@ export default function LeaderGallerySlider() {
 
     timerRef.current = setInterval(() => {
       handleNext();
-    }, 3000);
+    }, 4000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -332,12 +332,13 @@ export default function LeaderGallerySlider() {
         </div>
 
         {/* 3D Folded Gold Ribbon */}
-        <div className="rank-ribbon-container" aria-label={`Rank #${rank}`}>
+        <div className="rank-ribbon-container" aria-label="Fastest Payer">
           <div className="ribbon-tail ribbon-tail-left" />
           <div className="ribbon-fold ribbon-fold-left" />
           <div className="ribbon-front">
             <span className="ribbon-star">★</span>
-            <strong>RANK #{rank}</strong>
+            <strong>FASTEST PAYER</strong>
+            <span className="ribbon-star">★</span>
           </div>
           <div className="ribbon-fold ribbon-fold-right" />
           <div className="ribbon-tail ribbon-tail-right" />

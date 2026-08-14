@@ -722,3 +722,38 @@ export function StudentNoticesSkeleton() {
         </div>
     );
 }
+
+export function StudentLeaderboardGatewaySkeleton() {
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+
+    const pulseBg = isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.15)';
+    const baseBg = isLight ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.08)';
+
+    return (
+        <div className="flex flex-col items-center gap-2 py-1 select-none w-full">
+            <div className="h-3.5 sm:h-4 w-64 sm:w-80 rounded-full animate-pulse" style={{ backgroundColor: pulseBg }} />
+            <div className="h-3 sm:h-3.5 w-44 sm:w-56 rounded-full animate-pulse" style={{ backgroundColor: baseBg }} />
+        </div>
+    );
+}
+
+export function StudentLeaderboardButtonSkeleton() {
+    const { theme } = useStudentTheme();
+    const isLight = theme === "light";
+
+    const btnBg = isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.12)';
+    const innerBg = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.2)';
+
+    return (
+        <div 
+            className="w-full sm:w-60 h-12 rounded-full animate-pulse flex items-center justify-center"
+            style={{ 
+                backgroundColor: btnBg, 
+                borderColor: 'transparent'
+            }}
+        >
+            <div className="h-3.5 w-32 rounded-full" style={{ backgroundColor: innerBg }} />
+        </div>
+    );
+}
