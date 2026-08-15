@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import confetti from "canvas-confetti";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import StudentLayout from "@/components/StudentLayout";
@@ -22,6 +22,56 @@ function formatTime(isoString) {
     } catch { return ""; }
 }
 
+// ── Marquee Auto-Scrolling Text for Overflowing Student Names ──
+function MarqueeText({ text, className = "", style = {} }) {
+    const containerRef = useRef(null);
+    const textRef = useRef(null);
+    const [overflow, setOverflow] = useState(0);
+
+    useEffect(() => {
+        const check = () => {
+            if (containerRef.current && textRef.current) {
+                const diff = textRef.current.scrollWidth - containerRef.current.clientWidth;
+                setOverflow(diff > 2 ? diff : 0);
+            }
+        };
+        check();
+        const timer = setTimeout(check, 150);
+        window.addEventListener("resize", check);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener("resize", check);
+        };
+    }, [text]);
+
+    return (
+        <>
+            <style>{`
+                @keyframes marqueeBounce {
+                    0%, 25% { transform: translateX(0); }
+                    75%, 100% { transform: translateX(var(--marquee-dist)); }
+                }
+            `}</style>
+            <div ref={containerRef} className={`overflow-hidden whitespace-nowrap max-w-full relative ${className}`} style={style}>
+                <div
+                    ref={textRef}
+                    className="inline-block"
+                    style={
+                        overflow > 0
+                            ? {
+                                  animation: `marqueeBounce ${Math.max(4.5, overflow * 0.14)}s ease-in-out infinite alternate`,
+                                  "--marquee-dist": `-${overflow + 6}px`,
+                              }
+                            : {}
+                    }
+                >
+                    {text}
+                </div>
+            </div>
+        </>
+    );
+}
+
 // ── Podium Avatar (Fully Responsive Mobile + Desktop) ──
 function PodiumAvatar({ entry, rank, size = "lg" }) {
     const { theme } = useStudentTheme();
@@ -32,8 +82,8 @@ function PodiumAvatar({ entry, rank, size = "lg" }) {
 
     const borderGradients = {
         1: isLight ? "from-[#7c3aed] via-[#0d9488] to-[#6d28d9]" : "from-[#c799ff] via-[#4af8e3] to-[#bc87fe]",
-        2: "from-slate-400 to-transparent",
-        3: "from-[#ff9dac] to-transparent",
+        2: isLight ? "from-slate-400 via-slate-300 to-slate-400" : "from-slate-300 via-slate-400 to-slate-500",
+        3: isLight ? "from-[#fb899c] via-[#ff9dac] to-[#fb899c]" : "from-[#ff9dac] via-[#f472b6] to-[#ff9dac]",
     };
 
     const rankBadges = {
@@ -46,6 +96,24 @@ function PodiumAvatar({ entry, rank, size = "lg" }) {
         3: isLight
             ? "bg-[#fb899c] text-white ring-2 ring-[#eef2ff]"
             : "bg-[#fb899c] text-[#5b0a22] ring-2 ring-[#0c0e17]",
+    };
+
+    const rankShadows = {
+        1: isLight ? "shadow-[#7c3aed]/25" : "shadow-[#c799ff]/30",
+        2: isLight ? "shadow-slate-400/30" : "shadow-slate-400/40",
+        3: isLight ? "shadow-[#fb899c]/25" : "shadow-[#ff9dac]/30",
+    };
+
+    const avatarSizes = {
+        1: "w-[84px] h-[84px] sm:w-[100px] sm:h-[100px]",
+        2: "w-[72px] h-[72px] sm:w-[80px] sm:h-[80px]",
+        3: "w-[64px] h-[64px] sm:w-[74px] sm:h-[74px]",
+    };
+
+    const profilePicPx = {
+        1: 96,
+        2: 80,
+        3: 72,
     };
 
     return (
@@ -61,10 +129,10 @@ function PodiumAvatar({ entry, rank, size = "lg" }) {
                 )}
                 {/* Responsive Gradient Ring Container */}
                 <div 
-                    className={`rounded-full ${rank === 1 ? "p-[2.5px] sm:p-[3px]" : "p-[2px]"} bg-gradient-to-b ${borderGradients[rank]} shadow-lg ${rank === 1 ? (isLight ? "shadow-[#7c3aed]/20" : "shadow-[#c799ff]/20") : rank === 3 ? "shadow-[#ff9dac]/20" : "shadow-slate-900/40"} ${isLg ? "w-[76px] h-[76px] sm:w-[92px] sm:h-[92px]" : "w-[56px] h-[56px] sm:w-[68px] sm:h-[68px]"}`}
+                    className={`rounded-full p-[3px] bg-gradient-to-b ${borderGradients[rank]} shadow-lg ${rankShadows[rank]} ${avatarSizes[rank]}`}
                 >
-                    <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style={{ border: `${rank === 1 ? 3 : 2}px solid ${isLight ? '#eef2ff' : '#0c0e17'}` }}>
-                        <ProfilePicture size={isLg ? 84 : 60} picUrl={entry.profile_pic_url} name={entry.student_name} />
+                    <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style={{ border: `2px solid ${isLight ? '#eef2ff' : '#0c0e17'}` }}>
+                        <ProfilePicture size={profilePicPx[rank]} picUrl={entry.profile_pic_url} name={entry.student_name} />
                     </div>
                 </div>
                 {/* Rank badge */}
@@ -74,14 +142,14 @@ function PodiumAvatar({ entry, rank, size = "lg" }) {
                     {rank}
                 </div>
             </div>
-            <div className="text-center w-full px-1">
-                <p className={`font-bold truncate max-w-[85px] sm:max-w-[110px] mx-auto ${rank === 1 ? "text-xs sm:text-sm" : "text-[11px] sm:text-xs"}`}
+            <div className="text-center w-full px-0.5">
+                <div className={`max-w-[85px] sm:max-w-[110px] mx-auto ${rank === 1 ? "text-xs sm:text-sm font-extrabold" : "text-[11px] sm:text-xs font-bold"}`}
                     style={{
                         color: 'var(--st-text-primary)',
                         ...(rank === 1 ? { textShadow: isLight ? '0 0 15px rgba(124,58,237,0.3)' : '0 0 15px rgba(199,153,255,0.5)' } : {})
                     }}>
-                    {entry.student_name}
-                </p>
+                    <MarqueeText text={entry.student_name} />
+                </div>
             </div>
         </div>
     );
@@ -94,12 +162,32 @@ function StudentLeaderboardContent() {
     const { theme } = useStudentTheme();
     const isLight = theme === "light";
     
-    // Reveal State: false by default to save 100% of Firestore reads on initial visit!
-    const [isRevealed, setIsRevealed] = useState(false);
+    // Reveal State: persist in sessionStorage for current app session
+    const [isRevealed, setIsRevealed] = useState(() => {
+        try {
+            return sessionStorage.getItem("student_leaderboard_revealed") === "true";
+        } catch {
+            return false;
+        }
+    });
     const [isRevealing, setIsRevealing] = useState(false);
     const [revealProgress, setRevealProgress] = useState(0);
-    const [month, setMonth] = useState(null);
-    const [year, setYear] = useState(null);
+    const [month, setMonth] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem("student_leaderboard_month");
+            return saved ? Number(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+    const [year, setYear] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem("student_leaderboard_year");
+            return saved ? Number(saved) : null;
+        } catch {
+            return null;
+        }
+    });
     const [hasInit, setHasInit] = useState(false);
 
     // Get cached data if already fetched
@@ -110,28 +198,36 @@ function StudentLeaderboardContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const fetchLeaderboard = useCallback(async (m, y) => {
+    const fetchLeaderboard = useCallback(async (m, y, force = false) => {
+        if (!m || !y) return;
         const fetchCacheKey = `student_leaderboard_${m}_${y}`;
         const currentCache = getCache(fetchCacheKey);
         
         setError("");
-        if (!currentCache) {
-            setLoading(true);
-        }
         
+        // If data is already cached in memory for this month & year, use cached data & skip API call
+        if (currentCache && !force) {
+            setData(currentCache);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
         try {
             const params = `?month=${m}&year=${y}`;
             const result = await api.get(`/api/student/leaderboard${params}`);
             
-            if (JSON.stringify(currentCache) !== JSON.stringify(result)) {
-                setData(result);
-                setCache(fetchCacheKey, result);
-            }
+            setData(result);
+            setCache(fetchCacheKey, result);
             
             setHasInit(prev => {
                 if (!prev) {
                     setMonth(result.month);
                     setYear(result.year);
+                    try {
+                        sessionStorage.setItem("student_leaderboard_month", result.month.toString());
+                        sessionStorage.setItem("student_leaderboard_year", result.year.toString());
+                    } catch {}
                     return true;
                 }
                 return prev;
@@ -143,13 +239,33 @@ function StudentLeaderboardContent() {
         }
     }, []);
 
-    // Fetch default batch billing month from backend on mount
+    // Sync any month/year dropdown selection to sessionStorage for the current session
     useEffect(() => {
+        if (month && year) {
+            try {
+                sessionStorage.setItem("student_leaderboard_month", month.toString());
+                sessionStorage.setItem("student_leaderboard_year", year.toString());
+            } catch {}
+        }
+    }, [month, year]);
+
+    // Fetch default batch billing month from backend on mount ONLY if not already saved in session
+    useEffect(() => {
+        const savedMonth = sessionStorage.getItem("student_leaderboard_month");
+        const savedYear = sessionStorage.getItem("student_leaderboard_year");
+        if (savedMonth && savedYear) return;
+
         api.get("/api/student/leaderboard")
             .then(res => {
                 if (res.month && res.year) {
                     setMonth(res.month);
                     setYear(res.year);
+                    const fetchCacheKey = `student_leaderboard_${res.month}_${res.year}`;
+                    setCache(fetchCacheKey, res);
+                    try {
+                        sessionStorage.setItem("student_leaderboard_month", res.month.toString());
+                        sessionStorage.setItem("student_leaderboard_year", res.year.toString());
+                    } catch {}
                 }
             })
             .catch(() => {});
@@ -157,7 +273,7 @@ function StudentLeaderboardContent() {
 
     // Fetch data ONLY when revealed & user changes month/year filters later!
     useEffect(() => {
-        if (!isRevealed || isRevealing) return;
+        if (!isRevealed || isRevealing || !month || !year) return;
 
         const fetchCacheKey = `student_leaderboard_${month}_${year}`;
         const cached = getCache(fetchCacheKey);
@@ -196,6 +312,10 @@ function StudentLeaderboardContent() {
             if (result.month && result.year) {
                 setMonth(result.month);
                 setYear(result.year);
+                try {
+                    sessionStorage.setItem("student_leaderboard_month", result.month.toString());
+                    sessionStorage.setItem("student_leaderboard_year", result.year.toString());
+                } catch {}
             }
 
             clearInterval(progressInterval);
@@ -218,6 +338,9 @@ function StudentLeaderboardContent() {
 
             // Smooth delay to show 100% completion before revealing directly with ZERO skeleton
             setTimeout(() => {
+                try {
+                    sessionStorage.setItem("student_leaderboard_revealed", "true");
+                } catch {}
                 setIsRevealed(true);
                 setIsRevealing(false);
                 setRevealProgress(0);
@@ -227,6 +350,9 @@ function StudentLeaderboardContent() {
             setIsRevealing(false);
             setRevealProgress(0);
             setError(err.message || "Failed to load leaderboard");
+            try {
+                sessionStorage.setItem("student_leaderboard_revealed", "true");
+            } catch {}
             setIsRevealed(true);
         }
     };
@@ -272,15 +398,16 @@ function StudentLeaderboardContent() {
                                 />
 
                                 {/* Floating Trophy Image */}
-                                <div className="relative transform group-hover:scale-108 group-hover:-translate-y-1 transition-transform duration-500 ease-out">
+                                <div className="relative transform group-hover:scale-108 group-hover:-translate-y-1 transition-transform duration-500 ease-out select-none pointer-events-none">
                                     <img 
                                         src="/golden-trophy.png" 
                                         alt="Golden Winner Trophy" 
-                                        className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-contain"
+                                        className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-contain select-none pointer-events-none"
                                         style={{
                                             filter: 'drop-shadow(0 12px 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25))',
                                         }}
                                         draggable="false"
+                                        onDoubleClick={(e) => e.preventDefault()}
                                     />
                                 </div>
                             </div>
@@ -295,7 +422,7 @@ function StudentLeaderboardContent() {
                                         textShadow: isLight ? '0 2px 10px rgba(124, 58, 237, 0.12)' : '0 2px 20px rgba(199, 153, 255, 0.35)',
                                     }}
                                 >
-                                    Who was the <span className="font-extrabold text-[#38bdf8]" style={{ textShadow: '0 0 16px rgba(56, 189, 248, 0.5)' }}>fastest payer</span> in your batch?
+                                    Who were the <span className="font-extrabold text-[#38bdf8]" style={{ textShadow: '0 0 16px rgba(56, 189, 248, 0.5)' }}>fastest payers</span> in your batch?
                                 </h2>
                                 {!month || !year ? (
                                     <StudentLeaderboardGatewaySkeleton />
@@ -419,7 +546,7 @@ function StudentLeaderboardContent() {
 
     return (
         <div className="space-y-8 pt-2 md:pt-0 pb-6">
-            {/* Date Filters + Reset Reveal Button */}
+            {/* Date Filters */}
             <div className="flex flex-wrap items-center justify-center gap-2 relative z-20">
                 <ModernSelect
                     theme={theme}
@@ -439,19 +566,6 @@ function StudentLeaderboardContent() {
                     className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all min-w-[100px]"
                     style={{ backgroundColor: 'var(--st-icon-bg)', border: `1px solid var(--st-input-border)`, color: 'var(--st-text-primary)' }}
                 />
-                {/* Gateway Reset Icon Button */}
-                <button
-                    onClick={() => setIsRevealed(false)}
-                    title="Return to Reveal Gateway"
-                    className="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{
-                        backgroundColor: 'var(--st-icon-bg)',
-                        border: '1px solid var(--st-input-border)',
-                        color: 'var(--st-text-secondary)',
-                    }}
-                >
-                    <span className="material-symbols-outlined text-lg">replay</span>
-                </button>
             </div>
 
             {/* Hero Section */}
@@ -505,19 +619,21 @@ function StudentLeaderboardContent() {
                                 <span className="font-bold w-5 sm:w-6 text-xs sm:text-sm" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-secondary)' }}>
                                     #{entry.rank}
                                 </span>
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden shrink-0" style={{ backgroundColor: isLight ? '#e2e8f0' : '#222532' }}>
-                                    <ProfilePicture size={44} picUrl={entry.profile_pic_url} name={entry.student_name} />
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: isLight ? '#e2e8f0' : '#222532' }}>
+                                    <ProfilePicture size={56} picUrl={entry.profile_pic_url} name={entry.student_name} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--st-text-primary)' }}>{entry.student_name}</p>
+                                    <MarqueeText
+                                        text={entry.student_name}
+                                        className="font-bold text-xs sm:text-sm"
+                                        style={{ color: 'var(--st-text-primary)' }}
+                                    />
                                 </div>
-                                <div className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full shrink-0"
-                                    style={{ backgroundColor: entry.rank <= 5 ? 'var(--st-accent-bg)' : 'var(--st-icon-bg)' }}
-                                >
+                                <div className="flex items-center gap-1 shrink-0 select-none">
                                     {entry.rank <= 5 && (
-                                        <span className="material-symbols-outlined text-xs" style={{ color: 'var(--st-accent)' }}>trending_up</span>
+                                        <span className="material-symbols-outlined text-xs sm:text-sm font-bold" style={{ color: 'var(--st-accent)' }}>trending_up</span>
                                     )}
-                                    <span className="text-[9px] sm:text-[10px] font-bold" style={{ color: entry.rank <= 5 ? 'var(--st-accent)' : 'var(--st-text-secondary)' }}>
+                                    <span className="text-[10px] sm:text-xs font-extrabold tracking-wider" style={{ color: entry.rank <= 5 ? 'var(--st-accent)' : 'var(--st-text-secondary)' }}>
                                         {entry.rank <= 5 ? "TOP 5" : "LOCKED IN"}
                                     </span>
                                 </div>

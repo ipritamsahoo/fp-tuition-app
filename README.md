@@ -48,7 +48,9 @@ fp-tuition-app/
 ├── scripts/            # Admin & database utility scripts
 │   ├── get_refresh_token.py  # OAuth refresh token generator
 │   ├── backup_all.py         # Full database backup tool
-│   ├── check_db.py           # DB inspection tool
+│   ├── seed_admin.py         # Admin seed script
+│   ├── reset_admin.py        # Emergency admin reset script
+│   ├── send_broadcast_notice.py # Broadcast push notification script
 │   └── restore_local.py      # Local DB restore tool
 └── SETUP_GUIDE.md      # Step-by-step setup, seeding, and deployment manual
 ```

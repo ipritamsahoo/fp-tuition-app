@@ -116,28 +116,24 @@ function PaymentsContent() {
         if (status === "Paid") {
             return {
                 label: "Paid",
-                cls: isLight ? "bg-[#0d9488]/10 border-[#0d9488]/20 text-[#0d9488]" : "bg-[#4af8e3]/10 border-[#4af8e3]/30 text-[#4af8e3]",
-                glow: isLight ? "none" : "0 0 8px rgba(74,248,227,0.4)"
+                textCls: isLight ? "text-[#0d9488]" : "text-[#4af8e3]"
             };
         }
         if (status === "Pending_Verification") {
             return {
                 label: "Pending",
-                cls: isLight ? "bg-[#b45309]/10 border-[#b45309]/20 text-[#b45309]" : "bg-[#facc15]/10 border-[#facc15]/30 text-[#facc15]",
-                glow: isLight ? "none" : "0 0 8px rgba(250,204,21,0.4)"
+                textCls: isLight ? "text-[#b45309]" : "text-[#facc15]"
             };
         }
         if (status === "Rejected") {
             return {
                 label: "Rejected",
-                cls: isLight ? "bg-[#ef4444]/10 border-[#ef4444]/20 text-[#ef4444]" : "bg-[#ff6e84]/10 border-[#ff6e84]/30 text-[#ff6e84]",
-                glow: isLight ? "none" : "0 0 8px rgba(255,110,132,0.4)"
+                textCls: isLight ? "text-[#ef4444]" : "text-[#ff6e84]"
             };
         }
         return {
             label: "Unpaid",
-            cls: isLight ? "bg-[#c2410c]/10 border-[#c2410c]/20 text-[#c2410c]" : "bg-[#fb923c]/10 border-[#fb923c]/30 text-[#fb923c]",
-            glow: isLight ? "none" : "0 0 8px rgba(251,146,60,0.4)"
+            textCls: isLight ? "text-[#c2410c]" : "text-[#fb923c]"
         };
     };
 
@@ -242,14 +238,13 @@ function PaymentsContent() {
 
             {/* Total Collected */}
             {!loading && hasLoaded && totalCollected > 0 && (
-                <div className="backdrop-blur-[20px] border rounded-2xl px-6 py-4 flex items-center gap-4 w-fit"
+                <div className="backdrop-blur-[20px] border rounded-2xl px-6 py-4 flex items-center justify-between gap-4 w-full md:w-[350px]"
                      style={{
                          backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(74, 248, 227, 0.1)',
                          borderColor: isLight ? 'rgba(13, 148, 136, 0.2)' : 'rgba(74, 248, 227, 0.2)',
                          boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.03)' : '0 0 30px rgba(74,248,227,0.05)',
                      }}
                 >
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: isLight ? '#0d9488' : '#4af8e3' }} />
                     <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>Total Collected</span>
                     <span className="text-base font-extrabold tracking-wide" style={{ color: isLight ? '#0d9488' : '#4af8e3', fontFamily: "'Manrope', sans-serif" }}>₹{totalCollected.toLocaleString()}</span>
                 </div>
@@ -341,7 +336,7 @@ function PaymentsContent() {
                                     return (
                                         <tr key={p.id} className="hover:bg-white/[0.01] transition-colors group border-b" style={{ borderColor: 'var(--ad-divider)' }}>
                                             {/* Student name — sticky */}
-                                            <td className="px-5 py-4 text-sm font-bold whitespace-nowrap sticky left-0 backdrop-blur-md transition-colors z-10 shadow-[4px_0_10px_rgba(0,0,0,0.01)] border-r" 
+                                            <td className="px-5 py-4 text-sm font-extrabold whitespace-nowrap sticky left-0 backdrop-blur-md transition-colors z-10 shadow-[4px_0_10px_rgba(0,0,0,0.01)] border-r" 
                                                 style={{ 
                                                     backgroundColor: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(23, 25, 36, 0.9)',
                                                     borderColor: 'var(--ad-divider)',
@@ -352,63 +347,28 @@ function PaymentsContent() {
                                                 {p.student_name || "—"}
                                             </td>
                                             {/* Amount */}
-                                            <td className="px-5 py-4 text-center border-r" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest border"
-                                                      style={{
-                                                          backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                                                          borderColor: 'rgba(59, 130, 246, 0.25)',
-                                                          color: '#3b82f6',
-                                                      }}
-                                                >
-                                                    ₹{(p.amount || 0).toLocaleString()}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs border-r" style={{ borderColor: 'var(--ad-divider)', color: 'var(--ad-primary, #3b82f6)' }}>
+                                                ₹{(p.amount || 0).toLocaleString()}
                                             </td>
                                             {/* Status */}
-                                            <td className="px-5 py-4 text-center border-r" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                <span
-                                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full border text-[10px] uppercase font-bold tracking-widest ${sm.cls}`}
-                                                    style={{ boxShadow: sm.glow }}
-                                                >
+                                            <td className="px-5 py-4 text-center font-bold text-xs uppercase tracking-widest border-r" style={{ borderColor: 'var(--ad-divider)' }}>
+                                                <span className={sm.textCls}>
                                                     {sm.label}
                                                 </span>
                                             </td>
                                             {/* Mode */}
-                                            <td className="px-5 py-4 text-center border-r" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest border"
-                                                      style={{
-                                                          backgroundColor: 'var(--ad-icon-bg)',
-                                                          borderColor: 'var(--ad-input-border)',
-                                                          color: 'var(--ad-text-secondary)',
-                                                      }}
-                                                >
-                                                    {p.mode ? p.mode.charAt(0).toUpperCase() + p.mode.slice(1) : "—"}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs uppercase tracking-wider border-r" style={{ borderColor: 'var(--ad-divider)', color: 'var(--ad-text-primary)' }}>
+                                                {p.mode ? p.mode.toUpperCase() : "—"}
                                             </td>
                                             {/* Cash Received By */}
-                                            <td className="px-5 py-4 text-center border-r whitespace-nowrap" style={{ borderColor: 'var(--ad-divider)' }}>
-                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-wide border"
-                                                      style={{
-                                                          backgroundColor: 'var(--ad-icon-bg)',
-                                                          borderColor: 'var(--ad-input-border)',
-                                                          color: 'var(--ad-text-secondary)',
-                                                      }}
-                                                >
-                                                    {p.mode && p.mode.toLowerCase() === "offline" 
-                                                        ? (p.teacher_name || "—") 
-                                                        : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs whitespace-nowrap border-r" style={{ borderColor: 'var(--ad-divider)', color: 'var(--ad-text-primary)' }}>
+                                                {p.mode && p.mode.toLowerCase() === "offline" 
+                                                    ? (p.teacher_name || "—") 
+                                                    : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
                                             </td>
                                             {/* Date */}
-                                            <td className="px-5 py-4 text-center">
-                                                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest border"
-                                                      style={{
-                                                          backgroundColor: 'var(--ad-icon-bg)',
-                                                          borderColor: 'var(--ad-input-border)',
-                                                          color: 'var(--ad-text-primary)',
-                                                      }}
-                                                >
-                                                    {p.status === "Paid" && p.updated_at ? formatDate(p.updated_at) : "—"}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs" style={{ color: 'var(--ad-text-primary)' }}>
+                                                {p.status === "Paid" && p.updated_at ? formatDate(p.updated_at) : "—"}
                                             </td>
                                         </tr>
                                     );

@@ -736,8 +736,8 @@ export function AdminLayoutInner({ children }) {
                 <div className="p-6 border-b relative overflow-hidden group" style={{ borderColor: 'var(--ad-divider)' }}>
                     <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <div className="relative z-10 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border bg-[#0c0e17] shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center" style={{ borderColor: 'var(--ad-logo-border)', boxShadow: '0 4px 12px var(--ad-logo-shadow)' }}>
-                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
+                        <div className="w-12 h-12 rounded-full overflow-hidden border bg-[#0c0e17] shadow-lg flex items-center justify-center" style={{ borderColor: 'var(--ad-logo-border)', boxShadow: '0 4px 12px var(--ad-logo-shadow)' }}>
+                            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover scale-120 pointer-events-none select-none" />
                         </div>
                         <div>
                             <h1 className="text-sm font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--ad-text-primary)' }}>FP Finance</h1>

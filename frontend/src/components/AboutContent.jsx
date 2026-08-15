@@ -23,7 +23,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                     backdropFilter: "blur(24px) saturate(2.0)",
                     WebkitBackdropFilter: "blur(24px) saturate(2.0)",
                     boxShadow: `0 0 40px ${accentColor}${isLight ? '40' : '20'}, inset 0 0 15px rgba(255,255,255,${isLight ? '0.1' : '0.05'})`,
-                    animation: "logo-pulse 4s ease-in-out infinite, slide-up 0.8s ease-out forwards",
+                    animation: "slide-up 0.8s ease-out forwards",
                     animationDelay: "100ms"
                 }}
                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -32,7 +32,7 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                 <img
                     src={logoSrc}
                     alt="FP Finance Logo"
-                    className="w-full h-full object-cover pointer-events-none select-none"
+                    className="w-full h-full object-cover scale-120 pointer-events-none select-none"
                     draggable="false"
                 />
 
@@ -44,15 +44,6 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                 />
             </div>
 
-            {/* In-component style for the pulse animation */}
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @keyframes logo-pulse {
-                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px ${accentColor}30); }
-                    50% { transform: scale(1.05); filter: drop-shadow(0 0 28px ${accentColor}60); }
-                }
-            `}} />
-
             {/* App Name + Version */}
             <div className="space-y-2 md:space-y-1.5 animate-slide-up" style={{ animationDelay: "200ms" }}>
                 <h2
@@ -61,18 +52,12 @@ export default function AboutContent({ isLight, accentColor, onFeedbackClick, pr
                 >
                     FP Finance
                 </h2>
-                <span
-                    className="inline-block px-4 py-1.5 md:px-3 md:py-1 text-xs md:text-[10px] font-bold tracking-widest rounded-full"
-                    style={{
-                        backgroundColor: isLight ? "rgba(13,148,136,0.1)" : "rgba(255,255,255,0.05)",
-                        color: accentColor,
-                        border: `1px solid ${isLight ? "rgba(13,148,136,0.2)" : "rgba(255,255,255,0.1)"}`,
-                        backdropFilter: "blur(12px)",
-                        WebkitBackdropFilter: "blur(12px)"
-                    }}
+                <p
+                    className="text-xs md:text-[11px] font-bold tracking-widest uppercase"
+                    style={{ color: accentColor }}
                 >
                     Version {__APP_VERSION__}
-                </span>
+                </p>
             </div>
 
             {/* Description Card */}

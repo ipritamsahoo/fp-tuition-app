@@ -122,3 +122,20 @@ def notify_admins(message: str, notif_type: str, title: str = "FP Finance"):
     for admin in _ADMIN_CACHE["data"]:
         if admin["tokens"]:
             _send_fcm(admin["tokens"], title, message, notif_type, target_uid=admin["uid"])
+
+
+def notify_students_and_teachers(message: str, notif_type: str = "broadcast", title: str = "FP Finance", target_url: str = ""):
+    """Send FCM push notification to all students and teachers (excluding admins)."""
+    users = db.collection("users").stream()
+    notified_users = 0
+    notified_tokens = 0
+    for doc in users:
+        user_data = doc.to_dict() or {}
+        role = user_data.get("role")
+        if role in ("student", "teacher"):
+            tokens = user_data.get("fcm_tokens") or []
+            if tokens:
+                _send_fcm(tokens, title, message, notif_type, target_uid=doc.id, target_url=target_url)
+                notified_users += 1
+                notified_tokens += len(tokens)
+    return notified_users, notified_tokens

@@ -608,55 +608,27 @@ function StudentsContent() {
                     </button>
                 </div>
 
-                {/* Batch Selector & Search on Right */}
+                {/* Batch Selector on Right */}
                 {activeTab === "list" && (
-                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-                        <div className="w-full sm:w-[340px]">
-                            <ModernSelect
-                                value={selectedListBatch}
-                                onChange={(e) => { setSelectedListBatch(e.target.value); setSearchQuery(""); }}
-                                options={batches}
-                                placeholder="Select Batch"
-                                className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
-                                style={{
-                                    backgroundColor: 'var(--ad-input-bg)',
-                                    borderColor: 'var(--ad-input-border)',
-                                    color: 'var(--ad-text-primary)'
-                                }}
-                            />
-                        </div>
-                        {!listLoading && hasLoaded && students.length > 0 && (
-                            <div className="relative w-full sm:w-64">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style={{ color: 'var(--ad-text-secondary)', opacity: 0.6 }}>search</span>
-                                <input
-                                    type="text"
-                                    placeholder="Search Student"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-9 pr-8 py-2.5 rounded-2xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/50 transition-colors animate-fade-in"
-                                    style={{
-                                        backgroundColor: 'var(--ad-input-bg)',
-                                        borderColor: 'var(--ad-input-border)',
-                                        color: 'var(--ad-text-primary)'
-                                    }}
-                                />
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => setSearchQuery("")}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[#ff6e84] transition-colors cursor-pointer w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/5"
-                                        style={{ color: 'var(--ad-text-secondary)' }}
-                                    >
-                                        <span className="material-symbols-outlined text-[14px]">close</span>
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                    <div className="w-full sm:w-[340px]">
+                        <ModernSelect
+                            value={selectedListBatch}
+                            onChange={(e) => { setSelectedListBatch(e.target.value); setSearchQuery(""); }}
+                            options={batches}
+                            placeholder="Select Batch"
+                            className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-colors"
+                            style={{
+                                backgroundColor: 'var(--ad-input-bg)',
+                                borderColor: 'var(--ad-input-border)',
+                                color: 'var(--ad-text-primary)'
+                            }}
+                        />
                     </div>
                 )}
 
                 {/* Batch Selector on Right for Add tab */}
                 {activeTab === "add" && (
-                    <div className="w-full sm:w-64">
+                    <div className="w-full sm:w-[340px]">
                         <ModernSelect
                             value={addBatchId}
                             onChange={(e) => setAddBatchId(e.target.value)}
@@ -750,10 +722,34 @@ function StudentsContent() {
                     )}
 
                     {/* ── Mobile: Card layout ───────────────────────────── */}
-                    {!listLoading && hasLoaded && filteredStudents.length > 0 && (
+                    {!listLoading && hasLoaded && students.length > 0 && (
                         <>
-                            <div className="mb-4 md:hidden px-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
+                            <div className="mb-3 md:hidden px-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
                                 {students.length} student{students.length !== 1 ? "s" : ""} · {batches.find(b => b.id === selectedListBatch)?.batch_name || ""}
+                            </div>
+                            <div className="mb-4 md:hidden relative w-full">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style={{ color: 'var(--ad-text-secondary)', opacity: 0.6 }}>search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search Student"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-8 py-2.5 rounded-2xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/50 transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--ad-input-bg)',
+                                        borderColor: 'var(--ad-input-border)',
+                                        color: 'var(--ad-text-primary)'
+                                    }}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[#ff6e84] transition-colors cursor-pointer w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/5"
+                                        style={{ color: 'var(--ad-text-secondary)' }}
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">close</span>
+                                    </button>
+                                )}
                             </div>
                             <div className="space-y-4 md:hidden">
                                 {filteredStudents.map((s) => (
@@ -827,10 +823,34 @@ function StudentsContent() {
                                     borderColor: 'var(--ad-card-border)'
                                 }}
                             >
-                                <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--ad-divider)' }}>
-                                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ad-text-secondary)' }}>
+                                <div className="px-6 py-3 border-b flex items-center justify-between gap-4" style={{ borderColor: 'var(--ad-divider)' }}>
+                                    <span className="text-xs font-bold uppercase tracking-widest shrink-0" style={{ color: 'var(--ad-text-secondary)' }}>
                                         {students.length} student{students.length !== 1 ? "s" : ""} · {batches.find(b => b.id === selectedListBatch)?.batch_name || ""}
                                     </span>
+                                    <div className="relative w-64">
+                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style={{ color: 'var(--ad-text-secondary)', opacity: 0.6 }}>search</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Search Student"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#3b82f6]/50 transition-colors"
+                                            style={{
+                                                backgroundColor: 'var(--ad-input-bg)',
+                                                borderColor: 'var(--ad-input-border)',
+                                                color: 'var(--ad-text-primary)'
+                                            }}
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                onClick={() => setSearchQuery("")}
+                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[#ff6e84] transition-colors cursor-pointer w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/5"
+                                                style={{ color: 'var(--ad-text-secondary)' }}
+                                            >
+                                                <span className="material-symbols-outlined text-[14px]">close</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto custom-scrollbar">
                                     <table className="w-full">

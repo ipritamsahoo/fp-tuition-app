@@ -769,7 +769,7 @@ function StudentLayoutInner({ children }) {
                     />
                     <div className="relative z-10 flex items-center gap-3">
                         <div
-                            className="w-12 h-12 rounded-full overflow-hidden shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center"
+                            className="w-12 h-12 rounded-full overflow-hidden shadow-lg flex items-center justify-center"
                             style={{
                                 borderWidth: 1,
                                 borderStyle: 'solid',
@@ -781,7 +781,7 @@ function StudentLayoutInner({ children }) {
                             <img 
                                 src={logoSrc} 
                                 alt="Logo" 
-                                className="w-full h-full object-cover pointer-events-none select-none" 
+                                className="w-full h-full object-cover scale-120 pointer-events-none select-none" 
                                 draggable="false"
                                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}

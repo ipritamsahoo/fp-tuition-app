@@ -288,13 +288,13 @@ function TeacherNoticesContent() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center md:items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
-                        Notice Board
+                    <h1 className="hidden md:block text-2xl md:text-3xl font-extrabold" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>
+                        Notices
                     </h1>
                 </div>
 
                 {/* Batch Selector */}
-                <div className="w-full sm:w-64 relative z-40 md:mt-10">
+                <div className="w-full sm:w-[340px] relative z-40 md:mt-10">
                     <ModernSelect
                         value={selectedBatch}
                         options={batches}

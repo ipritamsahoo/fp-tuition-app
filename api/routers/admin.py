@@ -21,8 +21,8 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from schemas import (
     RegisterRequest, BatchCreate, StudentCreate, TeacherCreate,
     StudentUpdate, TeacherUpdate, GenerateMonthly, UndoMonthly, FeeOverride,
-    SettleDistribution, AdminSeed, to_firebase_email, StudentStatusUpdate,
-    EmergencyReset, BatchActionPayload, CheckUsernamesRequest, BulkStudentCreateItem,
+    SettleDistribution, to_firebase_email, StudentStatusUpdate,
+    BatchActionPayload, CheckUsernamesRequest, BulkStudentCreateItem,
     BulkStudentCreate,
 )
 from dependencies import require_role
@@ -2366,7 +2366,7 @@ def admin_backup(
             if updated and updated != "-":
                 try:
                     dt = datetime.fromisoformat(str(updated))
-                    date_str = dt.strftime("%d %b %Y")
+                    date_str = dt.strftime("%d.%m.%Y")
                 except Exception:
                     date_str = str(updated)[:10]
             else:
@@ -2374,11 +2374,11 @@ def admin_backup(
 
             row = [
                 str(row_idx + 1),
-                p.get("student_name", "-"),
+                p.get("student_name", "-").upper(),
                 student_email,
-                f"Rs.{p.get('amount', 0)}",
-                p.get("status", "-"),
-                p.get("mode", "") or "-",
+                f"{float(p.get('amount', 0)):.2f}",
+                p.get("status", "-").replace("_", " ").title(),
+                (p.get("mode") or "-").capitalize(),
                 date_str,
             ]
 
@@ -2399,7 +2399,7 @@ def admin_backup(
         pdf.set_font("Helvetica", "B", 9)
         pdf.cell(
             0, 7,
-            f"Total: Rs.{total_amt}  |  Paid: {paid_count}  |  Unpaid: {unpaid_count}  |  Pending: {pending_count}",
+            f"Total: {total_amt:.2f}  |  Paid: {paid_count}  |  Unpaid: {unpaid_count}  |  Pending: {pending_count}",
             new_x="LMARGIN", new_y="NEXT",
         )
 
@@ -2429,7 +2429,7 @@ def admin_backup(
                 str(row_idx + 1),
                 p.get("student_name", "-"),
                 student_info.get("email", "-"),
-                f"Rs.{p.get('amount', 0)}",
+                f"{float(p.get('amount', 0)):.2f}",
                 p.get("status", "-"),
                 p.get("mode", "") or "-",
                 date_str,
@@ -2500,15 +2500,15 @@ def admin_report_export(
     for tid in teacher_ids:
         t_doc = db.collection("users").document(tid).get()
         if t_doc.exists:
-            teacher_map[tid] = t_doc.to_dict().get("name", "Unknown")
+            teacher_map[tid] = t_doc.to_dict().get("name", "Unknown").upper()
         else:
-            teacher_map[tid] = "Unknown"
+            teacher_map[tid] = "UNKNOWN"
 
     # ── Build user lookup for latest student names ──
     all_users = {}
     for u in db.collection("users").where(filter=FieldFilter("role", "==", "student")).where(filter=FieldFilter("batch_id", "==", batch_id)).stream():
         ud = u.to_dict()
-        all_users[u.id] = ud.get("name", "Unknown")
+        all_users[u.id] = ud.get("name", "Unknown").upper()
 
     MONTHS_FULL = [
         "January", "February", "March", "April", "May", "June",
@@ -2521,19 +2521,32 @@ def admin_report_export(
             return "-"
         text = str(val)
         text = text.replace("\u2014", "-").replace("\u2013", "-").replace("\u2019", "'")
-        text = text.replace("\u20b9", "Rs.")
+        text = text.replace("\u20b9", "")
         text = text.encode("latin-1", errors="replace").decode("latin-1")
         return text
 
+    def fmt_amt(val):
+        """Format numeric amount to 2 decimal places string without Rs prefix."""
+        try:
+            num = float(val or 0)
+            return f"{num:.2f}"
+        except (ValueError, TypeError):
+            return "0.00"
+
     def format_date(raw):
-        """Parse an ISO datetime string to 'DD/MM/YYYY'."""
+        """Parse an ISO datetime string to 'DD.MM.YYYY'."""
         if not raw or raw == "-":
             return "-"
         try:
             dt = datetime.fromisoformat(str(raw))
-            return dt.strftime("%d/%m/%Y")
+            return dt.strftime("%d.%m.%Y")
         except Exception:
-            return str(raw)[:10]
+            raw_s = str(raw)[:10]
+            if "-" in raw_s:
+                parts = raw_s.split("-")
+                if len(parts) == 3:
+                    return f"{parts[2]}.{parts[1]}.{parts[0]}"
+            return raw_s
 
     # ── Build PDF (Portrait A4) ──
     class PDFReport(FPDF):
@@ -2543,17 +2556,38 @@ def admin_report_export(
 
         def footer(self):
             self.set_y(-22)
-            self.set_font("Helvetica", "I", 7.5)
-            self.set_text_color(150, 150, 150)
+            self.set_font("Helvetica", "I", 8.5)
+            self.set_text_color(140, 140, 140)
             if self.report_type == "teacher":
-                msg = "This is a computer-generated report of collection and distribution."
+                msg = "This is a computer-generated report of collections and distributions."
             else:
                 msg = "This is a computer-generated report of student payments."
             self.cell(0, 4.5, msg, align="C", new_x="LMARGIN", new_y="NEXT")
-            self.cell(0, 4.5, "\xa9 2026 FP Finance. All rights reserved.", align="C")
+
+            # Draw copyright line: larger © symbol (size 9.5 bold, offset down) + text (size 8.5)
+            current_year = datetime.now().year
+            copy_text = f" {current_year} FP Finance. All rights reserved."
+            self.set_font("Helvetica", "B", 9.5)
+            w_sym = self.get_string_width("\xa9")
+            self.set_font("Helvetica", "I", 8.5)
+            w_txt = self.get_string_width(copy_text)
+            total_w = w_sym + w_txt
+            start_x = (210 - total_w) / 2
+            curr_y = self.get_y()
+
+            # Render symbol shifted slightly down (+0.4mm) for vertical baseline alignment
+            self.set_xy(start_x, curr_y + 0.4)
+            self.set_font("Helvetica", "B", 9.5)
+            self.cell(w_sym, 4.5, "\xa9", align="L")
+
+            # Render text on exact line
+            self.set_xy(start_x + w_sym, curr_y)
+            self.set_font("Helvetica", "I", 8.5)
+            self.cell(w_txt, 4.5, copy_text, align="L")
             
             # Page number at bottom right corner
             self.set_y(-13)
+            self.set_font("Helvetica", "I", 8.5)
             self.cell(0, 4.5, f"Page {self.page_no()} of {{nb}}", align="R")
 
     pdf = PDFReport(report_type=report_type, orientation="P")
@@ -2607,10 +2641,12 @@ def admin_report_export(
         for p in payments_raw:
             d = p.to_dict()
             d["id"] = p.id
-            # Overlay latest student name
+            # Overlay latest student name (uppercase)
             sid = d.get("student_id", "")
             if sid in all_users:
-                d["student_name"] = all_users[sid]
+                d["student_name"] = all_users[sid].upper()
+            else:
+                d["student_name"] = (d.get("student_name") or "UNKNOWN").upper()
             # Convert timestamps
             for k in ("created_at", "updated_at"):
                 if hasattr(d.get(k), "isoformat"):
@@ -2695,9 +2731,9 @@ def admin_report_export(
 
                     row = [
                         str(idx + 1),
-                        safe_str(p.get("student_name", "-")),
-                        safe_str(status.replace("_", " ")),
-                        safe_str(mode),
+                        safe_str(p.get("student_name", "-")).upper(),
+                        safe_str(status.replace("_", " ").title()),
+                        safe_str(mode.capitalize() if mode and mode != "-" else "-"),
                         safe_str(pay_date),
                     ]
                     for i, val in enumerate(row):
@@ -2721,7 +2757,7 @@ def admin_report_export(
             # ═══════════════════════════════════════
             pdf.set_font("Helvetica", "B", 11)
             pdf.set_text_color(30, 30, 30)
-            pdf.cell(0, 8, "Collection:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 8, "Collections", new_x="LMARGIN", new_y="NEXT")
             pdf.ln(1)
 
             t3_cols = [30, 50, 35, 35, 40]  # = 190
@@ -2825,15 +2861,12 @@ def admin_report_export(
                         amt = p.get("amount", 0)
                         student_name = safe_str(p.get("student_name", "-"))
 
-                        # Dynamic font sizing for student name to fit well
-                        name_font_size = 8
-                        if len(student_name) > 25:
-                            student_name = student_name[:23] + ".."
-                        elif len(student_name) > 16:
-                            name_font_size = 7
+                        # Full student name without artificial padding/truncation
+                        if len(student_name) > 32:
+                            student_name = student_name[:30] + ".."
 
                         # Draw Student Name (height = student_row_h)
-                        pdf.set_font("Helvetica", "", name_font_size)
+                        pdf.set_font("Helvetica", "", 8)
                         pdf.cell(t3_cols[1], student_row_h, student_name, border=1, fill=True, align="C")
 
                         # Draw Billing Cycle(s) using multi_cell on top of a dummy background cell
@@ -2855,7 +2888,7 @@ def admin_report_export(
 
                         # Draw Amount cell - reposition cursor after multi_cell
                         pdf.set_xy(cycle_x + t3_cols[2], cycle_y)
-                        pdf.cell(t3_cols[3], student_row_h, safe_str(f"Rs.{amt}"), border=1, fill=True, align="C")
+                        pdf.cell(t3_cols[3], student_row_h, safe_str(fmt_amt(amt)), border=1, fill=True, align="C")
 
                         # Update current_y for the next student
                         current_y += student_row_h
@@ -2864,7 +2897,7 @@ def admin_report_export(
                     total_x = MARGIN + t3_cols[0] + t3_cols[1] + t3_cols[2] + t3_cols[3]
                     pdf.set_xy(total_x, group_start_y)
                     pdf.set_fill_color(245, 245, 250)
-                    pdf.cell(t3_cols[4], group_height, safe_str(f"Rs.{date_total}"), border=1, fill=True, align="C")
+                    pdf.cell(t3_cols[4], group_height, safe_str(fmt_amt(date_total)), border=1, fill=True, align="C")
 
                     running_total += date_total
 
@@ -2875,8 +2908,8 @@ def admin_report_export(
                 pdf.set_font("Helvetica", "B", 8)
                 pdf.set_fill_color(230, 230, 240)
                 merged_width = t3_cols[0] + t3_cols[1] + t3_cols[2] + t3_cols[3]
-                pdf.cell(merged_width, 7, "Total", border=1, fill=True, align="C")
-                pdf.cell(t3_cols[4], 7, safe_str(f"Rs.{running_total}"), border=1, fill=True, align="C")
+                pdf.cell(merged_width, 7, "Grand Total", border=1, fill=True, align="C")
+                pdf.cell(t3_cols[4], 7, safe_str(fmt_amt(running_total)), border=1, fill=True, align="C")
                 pdf.ln()
             else:
                 pdf.set_font("Helvetica", "I", 9)
@@ -2897,7 +2930,7 @@ def admin_report_export(
 
             pdf.set_font("Helvetica", "B", 11)
             pdf.set_text_color(30, 30, 30)
-            pdf.cell(0, 8, "Distribution:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 8, "Distributions", new_x="LMARGIN", new_y="NEXT")
             pdf.ln(1)
 
             teacher_count = len(teacher_ids)
@@ -2996,9 +3029,9 @@ def admin_report_export(
                         # Format base date
                         try:
                             dt = datetime.fromisoformat(date_str)
-                            display_date = dt.strftime("%d/%m/%Y")
+                            display_date = dt.strftime("%d.%m.%Y")
                         except Exception:
-                            display_date = date_str
+                            display_date = format_date(date_str)
 
                         # Apply snapshot data (guaranteed to be settled)
                         snap = settled_dates[date_str]
@@ -3008,10 +3041,10 @@ def admin_report_export(
                         row_vals = [display_date]
                         for tid in teacher_ids:
                             amt = settled_teacher_amounts.get(tid, 0)
-                            row_vals.append(safe_str(f"Rs.{amt}"))
+                            row_vals.append(safe_str(fmt_amt(amt)))
                             teacher_grand_totals[tid] += amt
                             
-                        row_vals.append(safe_str(f"Rs.{date_total}"))
+                        row_vals.append(safe_str(fmt_amt(date_total)))
                         grand_total += date_total
 
                         for i, val in enumerate(row_vals):
@@ -3021,10 +3054,10 @@ def admin_report_export(
                     # Total row
                     pdf.set_font("Helvetica", "B", 7 if teacher_count > 3 else 8)
                     pdf.set_fill_color(230, 230, 240)
-                    pdf.cell(t4_cols[0], 7, "Total", border=1, fill=True, align="C")
+                    pdf.cell(t4_cols[0], 7, "Grand Total", border=1, fill=True, align="C")
                     for tid in teacher_ids:
-                        pdf.cell(teacher_col_w, 7, safe_str(f"Rs.{round(teacher_grand_totals[tid], 2)}"), border=1, fill=True, align="C")
-                    pdf.cell(t4_cols[-1], 7, safe_str(f"Rs.{round(grand_total, 2)}"), border=1, fill=True, align="C")
+                        pdf.cell(teacher_col_w, 7, safe_str(fmt_amt(teacher_grand_totals[tid])), border=1, fill=True, align="C")
+                    pdf.cell(t4_cols[-1], 7, safe_str(fmt_amt(grand_total)), border=1, fill=True, align="C")
                     pdf.ln()
 
     # ── Output PDF ──
@@ -3046,83 +3079,6 @@ def admin_report_export(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-
-# ══════════════════════════════════════════════
-#  INITIALISE DEFAULT ADMIN
-# ══════════════════════════════════════════════
-
-@router.post("/seed")
-def seed_default_admin(req: AdminSeed):
-    """Create an admin account with the given credentials.
-    Only works if no admin account exists yet."""
-    # Check if an admin already exists
-    existing_admins = list(
-        db.collection("users").where(filter=FieldFilter("role", "==", "admin")).limit(1).stream()
-    )
-    if existing_admins:
-        admin_data = existing_admins[0].to_dict()
-        return {
-            "message": "Admin account already exists",
-            "admin": {"uid": existing_admins[0].id, "username": admin_data.get("username", ""), "new": False},
-        }
-
-    email = to_firebase_email(req.username)
-    try:
-        fb_user = firebase_auth.create_user(
-            email=email,
-            password=req.password,
-            display_name=req.name,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    firebase_auth.set_custom_user_claims(fb_user.uid, {"role": "admin"})
-
-    admin_doc = {
-        "name": req.name,
-        "username": req.username.strip().lower(),
-        "email": email,
-        "role": "admin",
-        "batch_id": None,
-        "created_at": ts_now(),
-    }
-    db.collection("users").document(fb_user.uid).set(admin_doc)
-    backup_document("users", fb_user.uid, admin_doc, "create")
-
-    return {
-        "message": "Admin account created",
-        "admin": {"uid": fb_user.uid, "username": req.username.strip().lower(), "new": True},
-    }
-
-
-# ══════════════════════════════════════════════
-#  ADMIN EMERGENCY RESET
-# ══════════════════════════════════════════════
-
-@router.post("/emergency-reset")
-def reset_admin_account(req: EmergencyReset):
-    """Emergency reset: Deletes all existing admins if the master key is correct. 
-    Does not require authentication."""
-    if req.master_key != "fpfinance-master-2026-ps-sm":
-        raise HTTPException(status_code=403, detail="Invalid master key")
-        
-    existing_admins = list(db.collection("users").where(filter=FieldFilter("role", "==", "admin")).stream())
-    if not existing_admins:
-        return {"message": "No admins found in the system to delete."}
-        
-    deleted_count = 0
-    for ad in existing_admins:
-        uid = ad.id
-        try:
-            firebase_auth.delete_user(uid)
-        except Exception:
-            pass # Just in case it was already deleted in auth
-        db.collection("users").document(uid).delete()
-        delete_document_backup("users", uid)
-        deleted_count += 1
-        
-    return {"message": f"Successfully deleted {deleted_count} admin accounts. The system is ready to be seeded again."}
 
 
 

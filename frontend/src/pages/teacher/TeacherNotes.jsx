@@ -502,7 +502,7 @@ function TeacherNotesContent() {
                 </h1>
 
                 {/* Batch Selector */}
-                <div className="w-full sm:w-64 relative z-40 md:mt-10">
+                <div className="w-full sm:w-[340px] relative z-40 md:mt-10">
                     <ModernSelect
                         value={selectedBatch}
                         options={batches}

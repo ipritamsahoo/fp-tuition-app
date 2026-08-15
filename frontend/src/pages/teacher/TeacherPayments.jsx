@@ -105,28 +105,24 @@ function PaymentsContent() {
         if (status === "Paid") {
             return { 
                 label: "Paid",    
-                cls: isLight ? "bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488]" : "bg-[#4af8e3]/10 border-[#4af8e3]/30 text-[#4af8e3]", 
-                glow: isLight ? "0 0 8px rgba(13,148,136,0.15)" : "0 0 8px rgba(74,248,227,0.4)" 
+                textCls: isLight ? "text-[#0d9488]" : "text-[#4af8e3]" 
             };
         }
         if (status === "Pending_Verification") {
             return { 
                 label: "Pending", 
-                cls: isLight ? "bg-[#b45309]/10 border-[#b45309]/30 text-[#b45309]" : "bg-[#facc15]/10 border-[#facc15]/30 text-[#facc15]", 
-                glow: isLight ? "0 0 8px rgba(180,83,9,0.15)" : "0 0 8px rgba(250,204,21,0.4)"  
+                textCls: isLight ? "text-[#b45309]" : "text-[#facc15]" 
             };
         }
         if (status === "Rejected") {
             return { 
                 label: "Rejected",
-                cls: isLight ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]" : "bg-[#ff6e84]/10 border-[#ff6e84]/30 text-[#ff6e84]", 
-                glow: isLight ? "0 0 8px rgba(239,68,68,0.15)" : "0 0 8px rgba(255,110,132,0.4)" 
+                textCls: isLight ? "text-[#ef4444]" : "text-[#ff6e84]" 
             };
         }
         return { 
             label: "Unpaid",  
-            cls: isLight ? "bg-[#ea580c]/10 border-[#ea580c]/30 text-[#ea580c]" : "bg-[#fb923c]/10 border-[#fb923c]/30 text-[#fb923c]", 
-            glow: isLight ? "0 0 8px rgba(234,88,12,0.15)" : "0 0 8px rgba(251,146,60,0.4)"  
+            textCls: isLight ? "text-[#ea580c]" : "text-[#fb923c]" 
         };
     };
 
@@ -215,17 +211,13 @@ function PaymentsContent() {
             {/* Total Collected */}
             {!loading && hasLoaded && totalCollected > 0 && (
                 <div 
-                    className="border rounded-2xl px-6 py-4 flex items-center gap-4 w-fit"
+                    className="border rounded-2xl px-6 py-4 flex items-center justify-between gap-4 w-full md:w-[350px]"
                     style={{
                         background: isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(23, 25, 36, 0.4)',
                         borderColor: isLight ? 'rgba(13, 148, 136, 0.3)' : 'rgba(74, 248, 227, 0.1)',
                         boxShadow: isLight ? '0 0 30px rgba(13,148,136,0.05)' : '0 0 30px rgba(74,248,227,0.05)'
                     }}
                 >
-                    <span 
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
-                        style={{ backgroundColor: 'var(--tt-secondary)', boxShadow: `0 0 8px ${isLight ? 'rgba(13,148,136,0.5)' : 'rgba(74,248,227,0.7)'}` }}
-                    />
                     <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--tt-text-secondary)' }}>Total Collected</span>
                     <span className="text-base font-extrabold tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-secondary)' }}>₹{totalCollected.toLocaleString()}</span>
                 </div>
@@ -299,7 +291,7 @@ function PaymentsContent() {
                                         <tr key={p.id} className="hover:bg-white/[0.03] transition-colors group" style={{ borderBottom: '1px solid var(--tt-divider)' }}>
                                             {/* Student name — sticky */}
                                             <td 
-                                                className="px-5 py-4 text-sm font-bold whitespace-nowrap sticky left-0 transition-colors z-10" 
+                                                className="px-5 py-4 text-sm font-extrabold whitespace-nowrap sticky left-0 transition-colors z-10" 
                                                 style={{ 
                                                     fontFamily: "'Manrope', sans-serif",
                                                     backgroundColor: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(23, 25, 36, 0.95)',
@@ -310,51 +302,28 @@ function PaymentsContent() {
                                                 {p.student_name || "—"}
                                             </td>
                                             {/* Amount */}
-                                            <td className="px-5 py-4 text-center" style={{ borderRight: '1px solid var(--tt-divider)' }}>
-                                                <span 
-                                                    className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest"
-                                                    style={{ backgroundColor: 'var(--tt-blue-bg)', border: '1px solid var(--tt-logo-border)', color: 'var(--tt-primary)', boxShadow: `0 0 10px var(--tt-logo-shadow)` }}
-                                                >
-                                                    ₹{(p.amount || 0).toLocaleString()}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs" style={{ borderRight: '1px solid var(--tt-divider)', color: 'var(--tt-primary)' }}>
+                                                ₹{(p.amount || 0).toLocaleString()}
                                             </td>
                                             {/* Status */}
-                                            <td className="px-5 py-4 text-center" style={{ borderRight: '1px solid var(--tt-divider)' }}>
-                                                <span
-                                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full border text-[10px] uppercase font-bold tracking-widest ${sm.cls}`}
-                                                    style={{ boxShadow: sm.glow }}
-                                                >
+                                            <td className="px-5 py-4 text-center font-bold text-xs uppercase tracking-widest" style={{ borderRight: '1px solid var(--tt-divider)' }}>
+                                                <span className={sm.textCls}>
                                                     {sm.label}
                                                 </span>
                                             </td>
                                             {/* Mode */}
-                                            <td className="px-5 py-4 text-center" style={{ borderRight: '1px solid var(--tt-divider)' }}>
-                                                <span 
-                                                    className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest"
-                                                    style={{ backgroundColor: 'var(--tt-input-bg)', border: '1px solid var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
-                                                >
-                                                    {p.mode ? p.mode.charAt(0).toUpperCase() + p.mode.slice(1) : "—"}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs uppercase tracking-wider" style={{ borderRight: '1px solid var(--tt-divider)', color: 'var(--tt-text-primary)' }}>
+                                                {p.mode ? p.mode.toUpperCase() : "—"}
                                             </td>
                                             {/* Cash Received By */}
-                                            <td className="px-5 py-4 text-center whitespace-nowrap" style={{ borderRight: '1px solid var(--tt-divider)' }}>
-                                                <span 
-                                                    className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-wide"
-                                                    style={{ backgroundColor: 'var(--tt-hover-bg)', border: '1px solid var(--tt-divider)', color: 'var(--tt-text-secondary)' }}
-                                                >
-                                                    {p.mode && p.mode.toLowerCase() === "offline" 
-                                                        ? (p.teacher_name || "—") 
-                                                        : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs whitespace-nowrap" style={{ borderRight: '1px solid var(--tt-divider)', color: 'var(--tt-text-primary)' }}>
+                                                {p.mode && p.mode.toLowerCase() === "offline" 
+                                                    ? (p.teacher_name || "—") 
+                                                    : (p.mode && p.mode.toLowerCase() === "online" ? "N/A" : "—")}
                                             </td>
                                             {/* Date */}
-                                            <td className="px-5 py-4 text-center">
-                                                <span 
-                                                    className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold tracking-widest opacity-80"
-                                                    style={{ backgroundColor: 'var(--tt-card-bg)', border: '1px solid var(--tt-divider)', color: 'var(--tt-text-primary)' }}
-                                                >
-                                                    {p.status === "Paid" && p.updated_at ? formatDate(p.updated_at) : "—"}
-                                                </span>
+                                            <td className="px-5 py-4 text-center font-bold text-xs" style={{ color: 'var(--tt-text-primary)' }}>
+                                                {p.status === "Paid" && p.updated_at ? formatDate(p.updated_at) : "—"}
                                             </td>
                                         </tr>
                                     );

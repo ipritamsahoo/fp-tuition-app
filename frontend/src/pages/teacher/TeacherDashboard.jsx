@@ -24,33 +24,25 @@ function StatusBadge({ status }) {
 
     const config = {
         Paid: {
-            bg: isLight ? "bg-[#0d9488]/10" : "bg-[#4af8e3]/10",
             text: isLight ? "text-[#0d9488]" : "text-[#4af8e3]",
-            ring: isLight ? "ring-[#0d9488]/30" : "ring-[#4af8e3]/30",
             label: "PAID",
         },
         Pending_Verification: {
-            bg: "bg-amber-400/10",
             text: "text-amber-400",
-            ring: "ring-amber-400/30",
             label: "PENDING",
         },
         Unpaid: {
-            bg: "bg-[#ff6e84]/10",
             text: "text-[#ff6e84]",
-            ring: "ring-[#ff6e84]/30",
             label: "UNPAID",
         },
         Rejected: {
-            bg: "bg-[#ff6e84]/10",
             text: "text-[#ff6e84]",
-            ring: "ring-[#ff6e84]/30",
             label: "REJECTED",
         },
     };
     const c = config[status] || config.Unpaid;
     return (
-        <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-tight ring-1 ${c.bg} ${c.text} ${c.ring}`}>
+        <span className={`text-[10px] font-extrabold uppercase tracking-wider ${c.text}`}>
             {c.label}
         </span>
     );
@@ -164,6 +156,12 @@ function TeacherDashboardContent() {
     }, [fetchBatches]);
 
     useEffect(() => {
+        if (!selectedBatch) {
+            setHasLoaded(false);
+            setPayments([]);
+            setCounts({ total_students: 0, paid_count: 0, unpaid_count: 0 });
+            return;
+        }
         const runFetch = async () => {
             setHasLoaded(false);
             await fetchPayments();
@@ -538,9 +536,9 @@ function TeacherDashboardContent() {
                 /* ── Empty State: Not loaded yet ── */
                 <section className="mt-8">
                     <GlassCard className="p-16 flex flex-col items-center justify-center text-center gap-4">
-                        <span className="material-symbols-outlined text-5xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>payments</span>
+                        <span className="material-symbols-outlined text-5xl opacity-30" style={{ color: 'var(--tt-text-muted)' }}>pending_actions</span>
                         <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}>Select Batch</h3>
-                        <p className="text-sm max-w-xs" style={{ color: 'var(--tt-text-secondary)' }}>Please select a batch to view its payments and pending actions.</p>
+                        <p className="text-sm max-w-xs" style={{ color: 'var(--tt-text-secondary)' }}>Please select a batch to view pending actions.</p>
                     </GlassCard>
                 </section>
             ) : (

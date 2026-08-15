@@ -98,11 +98,13 @@ export async function generateReceiptPDF(payment, user) {
     const tableStartY = startY + 50;
     const monthName = MONTHS[payment.month - 1] || payment.month;
 
+    const formattedAmount = Number(payment.amount || 0).toFixed(2);
+
     autoTable(doc, {
         startY: tableStartY,
         head: [["Description", "Billing Cycle", "Amount (INR)"]],
         body: [
-            ["Tuition Fee", `${monthName} ${payment.year}`, `Rs. ${payment.amount}`],
+            ["Tuition Fee", `${monthName} ${payment.year}`, formattedAmount],
         ],
         theme: "grid",
         headStyles: {
@@ -119,19 +121,31 @@ export async function generateReceiptPDF(payment, user) {
             lineColor: [15, 23, 42], // Navy blue border for body
             lineWidth: 0.1,
         },
+        margin: { left: margin, right: margin },
         columnStyles: {
             0: { cellWidth: "auto" },
-            1: { cellWidth: 40 },
+            1: { cellWidth: 40, halign: "center" },
             2: { cellWidth: 40, halign: "right" },
+        },
+        didParseCell: function(data) {
+            // Center the "Amount (INR)" and "Billing Cycle" header cells
+            if (data.section === "head" && (data.column.index === 1 || data.column.index === 2)) {
+                data.cell.styles.halign = "center";
+            }
         },
     });
 
     // ─── Totals ───
-    const finalY = doc.lastAutoTable.finalY + 10;
+    // Align "Total Paid" amount to the same right edge as the table body value
+    // Body values have 6mm right cell padding, so subtract that from the table right edge
+    const tableSettings = doc.lastAutoTable;
+    const tableRightX = tableSettings.finalX ?? (pageWidth - margin);
+    const amountRightX = tableRightX - 6; // match body cell's right padding
+    const finalY = tableSettings.finalY + 10;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Total Paid:", pageWidth - margin - 50, finalY);
-    doc.text(`Rs. ${payment.amount}`, pageWidth - margin, finalY, { align: "right" });
+    doc.text("Total Paid", amountRightX - 44, finalY);
+    doc.text(formattedAmount, amountRightX, finalY, { align: "right" });
 
     // ─── Footer ───
     doc.setFont("helvetica", "italic");
