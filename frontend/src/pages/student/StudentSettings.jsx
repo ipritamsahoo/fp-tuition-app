@@ -411,16 +411,16 @@ function StudentSettingsContent() {
                     <div className="space-y-2">
                         <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--st-text-secondary)' }}>Account</h3>
                         <div className="space-y-3">
-                            {/* Change Profile Photo */}
+                            {/* Change Profile Picture */}
                             <button
                                 onClick={() => setPicModalOpen(true)}
                                 className="w-full flex items-center justify-between p-4 glass-card-student rounded-2xl transition-all group cursor-pointer"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
-                                        <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all" style={{ backgroundColor: 'var(--st-icon-bg)' }}>
+                                        <span className="material-symbols-outlined text-[20px]" style={{ color: accentColor }}>photo_camera</span>
                                     </div>
-                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
+                                    <span className="font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Picture</span>
                                 </div>
                                 <span className="material-symbols-outlined" style={{ color: 'var(--st-text-muted)' }}>chevron_right</span>
                             </button>

@@ -61,6 +61,21 @@ export function NotificationProvider({ children }) {
     const [blockedModalOpen, setBlockedModalOpen] = useState(false);
     const [appTheme, setAppTheme] = useState("dark");
 
+    // Lock background scrolling when blocked notification modal is open
+    useEffect(() => {
+        if (blockedModalOpen) {
+            document.documentElement.classList.add("scroll-lock");
+            document.body.style.overflow = "hidden";
+        } else {
+            document.documentElement.classList.remove("scroll-lock");
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.documentElement.classList.remove("scroll-lock");
+            document.body.style.overflow = "unset";
+        };
+    }, [blockedModalOpen]);
+
     useEffect(() => {
         if (typeof window === "undefined") return;
         const isAdmin = user?.role === "admin";
@@ -437,104 +452,73 @@ export function NotificationProvider({ children }) {
             {blockedModalOpen && createPortal(
                 <div 
                     data-theme={appTheme}
-                    className="fixed inset-0 z-[10000] flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in pwa-overlay"
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4"
                     onClick={() => setBlockedModalOpen(false)}
+                    style={{
+                        backgroundColor: (appTheme === "light") ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(16px) saturate(1.5)',
+                        WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
+                    }}
                 >
                     <div 
-                        className="pwa-modal-card w-full max-w-xs sm:max-w-sm glass-card-student rounded-3xl sm:rounded-[32px] p-6 sm:p-8 flex flex-col items-center text-center animate-fade-in-scale shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-white/10 relative overflow-hidden"
+                        className="w-full max-w-sm rounded-[32px] p-8 animate-modal-in shadow-2xl flex flex-col items-center text-center"
                         onClick={(e) => e.stopPropagation()}
+                        style={{
+                            backgroundColor: (appTheme === "light") ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.01)',
+                            border: `1px solid ${(appTheme === "light") ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.15)'}`,
+                            backdropFilter: 'blur(80px) saturate(2.5)',
+                            WebkitBackdropFilter: 'blur(80px) saturate(2.5)',
+                            boxShadow: (appTheme === "light")
+                                ? '0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255,255,255,0.6)'
+                                : '0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255,255,255,0.05)',
+                            transform: "translateZ(0)",
+                            isolation: "isolate"
+                        }}
                     >
-                        {/* Decorative glow elements inside popup */}
-                        <div className="absolute -top-20 -right-20 w-44 h-44 bg-[#3b82f6]/10 rounded-full blur-3xl pointer-events-none" />
-                        <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-[#8b5cf6]/5 rounded-full blur-3xl pointer-events-none" />
-
-                        {/* Close/Cross Button */}
-                        <button
-                            onClick={() => setBlockedModalOpen(false)}
-                            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 cursor-pointer close-btn animate-fade-in"
-                            aria-label="Close modal"
-                        >
-                            <span className="material-symbols-outlined text-sm sm:text-base">close</span>
-                        </button>
-
                         {/* Icon */}
-                        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-500 mb-4 border border-rose-500/20 shadow-md">
-                            <span className="material-symbols-outlined text-3xl">notifications_off</span>
+                        <div 
+                            className="flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-md"
+                            style={{
+                                backgroundColor: (appTheme === "light") ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 110, 132, 0.1)',
+                                border: `1px solid ${(appTheme === "light") ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 110, 132, 0.2)'}`,
+                                color: (appTheme === "light") ? '#ef4444' : '#ff9dac'
+                            }}
+                        >
+                            <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                notifications_off
+                            </span>
                         </div>
 
                         {/* Title */}
-                        <h3 className="text-[#f0f0fd] text-xl sm:text-2xl font-extrabold mb-3 tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                        <h3 
+                            className="font-extrabold text-2xl mb-3 tracking-tight text-center" 
+                            style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}
+                        >
                             Notification Blocked
                         </h3>
 
                         {/* Description */}
-                        <p className="text-[#aaaab7] text-xs sm:text-sm leading-relaxed mb-6">
+                        <p 
+                            className="text-xs sm:text-sm leading-relaxed mb-6 font-medium"
+                            style={{ color: 'var(--st-text-secondary)' }}
+                        >
                             Notification permission is blocked in your browser or device settings. Please allow notifications in settings first.
                         </p>
 
                         {/* Action Button */}
-                        <button
-                            onClick={() => setBlockedModalOpen(false)}
-                            className="w-full py-2.5 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] font-bold active:scale-[0.98] cursor-pointer text-sm sm:text-base awesome-btn"
-                        >
-                            OK
-                        </button>
+                        <div className="w-full">
+                            <button
+                                onClick={() => setBlockedModalOpen(false)}
+                                className={`w-full px-4 py-4 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95 border shadow-lg ${
+                                    appTheme === "light"
+                                        ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
+                                        : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
+                                }`}
+                            >
+                                OK
+                            </button>
+                        </div>
                     </div>
-
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                        .pwa-overlay {
-                            background-color: rgba(0, 0, 0, 0.5) !important;
-                            backdrop-filter: blur(16px) saturate(1.5);
-                            -webkit-backdrop-filter: blur(16px) saturate(1.5);
-                        }
-                        [data-theme="light"].pwa-overlay {
-                            background-color: rgba(255, 255, 255, 0.2) !important;
-                        }
-                        .pwa-modal-card {
-                            background-color: rgba(255, 255, 255, 0.01) !important;
-                            border: 1px solid rgba(255, 255, 255, 0.15) !important;
-                            backdrop-filter: blur(80px) saturate(2.5) !important;
-                            -webkit-backdrop-filter: blur(80px) saturate(2.5) !important;
-                            box-shadow: 0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255, 255, 255, 0.05) !important;
-                        }
-                        .pwa-modal-card:hover {
-                            background-color: rgba(255, 255, 255, 0.01) !important;
-                            border-color: rgba(255, 255, 255, 0.15) !important;
-                            box-shadow: 0 32px 64px rgba(0,0,0,0.6), inset 0 0 32px rgba(255, 255, 255, 0.05) !important;
-                            transform: none !important;
-                            transition: none !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card {
-                            background-color: rgba(255, 255, 255, 0.1) !important;
-                            border: 1px solid rgba(255, 255, 255, 0.8) !important;
-                            box-shadow: 0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255, 255, 255, 0.6) !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card:hover {
-                            background-color: rgba(255, 255, 255, 0.1) !important;
-                            border-color: rgba(255, 255, 255, 0.8) !important;
-                            box-shadow: 0 32px 64px rgba(0,0,0,0.05), inset 0 0 32px rgba(255, 255, 255, 0.6) !important;
-                            transform: none !important;
-                            transition: none !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card h3 {
-                            color: #0f172a !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card p {
-                            color: #475569 !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card .close-btn {
-                            background-color: rgba(0, 0, 0, 0.04) !important;
-                            border-color: rgba(0, 0, 0, 0.06) !important;
-                            color: #64748b !important;
-                        }
-                        [data-theme="light"] .pwa-modal-card .awesome-btn {
-                            background-color: rgba(13, 148, 136, 0.08) !important;
-                            border-color: rgba(13, 148, 136, 0.2) !important;
-                            color: #0d9488 !important;
-                        }
-                        `
-                    }} />
                 </div>,
                 document.body
             )}

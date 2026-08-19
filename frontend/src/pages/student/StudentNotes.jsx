@@ -429,7 +429,7 @@ function StudentNotesContent() {
                 </GlassCard>
             ) : notes.length === 0 ? (
                 <div className="p-16 flex flex-col items-center justify-center text-center gap-4">
-                    <span className="material-symbols-outlined text-5xl text-[var(--st-text-secondary)]">edit_document</span>
+                    <span className="material-symbols-outlined text-5xl text-[var(--st-text-secondary)]">menu_book</span>
                     <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}>
                         No Notes Shared Yet
                     </h3>

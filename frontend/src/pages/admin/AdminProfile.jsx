@@ -89,18 +89,16 @@ function AdminProfileContent() {
 
             {/* ── Settings List ── */}
             <section className="space-y-3">
-                {/* Change Profile Photo */}
+                {/* Change Profile Picture */}
                 <button
                     onClick={() => setPicModalOpen(true)}
-                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all group cursor-pointer"
+                    className="w-full flex items-center justify-between p-4 glass-card-admin rounded-2xl transition-all cursor-pointer group"
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors group-hover:bg-[var(--ad-accent-bg)]"
-                             style={{ backgroundColor: 'var(--ad-icon-bg)', color: 'var(--ad-primary)' }}
-                        >
-                            <span className="material-symbols-outlined">photo_camera</span>
+                        <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--ad-icon-bg)' }}>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--ad-accent)' }}>photo_camera</span>
                         </div>
-                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>Change Profile Photo</span>
+                        <span className="font-medium" style={{ color: 'var(--ad-text-primary)' }}>Change Profile Picture</span>
                     </div>
                     <span className="material-symbols-outlined" style={{ color: 'var(--ad-text-muted)' }}>chevron_right</span>
                 </button>

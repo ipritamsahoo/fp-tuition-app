@@ -1,51 +1,48 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { createPortal } from "react-dom";
 
 export default function PwaUpdateBanner({ show, mode = "update", currentVersion, newVersion, onUpdate, onClose }) {
     const [isUpdating, setIsUpdating] = useState(false);
-    const location = useLocation();
-    const { user } = useAuth();
 
-    const [studentTheme, setStudentTheme] = useState(() => {
+    const [currentTheme, setCurrentTheme] = useState(() => {
         try {
-            return localStorage.getItem("fp_student_theme_v2") || "light";
-        } catch {
-            return "light";
-        }
-    });
-
-    const [teacherTheme, setTeacherTheme] = useState(() => {
-        try {
-            return localStorage.getItem("fp_teacher_theme_v2") || "light";
+            return document.documentElement.getAttribute("data-theme") ||
+                (document.documentElement.classList.contains("dark") ? "dark" : "light") ||
+                "light";
         } catch {
             return "light";
         }
     });
 
     useEffect(() => {
-        const handleStudentThemeChange = (e) => {
-            setStudentTheme(e.detail);
+        const updateTheme = () => {
+            const t = document.documentElement.getAttribute("data-theme") ||
+                (document.documentElement.classList.contains("dark") ? "dark" : "light") ||
+                "light";
+            setCurrentTheme(t);
         };
-        const handleTeacherThemeChange = (e) => {
-            setTeacherTheme(e.detail);
-        };
-        window.addEventListener("fp-student-theme-change", handleStudentThemeChange);
-        window.addEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+        updateTheme();
+        window.addEventListener("fp-student-theme-change", updateTheme);
+        window.addEventListener("fp-teacher-theme-change", updateTheme);
+        window.addEventListener("fp-admin-theme-change", updateTheme);
         return () => {
-            window.removeEventListener("fp-student-theme-change", handleStudentThemeChange);
-            window.removeEventListener("fp-teacher-theme-change", handleTeacherThemeChange);
+            window.removeEventListener("fp-student-theme-change", updateTheme);
+            window.removeEventListener("fp-teacher-theme-change", updateTheme);
+            window.removeEventListener("fp-admin-theme-change", updateTheme);
         };
-    }, []);
+    }, [show]);
 
-    // Lock body scrolling when update banner/modal is open
+    // Lock body scrolling when update modal is open
     useEffect(() => {
         if (show) {
+            document.documentElement.classList.add("scroll-lock");
             document.body.style.overflow = "hidden";
         } else {
+            document.documentElement.classList.remove("scroll-lock");
             document.body.style.overflow = "unset";
         }
         return () => {
+            document.documentElement.classList.remove("scroll-lock");
             document.body.style.overflow = "unset";
         };
     }, [show]);
@@ -60,186 +57,144 @@ export default function PwaUpdateBanner({ show, mode = "update", currentVersion,
     };
 
     const isUpdateMode = mode === "update";
+    const isLight = currentTheme === "light";
 
-    // Determine if we are inside the student or teacher sections
-    const isStudentSection = location.pathname.startsWith("/student") ||
-        (user?.role === "student" && ["/notifications", "/about", "/feedback"].includes(location.pathname));
-
-    const isTeacherSection = location.pathname.startsWith("/teacher") ||
-        (user?.role === "teacher" && ["/notifications", "/about", "/feedback"].includes(location.pathname));
-
-    let resolvedTheme = "dark";
-    if (isStudentSection) {
-        resolvedTheme = studentTheme;
-    } else if (isTeacherSection) {
-        resolvedTheme = teacherTheme;
-    } else {
-        resolvedTheme = "dark";
-    }
-
-    return (
-        <div data-theme={resolvedTheme} className="fixed inset-0 z-[10000] flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in pwa-overlay">
-            <div className="pwa-modal-card w-full max-w-xs sm:max-w-sm glass-card-student rounded-3xl sm:rounded-[32px] p-6 sm:p-8 flex flex-col items-center text-center animate-fade-in-scale shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-white/10 relative overflow-hidden">
-                {/* Decorative glow elements inside popup */}
-                <div className="absolute -top-20 -right-20 w-44 h-44 bg-[#3b82f6]/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-20 -left-20 w-44 h-44 bg-[#8b5cf6]/5 rounded-full blur-3xl pointer-events-none" />
-
-                {/* Close/Cross Button */}
-                <button
-                    onClick={onClose}
-                    disabled={isUpdating}
-                    className="absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed close-btn"
-                    aria-label="Close modal"
+    return createPortal(
+        <div
+            data-theme={currentTheme}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 backdrop-blur-md animate-fadeIn"
+            onClick={onClose}
+                    style={{
+                        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.55)',
+                        backdropFilter: 'blur(16px) saturate(1.5)',
+                        WebkitBackdropFilter: 'blur(16px) saturate(1.5)'
+                    }}
                 >
-                    <span className="material-symbols-outlined text-sm sm:text-base">close</span>
-                </button>
+                    <div 
+                        className="w-full max-w-[360px] sm:max-w-[400px] rounded-[32px] p-6 sm:p-7 relative overflow-hidden shadow-2xl border transition-all animate-modal-in flex flex-col items-center text-center"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: isLight
+                                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 248, 255, 0.82) 100%)'
+                                : 'linear-gradient(135deg, rgba(30, 35, 48, 0.82) 0%, rgba(15, 20, 32, 0.72) 100%)',
+                            borderColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.14)',
+                            boxShadow: isLight
+                                ? '0 24px 48px -12px rgba(0, 0, 0, 0.08), inset 0 0 32px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.9)'
+                                : '0 32px 64px rgba(0, 0, 0, 0.6), inset 0 0 32px rgba(255, 255, 255, 0.05)',
+                            backdropFilter: 'blur(60px) saturate(2.2)',
+                            WebkitBackdropFilter: 'blur(60px) saturate(2.2)',
+                            color: isLight ? '#1f2937' : '#f3f4f6',
+                            transform: "translateZ(0)",
+                            isolation: "isolate"
+                        }}
+                    >
+                {/* Decorative Ambient Glass Glow Spheres */}
+                <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-blue-500/10 blur-2xl pointer-events-none" />
+                <div className="absolute -bottom-16 -left-16 w-36 h-36 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
 
-                {/* Content */}
-                <h3 className="text-[#f0f0fd] text-xl sm:text-2xl font-extrabold mb-2 sm:mb-3 tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>
+
+
+                {/* Icon Visual */}
+                <div 
+                    className="w-16 h-16 rounded-full flex items-center justify-center mb-3.5 shadow-md relative z-10"
+                    style={{
+                        backgroundColor: isLight ? 'rgba(13, 148, 136, 0.12)' : 'rgba(59, 130, 246, 0.15)',
+                        border: `1px solid ${isLight ? 'rgba(13, 148, 136, 0.25)' : 'rgba(59, 130, 246, 0.3)'}`,
+                        color: isLight ? '#0d9488' : '#3b82f6'
+                    }}
+                >
+                    <span 
+                        className="material-symbols-outlined text-3xl"
+                        style={{ fontVariationSettings: "'wght' 700" }}
+                    >
+                        {isUpdateMode ? 'system_update' : 'check'}
+                    </span>
+                </div>
+
+                {/* Title */}
+                <h3 
+                    className="text-xl sm:text-2xl font-black tracking-tight mb-2 relative z-10" 
+                    style={{ fontFamily: "'Manrope', sans-serif", color: isLight ? '#1f2937' : '#ffffff' }}
+                >
                     {isUpdateMode ? "New Version Available" : "You're Up to Date"}
                 </h3>
 
                 {/* Version Indicators */}
                 {isUpdateMode ? (
                     currentVersion && (
-                        <div className="version-tag flex items-center gap-1.5 sm:gap-2 justify-center text-[10px] sm:text-xs font-bold bg-white/5 border border-white/10 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl mb-3 sm:mb-4 tracking-wide text-[#aaaab7]">
+                        <div 
+                            className="flex items-center gap-1.5 sm:gap-2 justify-center text-xs font-bold px-3 py-1 rounded-full mb-3 tracking-wide relative z-10"
+                            style={{
+                                backgroundColor: isLight ? 'rgba(13, 148, 136, 0.08)' : 'rgba(59, 130, 246, 0.1)',
+                                border: `1px solid ${isLight ? 'rgba(13, 148, 136, 0.2)' : 'rgba(59, 130, 246, 0.25)'}`,
+                                color: isLight ? '#475569' : '#cbd5e1'
+                            }}
+                        >
                             <span>v{currentVersion}</span>
-                            <span className="material-symbols-outlined text-[12px] sm:text-[14px]">arrow_right_alt</span>
-                            <span className="text-[#3b82f6] new-version-text">v{newVersion || "New"}</span>
+                            <span className="material-symbols-outlined text-xs" style={{ color: isLight ? '#0d9488' : '#60a5fa' }}>arrow_right_alt</span>
+                            <span className="font-black" style={{ color: isLight ? '#0d9488' : '#3b82f6' }}>v{newVersion || "New"}</span>
                         </div>
                     )
                 ) : (
                     currentVersion && (
-                        <div className="version-tag version-tag-success flex items-center gap-1 sm:gap-1.5 justify-center text-[10px] sm:text-xs font-bold bg-white/5 border border-white/10 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl mb-3 sm:mb-4 tracking-wide text-[#3b82f6]">
-                            <span className="material-symbols-outlined text-[12px] sm:text-[14px]">verified</span>
-                            <span>Version {currentVersion}</span>
-                        </div>
+                        <p 
+                            className="text-xs font-bold mb-3 tracking-wide relative z-10"
+                            style={{ color: isLight ? '#0d9488' : '#3b82f6' }}
+                        >
+                            Version {currentVersion}
+                        </p>
                     )
                 )}
 
-                <p className="text-[#aaaab7] text-xs sm:text-sm leading-relaxed mb-5 sm:mb-6">
+                {/* Description */}
+                <p 
+                    className="text-xs sm:text-sm leading-relaxed mb-6 font-medium relative z-10"
+                    style={{ color: isLight ? '#4b5563' : '#9ca3af' }}
+                >
                     {isUpdateMode
-                        ? "Update now to experience the latest features and fixes."
-                        : "You are already using the latest version."}
+                        ? "Update now to experience the latest features, enhancements, and bug fixes."
+                        : "You are already using the latest and newest version of FP Finance."}
                 </p>
 
-                {/* Action Button */}
-                {isUpdateMode ? (
-                    <button
-                        onClick={handleUpdate}
-                        disabled={isUpdating}
-                        className="w-full py-2.5 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] font-bold active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-sm sm:text-base update-btn"
-                    >
-                        {isUpdating ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                                Updating...
-                            </>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-[18px]">autorenew</span>
-                                Update Now
-                            </>
-                        )}
-                    </button>
-                ) : (
-                    <button
-                        onClick={onClose}
-                        className="w-full py-2.5 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] font-bold active:scale-[0.98] cursor-pointer text-sm sm:text-base awesome-btn"
-                    >
-                        Awesome
-                    </button>
-                )}
+                {/* Action Buttons */}
+                <div className="w-full relative z-10">
+                    {isUpdateMode ? (
+                        <button
+                            onClick={handleUpdate}
+                            disabled={isUpdating}
+                            className={`w-full py-3.5 px-6 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95 border shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${
+                                isLight
+                                    ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
+                                    : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
+                            }`}
+                        >
+                            {isUpdating ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                    <span>Updating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="material-symbols-outlined text-base">autorenew</span>
+                                    <span>Update Now</span>
+                                </>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onClose}
+                            className={`w-full py-3.5 px-6 rounded-2xl text-sm font-bold transition-all cursor-pointer active:scale-95 border shadow-lg ${
+                                isLight
+                                    ? 'bg-[#0d9488]/10 border-[#0d9488]/30 text-[#0d9488] hover:bg-[#0d9488]/20'
+                                    : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6] hover:bg-[#3b82f6]/20'
+                            }`}
+                        >
+                            Awesome
+                        </button>
+                    )}
+                </div>
             </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .pwa-overlay {
-                    background-color: rgba(9, 15, 30, 0.7) !important;
-                }
-                [data-theme="light"].pwa-overlay {
-                    background-color: rgba(226, 232, 240, 0.6) !important;
-                }
-                .pwa-modal-card {
-                    background-color: rgba(15, 23, 42, 0.92) !important;
-                }
-                .pwa-modal-card:hover {
-                    background: rgba(15, 23, 42, 0.92) !important;
-                    border-color: rgba(255, 255, 255, 0.1) !important;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
-                    transform: none !important;
-                    transition: none !important;
-                }
-                [data-theme="light"] .pwa-modal-card {
-                    background-color: rgba(255, 255, 255, 0.98) !important;
-                    border-color: rgba(0, 0, 0, 0.08) !important;
-                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
-                }
-                [data-theme="light"] .pwa-modal-card:hover {
-                    background: rgba(255, 255, 255, 0.98) !important;
-                    border-color: rgba(0, 0, 0, 0.08) !important;
-                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
-                    transform: none !important;
-                    transition: none !important;
-                }
-                [data-theme="light"] .pwa-modal-card h3 {
-                    color: #0f172a !important;
-                }
-                [data-theme="light"] .pwa-modal-card p {
-                    color: #475569 !important;
-                }
-                [data-theme="light"] .pwa-modal-card .version-tag {
-                    background-color: rgba(0, 0, 0, 0.04) !important;
-                    border-color: rgba(0, 0, 0, 0.06) !important;
-                    color: #475569 !important;
-                }
-                [data-theme="light"] .pwa-modal-card .version-tag-success {
-                    background-color: rgba(13, 148, 136, 0.06) !important;
-                    border-color: rgba(13, 148, 136, 0.1) !important;
-                    color: #0d9488 !important;
-                }
-                [data-theme="light"] .pwa-modal-card .close-btn {
-                    background-color: rgba(0, 0, 0, 0.04) !important;
-                    border-color: rgba(0, 0, 0, 0.06) !important;
-                    color: #64748b !important;
-                }
-
-                [data-theme="light"] .pwa-modal-card .success-icon-container {
-                    background: linear-gradient(to top right, rgba(13, 148, 136, 0.15), rgba(59, 130, 246, 0.05)) !important;
-                    ring-color: rgba(13, 148, 136, 0.1) !important;
-                    box-shadow: 0 0 30px rgba(13, 148, 136, 0.1) !important;
-                }
-                [data-theme="light"] .pwa-modal-card .success-icon-text {
-                    color: #0d9488 !important;
-                }
-                [data-theme="light"] .pwa-modal-card .update-icon-container {
-                    background: linear-gradient(to top right, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.05)) !important;
-                    ring-color: rgba(59, 130, 246, 0.1) !important;
-                    box-shadow: 0 0 30px rgba(59, 130, 246, 0.1) !important;
-                }
-                [data-theme="light"] .pwa-modal-card .update-icon-text {
-                    color: #2563eb !important;
-                }
-                [data-theme="light"] .pwa-modal-card .awesome-btn {
-                    background-color: rgba(13, 148, 136, 0.08) !important;
-                    border-color: rgba(13, 148, 136, 0.2) !important;
-                    color: #0d9488 !important;
-                }
-
-                [data-theme="light"] .pwa-modal-card .new-version-text {
-                    color: #0d9488 !important;
-                }
-                [data-theme="light"] .pwa-modal-card .update-btn {
-                    background-color: rgba(13, 148, 136, 0.08) !important;
-                    border-color: rgba(13, 148, 136, 0.2) !important;
-                    color: #0d9488 !important;
-                }
-
-            `
-            }} />
-        </div>
+        </div>,
+        document.body
     );
 }

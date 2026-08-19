@@ -170,7 +170,7 @@ function StudentNoticesContent() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-3.5 pb-6">
+        <div className="max-w-4xl mx-auto space-y-6 pb-6">
             {/* Error Message */}
             {error && (
                 <div className="p-4 rounded-2xl bg-[#ff6e84]/15 border border-[#ff6e84]/20 text-[#ff6e84] text-sm">
@@ -178,36 +178,33 @@ function StudentNoticesContent() {
                 </div>
             )}
 
-            {/* Feed Section Header (Hidden on mobile) */}
-            <div className="hidden md:flex items-center justify-between">
-                <h2 
-                    className="text-base font-bold tracking-tight" 
+            {/* Header */}
+            <div className="hidden md:block">
+                <h1 
+                    className="text-2xl md:text-3xl font-extrabold tracking-tight" 
                     style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}
                 >
-                    All Notices
-                </h2>
+                    Notices
+                </h1>
             </div>
 
             {/* Content feed */}
             {!user?.batchId ? (
-                <div className="p-16 rounded-2xl border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
-                    <span className="material-symbols-outlined text-4xl text-[#aaaab7]/20">warning</span>
-                    <h3 className="font-bold text-sm" style={{ color: "var(--st-text-primary)" }}>
+                <div className="p-16 flex flex-col items-center justify-center text-center gap-4">
+                    <span className="material-symbols-outlined text-5xl text-[var(--st-text-secondary)]">warning</span>
+                    <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}>
                         No Batch Assigned
                     </h3>
-                    <p className="text-xs max-w-xs" style={{ color: "var(--st-text-secondary)" }}>
+                    <p className="text-[var(--st-text-secondary)] text-sm max-w-xs">
                         You need to be assigned to a batch to see notices. Please contact your teacher.
                     </p>
                 </div>
             ) : notices.length === 0 ? (
-                <div className="p-16 rounded-2xl border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center gap-3">
-                    <span className="material-symbols-outlined text-4xl text-[#aaaab7]/25">campaign</span>
-                    <h3 className="font-bold text-sm" style={{ color: "var(--st-text-primary)" }}>
+                <div className="p-16 flex flex-col items-center justify-center text-center gap-4">
+                    <span className="material-symbols-outlined text-5xl text-[var(--st-text-secondary)]">campaign</span>
+                    <h3 className="font-bold text-lg" style={{ fontFamily: "'Manrope', sans-serif", color: "var(--st-text-primary)" }}>
                         No Active Notices
                     </h3>
-                    <p className="text-xs max-w-xs" style={{ color: "var(--st-text-secondary)" }}>
-                        Your teacher hasn't shared any notices in the last 7 days.
-                    </p>
                 </div>
             ) : (
                 <div className="space-y-3">

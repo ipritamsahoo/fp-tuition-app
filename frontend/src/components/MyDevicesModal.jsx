@@ -67,22 +67,29 @@ export default function MyDevicesModal({ onClose }) {
             >
 
                 {/* Header */}
-                <div className="px-8 pt-8 pb-6 border-b relative" style={{ borderColor: `var(${prefix}divider)` }}>
-                    <div className="flex items-center justify-between relative z-10">
-                        <div>
-                            <h3 className="font-extrabold text-2xl tracking-tight flex items-center gap-3" style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}>
-                                <span className="material-symbols-outlined text-3xl" style={{ color: accentColor }}>devices</span>
-                                My Devices
+                <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-5 sm:pb-6 border-b relative" style={{ borderColor: `var(${prefix}divider)` }}>
+                    <div className="flex items-start sm:items-center justify-between gap-3 relative z-10">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-extrabold text-xl sm:text-2xl tracking-tight flex items-center gap-2.5 sm:gap-3" style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}>
+                                <span className="material-symbols-outlined text-2xl sm:text-3xl shrink-0" style={{ color: accentColor }}>devices</span>
+                                <span className="truncate">My Devices</span>
                             </h3>
+                            <p className="text-[11px] sm:text-xs mt-1.5 font-medium flex items-center gap-1.5 leading-tight" style={{ color: `var(${prefix}text-muted)` }}>
+                                <span className="material-symbols-outlined text-[14px] sm:text-[15px] opacity-75 shrink-0">info</span>
+                                <span>Old sessions are automatically terminated after 15 days of inactivity</span>
+                            </p>
                         </div>
                         <button onClick={onClose}
-                            className="w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer group"
+                            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 aspect-square flex items-center justify-center rounded-full transition-all cursor-pointer group active:scale-95"
                             style={{ 
                                 backgroundColor: isLight ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)',
                                 border: `1px solid ${isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.1)'}`,
-                                color: `var(${prefix}text-secondary)` 
-                            }}>
-                            <span className="material-symbols-outlined transition-transform group-hover:rotate-90">close</span>
+                                color: `var(${prefix}text-secondary)`,
+                                aspectRatio: '1 / 1'
+                            }}
+                            aria-label="Close modal"
+                        >
+                            <span className="material-symbols-outlined text-lg sm:text-xl transition-transform group-hover:rotate-90">close</span>
                         </button>
                     </div>
                 </div>
@@ -115,7 +122,7 @@ export default function MyDevicesModal({ onClose }) {
                                 });
                                 return (
                                     <div key={idx}
-                                        className="rounded-[2.5rem] p-6 border transition-all animate-fade-in-up relative overflow-hidden group shadow-lg"
+                                        className="rounded-[28px] sm:rounded-[32px] p-5 sm:p-6 border transition-all animate-fade-in-up relative overflow-hidden group shadow-md"
                                         style={{ 
                                             animationDelay: `${idx * 100}ms`,
                                             backgroundColor: isCurrent 
@@ -127,14 +134,14 @@ export default function MyDevicesModal({ onClose }) {
                                         }}>
                                         
                                         {isCurrent && (
-                                            <div className="absolute top-0 right-0 px-4 py-1.5 text-white text-[9px] font-bold uppercase tracking-widest rounded-bl-2xl shadow-lg" style={{ backgroundColor: accentColor }}>
+                                            <div className="absolute top-0 right-0 px-4 py-1 text-white text-[9px] font-bold uppercase tracking-widest rounded-bl-2xl shadow-md" style={{ backgroundColor: accentColor }}>
                                                 This Device
                                             </div>
                                         )}
 
-                                        <div className="flex items-center gap-5">
+                                        <div className="flex items-center gap-4 sm:gap-5">
                                             <div 
-                                                className="w-14 h-14 rounded-3xl flex items-center justify-center shrink-0 transition-all border shadow-[0_0_15px_rgba(13,148,136,0.15)] group-hover:shadow-[0_0_25px_rgba(13,148,136,0.25)]"
+                                                className="w-12 h-12 sm:w-14 sm:h-14 rounded-[20px] flex items-center justify-center shrink-0 transition-all border shadow-[0_0_15px_rgba(13,148,136,0.15)] group-hover:shadow-[0_0_25px_rgba(13,148,136,0.25)]"
                                                 style={{
                                                     backgroundColor: isCurrent ? activeColor : `var(${prefix}icon-bg)`,
                                                     borderColor: isCurrent ? activeBorderColor : `var(${prefix}input-border)`,
@@ -146,18 +153,14 @@ export default function MyDevicesModal({ onClose }) {
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-base font-bold truncate tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: `var(${prefix}text-primary)` }}>
                                                         {session.device_name || "Unknown Device"}
+                                                        {session.platform && (
+                                                            <span className="text-sm font-medium ml-1.5 opacity-75" style={{ color: `var(${prefix}text-secondary)` }}>
+                                                                ({session.platform})
+                                                            </span>
+                                                        )}
                                                     </span>
-                                                    {isCurrent && (
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#0d9488] bg-[#0d9488]/10 px-2 py-0.5 rounded-md border border-[#0d9488]/20 animate-pulse">
-                                                            Online
-                                                        </span>
-                                                    )}
                                                 </div>
-                                                <p className="text-xs mt-1 font-medium flex items-center gap-1" style={{ color: `var(${prefix}text-secondary)` }}>
-                                                    <span className="material-symbols-outlined text-[14px]">devices</span>
-                                                    {session.platform || "Unknown"}
-                                                </p>
-                                                <p className="text-[10px] mt-2 font-bold uppercase tracking-tighter flex items-center gap-1" style={{ color: isCurrent ? accentColor : `var(${prefix}text-muted)` }}>
+                                                <p className="text-[10px] mt-1.5 font-bold uppercase tracking-tighter flex items-center gap-1" style={{ color: isCurrent ? accentColor : `var(${prefix}text-muted)` }}>
                                                     <span className="material-symbols-outlined text-[12px]">schedule</span>
                                                     {isCurrent ? "Current Session" : `Last active: ${dateStr}`}
                                                 </p>

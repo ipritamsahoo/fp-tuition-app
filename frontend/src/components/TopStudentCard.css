@@ -13,12 +13,12 @@
   max-width: 1050px;
   min-height: auto;
 
-  margin: 15px auto;
+  margin: 0 auto;
   padding: 75px 55px 24px;
 
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 26px;
+  border-radius: 32px;
 
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
@@ -122,7 +122,7 @@
   content: "";
   position: absolute;
   inset: 1px;
-  border-radius: 25px;
+  border-radius: 31px;
   pointer-events: none;
   box-shadow: inset 0 0 30px rgba(255, 183, 47, 0.02);
 }
@@ -499,7 +499,7 @@
   .top-student-card {
     padding: 58px 18px 28px;
     min-height: 220px;
-    border-radius: 22px;
+    border-radius: 28px;
   }
 
   .rank-ribbon-container {
@@ -608,7 +608,7 @@
   .top-student-card {
     padding: 52px 14px 24px;
     min-height: 200px;
-    border-radius: 18px;
+    border-radius: 28px;
   }
 
   .rank-ribbon-container {

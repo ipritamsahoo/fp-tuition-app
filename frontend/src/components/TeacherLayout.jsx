@@ -582,7 +582,7 @@ function TeacherLayoutInner({ children }) {
                             )}
                         </button>
                         <div
-                            className="transition-all cursor-pointer active:scale-95 ml-1"
+                            className="transition-all cursor-pointer active:scale-95 ml-2.5 sm:ml-3.5"
                             onClick={() => navigate("/teacher/settings")}
                         >
                             <ProfilePicture size={34} />
@@ -622,7 +622,7 @@ function TeacherLayoutInner({ children }) {
                     </button>
                     <div>
                         <h1 
-                            className="text-lg font-bold tracking-tight leading-none" 
+                            className="font-extrabold text-xl tracking-tight leading-none" 
                             style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--tt-text-primary)' }}
                         >
                             {getSubPageTitle()}
@@ -808,7 +808,7 @@ function TeacherLayoutInner({ children }) {
 
                             {/* Scrollable Settings Options List */}
                             <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden space-y-2 pr-0.5">
-                                {/* Change Profile Photo */}
+                                {/* Change Profile Picture */}
                                 <button 
                                     onClick={() => setPicUploadOpen(true)}
                                     className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--tt-primary,#0d9488)]/30"
@@ -818,7 +818,7 @@ function TeacherLayoutInner({ children }) {
                                         <div className="w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-300" style={{ backgroundColor: 'var(--tt-icon-bg)' }}>
                                             <span className="material-symbols-outlined text-[18px]" style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>photo_camera</span>
                                         </div>
-                                        <span className="text-sm font-medium" style={{ color: 'var(--tt-text-primary)' }}>Change Profile Photo</span>
+                                        <span className="text-sm font-medium" style={{ color: 'var(--tt-text-primary)' }}>Change Profile Picture</span>
                                     </div>
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
@@ -959,26 +959,7 @@ function TeacherLayoutInner({ children }) {
                                     </div>
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </a>
-                                
-                                {/* Check for Updates */}
-                                <button 
-                                    onClick={handleCheckUpdate}
-                                    disabled={updateChecking}
-                                    className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--tt-primary,#0d9488)]/30 disabled:opacity-50"
-                                    style={{ backgroundColor: 'var(--tt-hover-bg)' }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-300" style={{ backgroundColor: 'var(--tt-icon-bg)' }}>
-                                            <span className={updateChecking ? "material-symbols-outlined text-[18px] animate-spin" : "material-symbols-outlined text-[18px]"} style={{ color: isLight ? "#0d9488" : "#3b82f6" }}>
-                                                {updateChecking ? 'autorenew' : 'system_update'}
-                                            </span>
-                                        </div>
-                                        <span className="text-sm font-medium" style={{ color: 'var(--tt-text-primary)' }}>
-                                            {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
-                                        </span>
-                                    </div>
-                                    <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
-                                </button>
+
 
                                 {/* About */}
                                 <button 

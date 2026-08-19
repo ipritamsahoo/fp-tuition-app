@@ -351,16 +351,16 @@ function TeacherSettingsContent() {
                     <div className="space-y-2">
                         <h3 className="text-xs font-bold uppercase tracking-widest pl-2" style={{ color: 'var(--tt-text-secondary)' }}>Account</h3>
                         <div className="space-y-3">
-                            {/* Change Profile Photo */}
+                            {/* Change Profile Picture */}
                             <button
                                 onClick={() => setPicModalOpen(true)}
-                                className="w-full flex items-center justify-between p-4 glass-card-teacher rounded-2xl transition-all group cursor-pointer"
+                                className="w-full flex items-center justify-between p-4 glass-card-teacher rounded-2xl transition-all cursor-pointer group"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ backgroundColor: 'var(--tt-icon-bg)' }}>
                                         <span className="material-symbols-outlined" style={{ color: accentColor }}>photo_camera</span>
                                     </div>
-                                    <span className="font-medium" style={{ color: 'var(--tt-text-primary)' }}>Change Profile Photo</span>
+                                    <span className="font-medium" style={{ color: 'var(--tt-text-primary)' }}>Change Profile Picture</span>
                                 </div>
                                 <span className="material-symbols-outlined" style={{ color: 'var(--tt-text-muted)' }}>chevron_right</span>
                             </button>

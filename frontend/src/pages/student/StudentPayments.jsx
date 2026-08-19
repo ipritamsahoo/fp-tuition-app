@@ -729,9 +729,6 @@ function StudentPaymentsContent() {
                 <h1 className="text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}>
                     Tuition Payments
                 </h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--st-text-secondary)' }}>
-                    Track fee status, make payments & download receipts
-                </p>
             </div>
 
 

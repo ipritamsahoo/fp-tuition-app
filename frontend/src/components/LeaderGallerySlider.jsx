@@ -430,20 +430,24 @@ export default function LeaderGallerySlider() {
                 e.stopPropagation();
                 handlePrev();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-amber-500/20 hover:bg-amber-500/60 text-amber-500 dark:text-amber-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs border border-amber-500/30 text-lg font-bold cursor-pointer"
+              className="absolute left-1.5 sm:left-3 top-1/2 -translate-y-1/2 z-20 text-amber-500/75 hover:text-amber-500 dark:text-amber-400/75 dark:hover:text-amber-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95 cursor-pointer bg-transparent border-none p-0"
               aria-label="Previous Slide"
             >
-              ‹
+              <span className="material-symbols-outlined select-none" style={{ fontSize: '38px' }}>
+                chevron_left
+              </span>
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleNext();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-amber-500/20 hover:bg-amber-500/60 text-amber-500 dark:text-amber-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs border border-amber-500/30 text-lg font-bold cursor-pointer"
+              className="absolute right-1.5 sm:right-3 top-1/2 -translate-y-1/2 z-20 text-amber-500/75 hover:text-amber-500 dark:text-amber-400/75 dark:hover:text-amber-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95 cursor-pointer bg-transparent border-none p-0"
               aria-label="Next Slide"
             >
-              ›
+              <span className="material-symbols-outlined select-none" style={{ fontSize: '38px' }}>
+                chevron_right
+              </span>
             </button>
           </>
         )}

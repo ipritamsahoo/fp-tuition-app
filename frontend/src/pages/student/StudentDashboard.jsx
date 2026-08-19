@@ -56,7 +56,7 @@ function StudentDashboardContent() {
     }, [navigate]);
 
     return (
-        <div className="space-y-6 pb-6">
+        <div className="space-y-3 sm:space-y-4 pb-6">
 
             {/* ── Top Header Bar (Greetings & Subtitle) ── */}
             <section className="w-full pt-1 sm:pt-2">
@@ -134,11 +134,12 @@ function StudentDashboardContent() {
                     <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-rose-400/10 blur-xl pointer-events-none" />
 
                     <div className="flex items-center justify-between">
-                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-rose-500/15 text-[#f43f5e] shadow-xs">
-                            <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                menu_book
-                            </span>
-                        </div>
+                        <span 
+                            className="material-symbols-outlined text-[#f43f5e]" 
+                            style={{ fontVariationSettings: "'FILL' 1", fontSize: '38px' }}
+                        >
+                            menu_book
+                        </span>
                     </div>
 
                     <div className="flex items-end justify-between gap-1.5 mt-1">
@@ -168,11 +169,12 @@ function StudentDashboardContent() {
                     <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-amber-400/10 blur-xl pointer-events-none" />
 
                     <div className="flex items-center justify-between">
-                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-amber-500/15 text-[#d97706] dark:text-[#f59e0b] shadow-xs">
-                            <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                emoji_events
-                            </span>
-                        </div>
+                        <span 
+                            className="material-symbols-outlined text-[#d97706] dark:text-[#f59e0b]" 
+                            style={{ fontVariationSettings: "'FILL' 1", fontSize: '38px' }}
+                        >
+                            emoji_events
+                        </span>
                     </div>
 
                     <div className="flex items-end justify-between gap-1.5 mt-1">
@@ -302,7 +304,7 @@ function FPScoreGaugeCard() {
     const indY = 100 - radius * Math.sin(currentAngleRad);
 
     return (
-        <section className="mt-5 sm:mt-6">
+        <section className="w-full">
             <div
                 className="rounded-[28px] sm:rounded-[32px] p-5 sm:p-8 relative overflow-hidden border backdrop-blur-2xl transition-all duration-300"
                 style={{

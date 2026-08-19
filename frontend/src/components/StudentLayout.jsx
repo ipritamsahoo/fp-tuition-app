@@ -27,14 +27,14 @@ const studentNav = [
     { label: "Home", href: "/student", icon: "home" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
-    { label: "Notes", href: "/student/notes", icon: "edit_document" },
+    { label: "Notes", href: "/student/notes", icon: "menu_book" },
     { label: "Notices", href: "/student/notices", icon: "campaign" },
 ];
 const studentBottomNav = [
     { label: "Home", href: "/student", icon: "home" },
     { label: "Payments", href: "/student/payments", icon: "payments" },
     { label: "Leaderboard", href: "/student/leaderboard", icon: "emoji_events" },
-    { label: "Notes", href: "/student/notes", icon: "edit_document" },
+    { label: "Notes", href: "/student/notes", icon: "menu_book" },
     { label: "Settings", href: "/student/settings", icon: "settings" },
 ];
 
@@ -696,7 +696,7 @@ function StudentLayoutInner({ children }) {
                             )}
                         </button>
                         <div
-                            className="transition-all cursor-pointer active:scale-95"
+                            className="transition-all cursor-pointer active:scale-95 ml-2.5 sm:ml-3.5"
                             onClick={() => navigate("/student/settings")}
                         >
                             <ProfilePicture size={34} />
@@ -736,7 +736,7 @@ function StudentLayoutInner({ children }) {
                     </button>
                     <div>
                         <h1
-                            className="text-lg font-bold tracking-tight leading-none"
+                            className="font-extrabold text-xl tracking-tight leading-none"
                             style={{ fontFamily: "'Manrope', sans-serif", color: 'var(--st-text-primary)' }}
                         >
                             {getSubPageTitle()}
@@ -982,7 +982,7 @@ function StudentLayoutInner({ children }) {
 
                             {/* Settings List */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1.5">
-                                {/* Change Profile Photo */}
+                                {/* Change Profile Picture */}
                                 <button
                                     onClick={() => setPicUploadOpen(true)}
                                     className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--st-primary)]/30"
@@ -992,7 +992,7 @@ function StudentLayoutInner({ children }) {
                                         <div className="w-8 h-8 flex items-center justify-center rounded-xl" style={{ backgroundColor: isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)' }}>
                                             <span className="material-symbols-outlined text-[18px]" style={{ color: accentColor }}>photo_camera</span>
                                         </div>
-                                        <span className="text-sm font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Photo</span>
+                                        <span className="text-sm font-medium" style={{ color: 'var(--st-text-primary)' }}>Change Profile Picture</span>
                                     </div>
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
@@ -1103,25 +1103,6 @@ function StudentLayoutInner({ children }) {
                                     <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
                                 </button>
 
-                                {/* Check for Updates */}
-                                <button
-                                    onClick={handleCheckUpdate}
-                                    disabled={updateChecking}
-                                    className="w-full flex items-center justify-between p-3 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-[var(--st-primary)]/30 disabled:opacity-50"
-                                    style={{ backgroundColor: 'var(--st-icon-bg)' }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 flex items-center justify-center rounded-xl" style={{ backgroundColor: isLight ? 'rgba(13,148,136,0.1)' : 'rgba(59,130,246,0.1)' }}>
-                                            <span className={updateChecking ? "material-symbols-outlined text-[18px] animate-spin" : "material-symbols-outlined text-[18px]"} style={{ color: accentColor }}>
-                                                {updateChecking ? 'autorenew' : 'system_update'}
-                                            </span>
-                                        </div>
-                                        <span className="text-sm font-medium" style={{ color: 'var(--st-text-primary)' }}>
-                                            {updateChecking ? 'Checking for updates...' : 'Check for Updates'}
-                                        </span>
-                                    </div>
-                                    <span className="material-symbols-outlined text-[18px] text-[#737580] group-hover:translate-x-1 transition-transform">chevron_right</span>
-                                </button>
 
                                 {/* About */}
                                 <button
