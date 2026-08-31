@@ -2548,7 +2548,7 @@ def admin_report_export(
                     return f"{parts[2]}.{parts[1]}.{parts[0]}"
             return raw_s
 
-    # ── Build PDF (Portrait A4) ──
+    # ── Build PDF (Landscape A4 for Collection & Distribution, Portrait A4 for Student Payments) ──
     class PDFReport(FPDF):
         def __init__(self, report_type, **kwargs):
             super().__init__(**kwargs)
@@ -2564,39 +2564,26 @@ def admin_report_export(
                 msg = "This is a computer-generated report of student payments."
             self.cell(0, 4.5, msg, align="C", new_x="LMARGIN", new_y="NEXT")
 
-            # Draw copyright line: larger © symbol (size 9.5 bold, offset down) + text (size 8.5)
+            # Draw copyright line perfectly aligned
             current_year = datetime.now().year
-            copy_text = f" {current_year} FP Finance. All rights reserved."
-            self.set_font("Helvetica", "B", 9.5)
-            w_sym = self.get_string_width("\xa9")
             self.set_font("Helvetica", "I", 8.5)
-            w_txt = self.get_string_width(copy_text)
-            total_w = w_sym + w_txt
-            start_x = (210 - total_w) / 2
-            curr_y = self.get_y()
-
-            # Render symbol shifted slightly down (+0.4mm) for vertical baseline alignment
-            self.set_xy(start_x, curr_y + 0.4)
-            self.set_font("Helvetica", "B", 9.5)
-            self.cell(w_sym, 4.5, "\xa9", align="L")
-
-            # Render text on exact line
-            self.set_xy(start_x + w_sym, curr_y)
-            self.set_font("Helvetica", "I", 8.5)
-            self.cell(w_txt, 4.5, copy_text, align="L")
+            self.cell(0, 4.5, f"\xa9 {current_year} FP Finance. All rights reserved.", align="C", new_x="LMARGIN", new_y="NEXT")
             
             # Page number at bottom right corner
             self.set_y(-13)
             self.set_font("Helvetica", "I", 8.5)
             self.cell(0, 4.5, f"Page {self.page_no()} of {{nb}}", align="R")
 
-    pdf = PDFReport(report_type=report_type, orientation="P")
+    orientation = "L" if report_type == "teacher" else "P"
+    pdf = PDFReport(report_type=report_type, orientation=orientation)
     pdf.alias_nb_pages()
     pdf.set_auto_page_break(auto=True, margin=20)
 
-    PAGE_W = 210
+    PAGE_W = pdf.w
+    PAGE_H = pdf.h
     MARGIN = 10
     USABLE_W = PAGE_W - 2 * MARGIN
+    PAGE_BREAK_Y = PAGE_H - 30
 
     for month_num in month_list:
         month_label = MONTHS_FULL[month_num - 1] if 1 <= month_num <= 12 else str(month_num)
@@ -2703,7 +2690,7 @@ def admin_report_export(
 
             if payments:
                 for idx, p in enumerate(payments):
-                    if pdf.get_y() > 265:
+                    if pdf.get_y() > PAGE_BREAK_Y:
                         pdf.add_page()
                         # Redraw table 1 header on new page
                         pdf.set_font("Helvetica", "B", 9)
@@ -2760,7 +2747,7 @@ def admin_report_export(
             pdf.cell(0, 8, "Collections", new_x="LMARGIN", new_y="NEXT")
             pdf.ln(1)
 
-            t3_cols = [30, 50, 35, 35, 40]  # = 190
+            t3_cols = [35, 82, 70, 45, 45]  # = 277 (fills USABLE_W in Landscape)
             t3_headers = ["Date", "Student Name", "Billing Cycle", "Amount", "Total"]
 
             pdf.set_font("Helvetica", "B", 9)
@@ -2822,7 +2809,7 @@ def admin_report_export(
                         group_height += lines * 6
 
                     # Page break check — if the group won't fit, start a new page
-                    if pdf.get_y() + group_height > 265:
+                    if pdf.get_y() + group_height > PAGE_BREAK_Y:
                         pdf.add_page()
                         pdf.set_font("Helvetica", "B", 9)
                         pdf.set_fill_color(50, 50, 70)
@@ -2862,8 +2849,8 @@ def admin_report_export(
                         student_name = safe_str(p.get("student_name", "-"))
 
                         # Full student name without artificial padding/truncation
-                        if len(student_name) > 32:
-                            student_name = student_name[:30] + ".."
+                        if len(student_name) > 40:
+                            student_name = student_name[:38] + ".."
 
                         # Draw Student Name (height = student_row_h)
                         pdf.set_font("Helvetica", "", 8)
@@ -2925,7 +2912,7 @@ def admin_report_export(
             # ═══════════════════════════════════════
 
             # Check if we need a new page for distribution
-            if pdf.get_y() > 220:
+            if pdf.get_y() > PAGE_H - 55:
                 pdf.add_page()
 
             pdf.set_font("Helvetica", "B", 11)
@@ -2972,36 +2959,45 @@ def admin_report_export(
                     pdf.ln()
                 else:
                     # Date column + teacher columns + total column
-                    date_col_w = 30
-                    total_col_w = 28
+                    date_col_w = 35
+                    total_col_w = 35
                     remaining = USABLE_W - date_col_w - total_col_w
-                    teacher_col_w = max(25, remaining / teacher_count) if teacher_count > 0 else remaining
-
-                    # If too many teachers, reduce all columns proportionally
-                    actual_total_w = date_col_w + (teacher_col_w * teacher_count) + total_col_w
-                    if actual_total_w > USABLE_W:
-                        teacher_col_w = (USABLE_W - date_col_w - total_col_w) / teacher_count
+                    teacher_col_w = remaining / teacher_count if teacher_count > 0 else remaining
 
                     t4_cols = [date_col_w] + [teacher_col_w] * teacher_count + [total_col_w]
-                    t4_headers = ["Date"] + [safe_str(teacher_map.get(tid, "?")) for tid in teacher_ids] + ["Total"]
 
-                    # Truncate long teacher names for header
-                    t4_display_headers = []
-                    for h in t4_headers:
-                        max_chars = int(teacher_col_w / 2.2)
-                        if len(h) > max_chars and h not in ("Date", "Total"):
-                            t4_display_headers.append(h[:max_chars-1] + ".")
-                        else:
-                            t4_display_headers.append(h)
+                    def draw_distribution_header():
+                        pdf.set_fill_color(50, 50, 70)
+                        pdf.set_text_color(255, 255, 255)
 
-                    pdf.set_font("Helvetica", "B", 7 if teacher_count > 3 else 8)
-                    pdf.set_fill_color(50, 50, 70)
-                    pdf.set_text_color(255, 255, 255)
-                    for i, h in enumerate(t4_display_headers):
-                        pdf.cell(t4_cols[i], 7, h, border=1, fill=True, align="C")
-                    pdf.ln()
+                        # 1. Date header (Font size 9, bold - same as Collection table)
+                        pdf.set_font("Helvetica", "B", 9)
+                        pdf.cell(t4_cols[0], 7, "Date", border=1, fill=True, align="C")
 
-                    pdf.set_font("Helvetica", "", 7 if teacher_count > 3 else 8)
+                        # 2. Teacher headers (Fixed 7.5 font size, utilizes full column width; no dot if fits completely)
+                        pdf.set_font("Helvetica", "B", 7.5)
+                        for i, tid in enumerate(teacher_ids):
+                            col_w = t4_cols[1 + i]
+                            name = safe_str(teacher_map.get(tid, "?")).strip()
+                            avail_w = col_w - 1.0
+
+                            display_name = name
+                            # Only truncate and add dot if the full name does NOT fit in available width
+                            if pdf.get_string_width(display_name) > avail_w:
+                                while len(display_name) > 1 and pdf.get_string_width(display_name.rstrip() + ".") > avail_w:
+                                    display_name = display_name[:-1]
+                                display_name = display_name.rstrip() + "."
+
+                            pdf.cell(col_w, 7, display_name, border=1, fill=True, align="C")
+
+                        # 3. Total header (Font size 9, bold - same as Collection table)
+                        pdf.set_font("Helvetica", "B", 9)
+                        pdf.cell(t4_cols[-1], 7, "Total", border=1, fill=True, align="C")
+                        pdf.ln()
+
+                    draw_distribution_header()
+
+                    pdf.set_font("Helvetica", "", 8)
                     pdf.set_text_color(30, 30, 30)
 
                     # Track teacher totals
@@ -3009,15 +3005,10 @@ def admin_report_export(
                     grand_total = 0
 
                     for d_idx, date_str in enumerate(settled_sorted_dates):
-                        if pdf.get_y() > 265:
+                        if pdf.get_y() > PAGE_BREAK_Y:
                             pdf.add_page()
-                            pdf.set_font("Helvetica", "B", 7 if teacher_count > 3 else 8)
-                            pdf.set_fill_color(50, 50, 70)
-                            pdf.set_text_color(255, 255, 255)
-                            for i, h in enumerate(t4_display_headers):
-                                pdf.cell(t4_cols[i], 7, h, border=1, fill=True, align="C")
-                            pdf.ln()
-                            pdf.set_font("Helvetica", "", 7 if teacher_count > 3 else 8)
+                            draw_distribution_header()
+                            pdf.set_font("Helvetica", "", 8)
                             pdf.set_text_color(30, 30, 30)
 
                         bg = (d_idx % 2 == 0)
@@ -3051,8 +3042,8 @@ def admin_report_export(
                             pdf.cell(t4_cols[i], 6, val, border=1, fill=True, align="C")
                         pdf.ln()
 
-                    # Total row
-                    pdf.set_font("Helvetica", "B", 7 if teacher_count > 3 else 8)
+                    # Total row (Font size 8, bold - same as Collection table)
+                    pdf.set_font("Helvetica", "B", 8)
                     pdf.set_fill_color(230, 230, 240)
                     pdf.cell(t4_cols[0], 7, "Grand Total", border=1, fill=True, align="C")
                     for tid in teacher_ids:
