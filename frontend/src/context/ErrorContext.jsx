@@ -16,6 +16,8 @@ export const useError = () => {
  */
 export const ERROR_TYPES = {
     NETWORK_ERROR: "NETWORK_ERROR",
+    OFFLINE_ERROR: "OFFLINE_ERROR",
+    SERVER_UNAVAILABLE: "SERVER_UNAVAILABLE",
     AUTH_ERROR: "AUTH_ERROR",
     SERVER_ERROR: "SERVER_ERROR",
     VALIDATION_ERROR: "VALIDATION_ERROR",
@@ -26,10 +28,20 @@ export const ERROR_TYPES = {
  * Error mapping for user-friendly messages
  */
 const ERROR_MAPPINGS = {
-    [ERROR_TYPES.NETWORK_ERROR]: {
-        title: "Connection Lost",
-        message: "We're having trouble reaching our servers. Please check your internet connection.",
+    [ERROR_TYPES.OFFLINE_ERROR]: {
+        title: "You're Offline",
+        message: "Please check your network connection and try again.",
         icon: "wifi_off",
+    },
+    [ERROR_TYPES.SERVER_UNAVAILABLE]: {
+        title: "Server Unavailable",
+        message: "We're having trouble reaching our servers. Please try again in a few moments.",
+        icon: "cloud_off",
+    },
+    [ERROR_TYPES.NETWORK_ERROR]: {
+        title: "Server Unavailable",
+        message: "We're having trouble reaching our servers. Please try again in a few moments.",
+        icon: "cloud_off",
     },
     [ERROR_TYPES.AUTH_ERROR]: {
         title: "Session Expired",

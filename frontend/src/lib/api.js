@@ -43,21 +43,24 @@ export async function apiFetch(endpoint, options = {}) {
             await new Promise(resolve => setTimeout(resolve, 1500));
             res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
         } catch (retryErr) {
-            if (globalErrorHandler) globalErrorHandler("NETWORK_ERROR");
-            throw new Error("NETWORK_ERROR");
+            const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+            const errType = isOffline ? "OFFLINE_ERROR" : "SERVER_UNAVAILABLE";
+            if (globalErrorHandler) globalErrorHandler(errType);
+            throw new Error(errType);
         }
     }
 
     if (!res.ok) {
         let errorType = "SERVER_ERROR";
         if (res.status === 401 || res.status === 403) errorType = "AUTH_ERROR";
-        if (res.status === 400 || res.status === 422) errorType = "VALIDATION_ERROR";
+        else if (res.status === 400 || res.status === 422) errorType = "VALIDATION_ERROR";
+        else if (res.status === 502 || res.status === 503 || res.status === 504) errorType = "SERVER_UNAVAILABLE";
         
         const errData = await res.json().catch(() => ({ detail: "Request failed" }));
         const errorMessage = errData.detail || `HTTP ${res.status}`;
 
         if (globalErrorHandler) {
-            // Only trigger global modal for systemic failures (401, 500, etc.)
+            // Only trigger global modal for systemic failures (401, 500, 502/503, etc.)
             // Validation errors (400, 422) are often better handled inline
             if (errorType !== "VALIDATION_ERROR") {
                 globalErrorHandler(errorType, { message: errorMessage });
@@ -75,7 +78,7 @@ export async function apiFetch(endpoint, options = {}) {
  * handled by the GlobalErrorModal (Network, Auth, Server 500).
  */
 export function isSystemicError(errorMsg) {
-    const systemic = ["NETWORK_ERROR", "AUTH_ERROR", "SERVER_ERROR"];
+    const systemic = ["NETWORK_ERROR", "OFFLINE_ERROR", "SERVER_UNAVAILABLE", "AUTH_ERROR", "SERVER_ERROR"];
     return systemic.includes(errorMsg);
 }
 
@@ -135,7 +138,10 @@ export const api = {
                         
                         const isValidationError = xhr.status === 400 || xhr.status === 422;
                         if (globalErrorHandler && !isValidationError) {
-                            const errType = (xhr.status === 401 || xhr.status === 403) ? "AUTH_ERROR" : "SERVER_ERROR";
+                            let errType = "SERVER_ERROR";
+                            if (xhr.status === 401 || xhr.status === 403) errType = "AUTH_ERROR";
+                            else if (xhr.status === 502 || xhr.status === 503 || xhr.status === 504) errType = "SERVER_UNAVAILABLE";
+
                             globalErrorHandler(errType, { message: errorMessage });
                         }
                         
@@ -144,8 +150,10 @@ export const api = {
                 };
 
                 xhr.onerror = () => {
-                    if (globalErrorHandler) globalErrorHandler("NETWORK_ERROR");
-                    reject(new Error("NETWORK_ERROR"));
+                    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+                    const errType = isOffline ? "OFFLINE_ERROR" : "SERVER_UNAVAILABLE";
+                    if (globalErrorHandler) globalErrorHandler(errType);
+                    reject(new Error(errType));
                 };
 
                 xhr.send(formData);

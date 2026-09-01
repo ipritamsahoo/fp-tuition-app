@@ -1600,19 +1600,22 @@ def admin_generate_monthly(req: GenerateMonthly, user=Depends(require_role("admi
             skipped += 1
             continue
 
-        # Determine fee using hierarchy: custom_fee → batch_fee → fallback
+        # ── Step 1: Resolve batch name (always, regardless of fee type) ──
         student_custom_fee = student.get("custom_fee")
         student_batch_id = student.get("batch_id", "")
         batch_name_val = "Unknown"
-        if student_custom_fee is not None:
-            final_amount = student_custom_fee
-        elif student_batch_id:
+        if student_batch_id:
             if student_batch_id not in batch_cache:
                 batch_doc = db.collection("batches").document(student_batch_id).get()
                 batch_cache[student_batch_id] = batch_doc.to_dict() if batch_doc.exists else {}
             b_data = batch_cache[student_batch_id]
-            batch_fee = b_data.get("batch_fee")
             batch_name_val = b_data.get("batch_name", "Unknown")
+
+        # ── Step 2: Determine fee — custom_fee → batch_fee → fallback ──
+        if student_custom_fee is not None:
+            final_amount = student_custom_fee
+        elif student_batch_id:
+            batch_fee = batch_cache.get(student_batch_id, {}).get("batch_fee")
             final_amount = batch_fee if batch_fee is not None else fallback_amount
         else:
             final_amount = fallback_amount
